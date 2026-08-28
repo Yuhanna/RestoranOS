@@ -1,0 +1,62 @@
+@model RestaurantOS.Web.Models.RegisterViewModel
+@{
+    ViewData["Title"] = "Hesap oluştur";
+}
+
+<section class="auth-card auth-card-wide">
+    <p class="eyebrow">HIZLI KURULUM</p>
+    <h1>Restoran hesabı açın</h1>
+    <p class="lede">Square ve benzeri ürünlerde olduğu gibi: önce hesap, sonra restoran ve şube — dakikalar içinde ilk QR’a hazır.</p>
+
+    <ol class="setup-steps" aria-label="Kurulum adımları">
+        <li class="is-current">Hesap</li>
+        <li>Masa &amp; QR</li>
+        <li>Menü</li>
+        <li>İlk sipariş</li>
+    </ol>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert" role="alert">@Model.ErrorMessage</div>
+    }
+
+    <form asp-action="Register" method="post" class="stack" autocomplete="on">
+        @Html.AntiForgeryToken()
+        <label>
+            Restoran adı
+            <input asp-for="RestaurantName" placeholder="Örn. Marea Nişantaşı" autocomplete="organization" />
+            <span asp-validation-for="RestaurantName" class="field-error"></span>
+        </label>
+        <label>
+            Şube adı
+            <input asp-for="BranchName" placeholder="Ana şube" />
+            <span asp-validation-for="BranchName" class="field-error"></span>
+        </label>
+        <label>
+            İş e-postası
+            <input asp-for="Email" autocomplete="username" inputmode="email" />
+            <span asp-validation-for="Email" class="field-error"></span>
+        </label>
+        <label>
+            Parola
+            <input asp-for="Password" autocomplete="new-password" />
+            <span asp-validation-for="Password" class="field-error"></span>
+        </label>
+        <label>
+            Parola tekrar
+            <input asp-for="ConfirmPassword" autocomplete="new-password" />
+            <span asp-validation-for="ConfirmPassword" class="field-error"></span>
+        </label>
+        <p class="muted soft">Parola en az 12 karakter. Ödeme / KYC doğrulaması sonraki sürümde eklenir.</p>
+        <button type="submit" class="btn">Hesabı oluştur ve başla</button>
+    </form>
+
+    <p class="auth-switch">
+        Zaten hesabınız var mı?
+        <a asp-action="Login">Giriş yapın</a>
+    </p>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

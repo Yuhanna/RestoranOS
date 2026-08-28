@@ -1,0 +1,5 @@
+root = false
+
+[*.cs]
+# EF Core generates inline column arrays for indexes and foreign keys.
+dotnet_diagnostic.CA1861.severity = none

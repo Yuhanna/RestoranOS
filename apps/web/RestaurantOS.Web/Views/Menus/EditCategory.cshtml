@@ -1,0 +1,29 @@
+@model RestaurantOS.Web.Models.EditCategoryViewModel
+@{
+    ViewData["Title"] = "Kategori düzenle";
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Menü</p>
+        <h1>Kategori düzenle</h1>
+    </div>
+    <a class="btn btn-ghost" asp-action="Details" asp-route-id="@Model.MenuId">Geri</a>
+</div>
+
+<div asp-validation-summary="All" class="alert"></div>
+
+<form asp-action="EditCategory" method="post" class="stack auth-card">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="MenuId" />
+    <label>
+        Kategori adı
+        <input asp-for="Name" />
+    </label>
+    <label>
+        Sıra
+        <input asp-for="SortOrder" />
+    </label>
+    <button type="submit" class="btn">Kaydet</button>
+</form>

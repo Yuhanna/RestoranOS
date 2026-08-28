@@ -1,0 +1,44 @@
+@model RestaurantOS.Web.Models.ChangeOrderStatusViewModel
+@{
+    ViewData["Title"] = "Sipariş durumu";
+    var currentEta = Model.CurrentEstimatedReadyAtUtc?.ToLocalTime().ToString("HH:mm") ?? "—";
+}
+
+<h1>Durum güncelle · @Model.DisplayNumber</h1>
+<p class="muted">Mevcut durum: @Model.CurrentStatus</p>
+<p class="muted">İleri adımlara atlayabilirsiniz; atlanan adımlar tamamlanmış sayılır.</p>
+
+<div asp-validation-summary="All" class="alert"></div>
+
+<form asp-action="ChangeStatus" method="post" class="stack">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="OrderId" />
+    <input type="hidden" asp-for="DisplayNumber" />
+    <input type="hidden" asp-for="CurrentStatus" />
+    <input type="hidden" asp-for="ExpectedStatusChangedAtUtc" />
+    <label>
+        Yeni durum
+        <select asp-for="Status">
+            <option value="accepted">Onaylandı</option>
+            <option value="preparing">Hazırlanıyor</option>
+            <option value="ready">Hazır / pasa çıktı</option>
+            <option value="completed">Tamamlandı</option>
+            <option value="cancelled">İptal</option>
+        </select>
+    </label>
+    <label>
+        Tahmini hazır (isteğe bağlı)
+        <input asp-for="EstimatedReadyInput"
+               inputmode="numeric"
+               autocomplete="off"
+               placeholder="örn. 15 veya 09:23"
+               maxlength="8" />
+    </label>
+    <p class="muted">
+        Dakika yazın (<strong>15</strong> = 15 dk sonra) veya saat yazın (<strong>9:23</strong> / <strong>09:23</strong>).
+        Saat geçmişse ertesi güne alınır. Boş bırakırsanız mevcut ETA korunur (Hazır/Tamamlandı’da şu an).
+        Mevcut ETA: @currentEta
+    </p>
+    <button type="submit" class="btn">Kaydet</button>
+    <a asp-action="Index">İptal</a>
+</form>

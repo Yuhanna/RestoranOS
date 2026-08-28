@@ -1,0 +1,52 @@
+﻿@using RestaurantOS.Web.Data
+@inject IWebApiExecuter Api
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] ?? "Operasyon") · Restaurant OS</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" asp-controller="Home" asp-action="Index">Restaurant OS</a>
+        @if (Api.IsAuthenticated)
+        {
+            <nav aria-label="Ana menü">
+                <a asp-controller="Orders" asp-action="Index">Siparişler</a>
+                <a asp-controller="Tables" asp-action="Index">Masalar</a>
+                <a asp-controller="Menus" asp-action="Index">Menüler</a>
+            </nav>
+            @if (!string.IsNullOrWhiteSpace(Api.CurrentRestaurantName))
+            {
+                <span class="scope-chip" title="Yalnızca bu restoran ve şube verisi görünür">
+                    @Api.CurrentRestaurantName · @(Api.CurrentBranchName ?? "Şube")
+                    @if (ViewData["PlanDisplayName"] is string plan && !string.IsNullOrWhiteSpace(plan))
+                    {
+                        <text> · @plan</text>
+                    }
+                </span>
+            }
+            <form asp-controller="Account" asp-action="Logout" method="post" class="inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="linkish">Çıkış yap</button>
+            </form>
+        }
+        else
+        {
+            <nav aria-label="Hesap">
+                <a asp-controller="Account" asp-action="Register">Hesap oluştur</a>
+                <a asp-controller="Account" asp-action="Login" class="nav-cta">Giriş yap</a>
+            </nav>
+        }
+    </header>
+    <main class="page">
+        @RenderBody()
+    </main>
+    <footer class="footer">
+        <span>RESTAURANT OS · YÖNETİM</span>
+    </footer>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

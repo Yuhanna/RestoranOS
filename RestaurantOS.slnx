@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/apps/" />
+  <Folder Name="/apps/api/" />
+  <Folder Name="/apps/api/src/">
+    <Project Path="apps/api/src/RestaurantOS.Api/RestaurantOS.Api.csproj" />
+    <Project Path="apps/api/src/RestaurantOS.Application/RestaurantOS.Application.csproj" />
+    <Project Path="apps/api/src/RestaurantOS.Domain/RestaurantOS.Domain.csproj" />
+    <Project Path="apps/api/src/RestaurantOS.Infrastructure/RestaurantOS.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/apps/api/tests/">
+    <Project Path="apps/api/tests/RestaurantOS.Api.Tests/RestaurantOS.Api.Tests.csproj" />
+  </Folder>
+  <Folder Name="/apps/web/">
+    <Project Path="apps/web/RestaurantOS.Web/RestaurantOS.Web.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,29 @@
+@model RestaurantOS.Web.Models.QrPrintViewModel
+@{
+    ViewData["Title"] = "QR yazdır";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <title>@Model.TableLabel — QR</title>
+    <style>
+        body { font-family: Georgia, serif; margin: 2rem; text-align: center; color: #111; }
+        .sub { color: #555; margin: 0 0 0.4rem; font-size: 0.95rem; }
+        h1 { font-size: 2.4rem; margin: 0 0 1.25rem; letter-spacing: 0.02em; }
+        .svg { margin: 0.5rem auto 1.25rem; max-width: 280px; }
+        .svg svg { width: 100%; height: auto; }
+        a { color: #1a1a1a; word-break: break-all; font-size: 0.85rem; }
+        @@media print { .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <p class="no-print"><button onclick="window.print()">Yazdır</button> · <a href="@Url.Action("Index")">Geri</a></p>
+    <p class="sub">Masaya özel sipariş QR kodu</p>
+    <h1>@(string.IsNullOrWhiteSpace(Model.TableLabel) ? "Masa" : Model.TableLabel)</h1>
+    <div class="svg">@Html.Raw(Model.SvgMarkup)</div>
+    <p class="no-print muted">Durum: @Model.Status</p>
+    <p class="no-print"><a href="@Model.EntryUrl">@Model.EntryUrl</a></p>
+</body>
+</html>

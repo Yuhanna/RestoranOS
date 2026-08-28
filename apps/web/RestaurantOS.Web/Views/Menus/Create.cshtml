@@ -1,0 +1,16 @@
+@model RestaurantOS.Web.Models.CreateMenuViewModel
+@{
+    ViewData["Title"] = "Yeni menü";
+}
+
+<h1>Yeni menü</h1>
+<div asp-validation-summary="All" class="alert"></div>
+<form asp-action="Create" method="post" class="stack">
+    @Html.AntiForgeryToken()
+    <label>
+        Menü adı
+        <input asp-for="Name" />
+    </label>
+    <button type="submit" class="btn">Kaydet</button>
+    <a asp-action="Index">İptal</a>
+</form>

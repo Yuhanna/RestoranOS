@@ -1,0 +1,90 @@
+@model RestaurantOS.Web.Models.SetupChecklistViewModel?
+@{
+    ViewData["Title"] = "Ana sayfa";
+}
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert success" role="status">@message</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert" role="alert">@error</div>
+}
+
+@if (Model is null)
+{
+    <section class="hero">
+        <p class="eyebrow">RESTAURANT OS</p>
+        <h1>QR ile masadan sipariş</h1>
+        <p class="lede">Önce restoran hesabınızı açın; masa, menü ve QR’ı checklist ile dakikalar içinde canlıya alın.</p>
+        <p class="actions">
+            <a class="btn" asp-controller="Account" asp-action="Register">Hesap oluştur</a>
+            <a class="btn btn-ghost" asp-controller="Account" asp-action="Login">Giriş yap</a>
+        </p>
+    </section>
+}
+else
+{
+    <section class="hero">
+        <p class="eyebrow">KURULUM · @Model.PlanDisplayName</p>
+        <h1>Canlıya alma checklist’i</h1>
+        <p class="lede">
+            @if (!string.IsNullOrWhiteSpace(Model.RestaurantName))
+            {
+                <text>@Model.RestaurantName · @Model.BranchName — yalnızca bu şubenin verisi görünür. </text>
+            }
+            @Model.CompletedSteps / 4 adım tamam.
+        </p>
+        @if (Model.IsTrial && Model.TrialEndsAtUtc is DateTimeOffset trialEnd)
+        {
+            <p class="muted">Pro denemeniz @trialEnd.ToLocalTime().ToString("d") tarihine kadar açık. Süre bitince Free (8 masa) ile devam edersiniz.</p>
+        }
+    </section>
+
+    <ol class="checklist">
+        <li class="@(Model.HasTables ? "is-done" : null)">
+            <div>
+                <strong>1. Masa ekleyin</strong>
+                <p class="muted">En az bir masa tanımlayın.</p>
+            </div>
+            <a class="btn @(Model.HasTables ? "btn-ghost" : null)" asp-controller="Tables" asp-action="Create">@(Model.HasTables ? "Masalar" : "Masa ekle")</a>
+        </li>
+        <li class="@(Model.HasQr ? "is-done" : null)">
+            <div>
+                <strong>2. QR üretin</strong>
+                <p class="muted">Masalar sayfasından QR oluşturup yazdırın.</p>
+            </div>
+            <a class="btn @(Model.HasQr ? "btn-ghost" : null)" asp-controller="Tables" asp-action="Index">QR’lara git</a>
+        </li>
+        <li class="@(Model.HasMenu ? "is-done" : null)">
+            <div>
+                <strong>3. Menü ve ürün ekleyin</strong>
+                <p class="muted">Kategori, ürün, fiyat ve fotoğraf.</p>
+            </div>
+            <a class="btn @(Model.HasMenu ? "btn-ghost" : null)" asp-controller="Menus" asp-action="@(Model.HasMenu ? "Index" : "Create")">@(Model.HasMenu ? "Menüler" : "Menü oluştur")</a>
+        </li>
+        <li class="@(Model.HasPublishedMenu ? "is-done" : null)">
+            <div>
+                <strong>4. Menüyü yayınlayın</strong>
+                <p class="muted">Yayınlanan menü müşteri QR oturumunda görünür.</p>
+            </div>
+            <a class="btn @(Model.HasPublishedMenu ? "btn-ghost" : null)" asp-controller="Menus" asp-action="Index">Yayınla</a>
+        </li>
+    </ol>
+
+    @if (Model.ReadyForGuests)
+    {
+        <div class="alert success" role="status">Şube müşteri siparişine hazır. Siparişleri canlı izleyin.</div>
+        <p class="actions">
+            @if (Model.CanUseLiveOrderPanel)
+            {
+                <a class="btn" asp-controller="Orders" asp-action="Index">Siparişler</a>
+            }
+            else
+            {
+                <span class="muted">Canlı sipariş paneli Pro planda açılır.</span>
+            }
+        </p>
+    }
+}

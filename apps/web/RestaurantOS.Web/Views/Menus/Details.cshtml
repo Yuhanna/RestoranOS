@@ -1,0 +1,238 @@
+@model RestaurantOS.Web.Models.MenuEditorViewModel
+@{
+    ViewData["Title"] = Model.Menu.Name;
+    var menu = Model.Menu;
+    var lifecycleLabel = menu.Lifecycle?.ToLowerInvariant() switch
+    {
+        "published" => "Yayında",
+        "archived" => "Arşiv",
+        _ => "Taslak"
+    };
+    var lifecycleClass = menu.Lifecycle?.ToLowerInvariant() switch
+    {
+        "published" => "badge-ok",
+        "archived" => "badge-muted",
+        _ => "badge-warn"
+    };
+    var canEdit = !string.Equals(menu.Lifecycle, "archived", StringComparison.OrdinalIgnoreCase);
+    var categories = menu.Categories.OrderBy(c => c.SortOrder).ToList();
+    var itemsByCategory = menu.Items
+        .GroupBy(i => i.CategoryId)
+        .ToDictionary(g => g.Key, g => g.OrderBy(i => i.SortOrder).ToList());
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Menü editörü</p>
+        <h1>@menu.Name</h1>
+        <p class="meta-row">
+            <span class="badge @lifecycleClass">@lifecycleLabel</span>
+            <span class="muted">@categories.Count kategori · @menu.Items.Count ürün</span>
+        </p>
+    </div>
+    <div class="actions">
+        @if (canEdit && !string.Equals(menu.Lifecycle, "published", StringComparison.OrdinalIgnoreCase))
+        {
+            <form asp-action="Publish" asp-route-id="@menu.Id" method="post" class="inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn" @(categories.Count == 0 || menu.Items.Count == 0 ? "disabled" : null)>Yayınla</button>
+            </form>
+        }
+        @if (canEdit && string.Equals(menu.Lifecycle, "published", StringComparison.OrdinalIgnoreCase))
+        {
+            <form asp-action="Unpublish" asp-route-id="@menu.Id" method="post" class="inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-ghost">Yayından al</button>
+            </form>
+        }
+        @if (canEdit)
+        {
+            <form asp-action="Archive" asp-route-id="@menu.Id" method="post" class="inline" onsubmit="return confirm('Menü arşivlensin mi?');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-ghost">Arşivle</button>
+            </form>
+        }
+        <a class="btn btn-ghost" asp-action="Index">Listeye dön</a>
+    </div>
+</div>
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert success" role="status">@message</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert" role="alert">@error</div>
+}
+
+@if (canEdit)
+{
+    <section class="panel">
+        <div class="panel-head">
+            <h2>Kategori ekle</h2>
+            <p class="muted">Önce kategori oluşturun; ürünler kategorilere bağlanır.</p>
+        </div>
+        <form asp-action="AddCategory" method="post" class="form-grid">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="NewCategory.MenuId" />
+            <label>
+                Kategori adı
+                <input asp-for="NewCategory.Name" placeholder="Örn. Izgaralar" autocomplete="off" />
+            </label>
+            <label class="narrow">
+                Sıra
+                <input asp-for="NewCategory.SortOrder" />
+            </label>
+            <div class="form-actions">
+                <button type="submit" class="btn">Kategori ekle</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel @(categories.Count == 0 ? "panel-disabled" : null)">
+        <div class="panel-head">
+            <h2>Ürün ekle</h2>
+            <p class="muted">Fiyat TL; fotoğraf dosyası (JPG/PNG/WebP, max 2 MB) veya URL.</p>
+        </div>
+        @if (categories.Count == 0)
+        {
+            <p class="muted">Ürün eklemek için önce en az bir kategori oluşturun.</p>
+        }
+        else
+        {
+            <form asp-action="AddItem" method="post" enctype="multipart/form-data" class="form-grid form-grid-wide">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="NewItem.MenuId" />
+                <label>
+                    Kategori
+                    <select asp-for="NewItem.CategoryId">
+                        @foreach (var category in categories)
+                        {
+                            <option value="@category.Id">@category.Name</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    Ürün adı
+                    <input asp-for="NewItem.Name" placeholder="Örn. Izgara levrek" autocomplete="off" />
+                </label>
+                <label class="span-2">
+                    Açıklama
+                    <input asp-for="NewItem.Description" placeholder="Kısa açıklama (isteğe bağlı)" />
+                </label>
+                <label class="narrow">
+                    Fiyat (₺)
+                    <input asp-for="NewItem.PriceTry" inputmode="decimal" placeholder="0,00" />
+                </label>
+                <label class="narrow">
+                    Sıra
+                    <input asp-for="NewItem.SortOrder" />
+                </label>
+                <label class="narrow">
+                    Hazırlama (dk)
+                    <input asp-for="NewItem.PrepMinutes" inputmode="numeric" placeholder="ör. 12" />
+                </label>
+                <label class="narrow">
+                    Hazırlama (sn)
+                    <input asp-for="NewItem.PrepSeconds" inputmode="numeric" placeholder="0–59" />
+                </label>
+                <p class="muted span-2">Hazırlama süresi isteğe bağlıdır. Boş bırakılırsa siparişlerde varsayılan süre kullanılır.</p>
+                @if (ViewData["CanUseProductImages"] as bool? == true)
+                {
+                    <label class="span-2">
+                        Fotoğraf dosyası
+                        <input asp-for="NewItem.Photo" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
+                    </label>
+                    <label>
+                        Fotoğraf URL (isteğe bağlı)
+                        <input asp-for="NewItem.ImageUrl" placeholder="https://…" />
+                    </label>
+                    <label>
+                        Alt metin
+                        <input asp-for="NewItem.ImageAlt" placeholder="Ürün görseli" />
+                    </label>
+                }
+                else
+                {
+                    <p class="muted span-2">Ürün fotoğrafı @((ViewData["PlanDisplayName"] as string) ?? "Free") planda kapalıdır. Pro ile açılır.</p>
+                }
+                <label class="check">
+                    <input asp-for="NewItem.IsAvailable" />
+                    Satışa açık
+                </label>
+                <div class="form-actions span-2">
+                    <button type="submit" class="btn">Ürün ekle</button>
+                </div>
+            </form>
+        }
+    </section>
+}
+
+<section class="menu-board">
+    @if (categories.Count == 0)
+    {
+        <div class="empty-state">
+            <p class="eyebrow">Boş menü</p>
+            <h2>Henüz kategori yok</h2>
+            <p class="muted">Kategori ve ürün ekledikten sonra menüyü yayınlayabilirsiniz.</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var category in categories)
+        {
+            var items = itemsByCategory.GetValueOrDefault(category.Id) ?? [];
+            <div class="category-block">
+                <div class="category-head">
+                    <h2>@category.Name</h2>
+                    <span class="muted">@items.Count ürün</span>
+                    @if (canEdit)
+                    {
+                        <a class="linkish" asp-action="EditCategory" asp-route-id="@category.Id" asp-route-menuId="@menu.Id">Düzenle</a>
+                    }
+                </div>
+                @if (items.Count == 0)
+                {
+                    <p class="muted soft">Bu kategoride ürün yok.</p>
+                }
+                else
+                {
+                    <div class="item-grid">
+                        @foreach (var item in items)
+                        {
+                            <article class="item-card">
+                                @if (!string.IsNullOrWhiteSpace(item.DisplayImageUrl))
+                                {
+                                    <div class="item-photo">
+                                        <img src="@item.DisplayImageUrl" alt="@(string.IsNullOrWhiteSpace(item.ImageAlt) ? item.Name : item.ImageAlt)" />
+                                    </div>
+                                }
+                                <div class="item-card-top">
+                                    <h3>@item.Name</h3>
+                                    <span class="price">₺@((item.AmountMinor / 100m).ToString("N2"))</span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(item.Description))
+                                {
+                                    <p class="item-desc">@item.Description</p>
+                                }
+                                <div class="item-meta">
+                                    <span class="badge @(item.IsAvailable ? "badge-ok" : "badge-muted")">
+                                        @(item.IsAvailable ? "Satışta" : "Kapalı")
+                                    </span>
+                                    @if (item.PrepTimeSeconds is int prep && prep > 0)
+                                    {
+                                        <span class="muted">~@(prep >= 60 ? $"{prep / 60} dk" : $"{prep} sn")</span>
+                                    }
+                                    @if (canEdit)
+                                    {
+                                        <a class="linkish" asp-action="EditItem" asp-route-id="@item.Id" asp-route-menuId="@menu.Id">Düzenle</a>
+                                    }
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+</section>

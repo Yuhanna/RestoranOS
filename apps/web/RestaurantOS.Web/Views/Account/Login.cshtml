@@ -1,0 +1,40 @@
+@model RestaurantOS.Web.Models.LoginViewModel
+@{
+    ViewData["Title"] = "Giriş";
+}
+
+<section class="auth-card">
+    <p class="eyebrow">RESTAURANT OS</p>
+    <h1>Giriş yap</h1>
+    <p class="lede">Restoran operasyon panelinize e-posta ve parolanızla bağlanın.</p>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert" role="alert">@Model.ErrorMessage</div>
+    }
+
+    <form asp-action="Login" method="post" class="stack" autocomplete="on">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@Context.Request.Query["returnUrl"]" />
+        <label>
+            E-posta
+            <input asp-for="Email" autocomplete="username" inputmode="email" />
+            <span asp-validation-for="Email" class="field-error"></span>
+        </label>
+        <label>
+            Parola
+            <input asp-for="Password" autocomplete="current-password" />
+            <span asp-validation-for="Password" class="field-error"></span>
+        </label>
+        <button type="submit" class="btn">Giriş yap</button>
+    </form>
+
+    <p class="auth-switch">
+        Hesabınız yok mu?
+        <a asp-action="Register">Restoran hesabı oluşturun</a>
+    </p>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

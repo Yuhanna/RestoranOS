@@ -1,0 +1,412 @@
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using QRCoder;
+using RestaurantOS.Application;
+using RestaurantOS.Domain;
+
+namespace RestaurantOS.Infrastructure;
+
+public sealed class ManagementTableService(
+    RestaurantOsDbContext dbContext,
+    TimeProvider timeProvider,
+    IDataProtectionProvider dataProtectionProvider,
+    IOptions<CustomerWebOptions> customerWebOptions,
+    IFeatureEntitlementService entitlements) : IManagementTableService
+{
+    private const string ProtectorPurpose = "RestaurantOS.TableQrToken.v1";
+
+    public async Task<IReadOnlyList<ManagementTableResult>> ListTablesAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.TableView, cancellationToken);
+        var tables = await dbContext.DiningTables
+            .AsNoTracking()
+            .Where(table => table.TenantId == tenantId && table.BranchId == branchId)
+            .OrderBy(table => table.Label)
+            .Select(table => new ManagementTableResult(
+                table.Id,
+                table.Label,
+                table.IsActive,
+                dbContext.TableQrCodes.Count(qr =>
+                    qr.TableId == table.Id
+                    && qr.TenantId == tenantId
+                    && qr.BranchId == branchId
+                    && qr.Status == QrCodeStatus.Active)))
+            .ToListAsync(cancellationToken);
+        return tables;
+    }
+
+    public async Task<ManagementTableResult> CreateTableAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        string label,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.TableEdit, cancellationToken);
+        await entitlements.EnsureCanCreateTableAsync(tenantId, branchId, cancellationToken);
+        DiningTable table;
+        try
+        {
+            table = new DiningTable(Guid.NewGuid(), tenantId, branchId, label);
+        }
+        catch (ArgumentException)
+        {
+            throw new CustomerExperienceException("VALIDATION_ERROR", "A table label is required.");
+        }
+
+        var exists = await dbContext.DiningTables.AnyAsync(
+            existing => existing.TenantId == tenantId
+                && existing.BranchId == branchId
+                && existing.Label == table.Label,
+            cancellationToken);
+        if (exists)
+        {
+            throw new CustomerExperienceException("TABLE_LABEL_CONFLICT", "A table with this label already exists.");
+        }
+        dbContext.DiningTables.Add(table);
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "TableCreated",
+            true,
+            timeProvider.GetUtcNow(),
+            userId,
+            tenantId,
+            branchId,
+            table.Id,
+            table.Label));
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new CustomerExperienceException("TABLE_LABEL_CONFLICT", "A table with this label already exists.");
+        }
+
+        return new ManagementTableResult(table.Id, table.Label, table.IsActive, 0);
+    }
+
+    public async Task<ManagementTableResult> UpdateTableAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        string? label,
+        bool? isActive,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.TableEdit, cancellationToken);
+        var table = await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(label))
+        {
+            try
+            {
+                table.Rename(label);
+            }
+            catch (ArgumentException)
+            {
+                throw new CustomerExperienceException("VALIDATION_ERROR", "A table label is required.");
+            }
+
+            var exists = await dbContext.DiningTables.AnyAsync(
+                existing => existing.Id != table.Id
+                    && existing.TenantId == tenantId
+                    && existing.BranchId == branchId
+                    && existing.Label == table.Label,
+                cancellationToken);
+            if (exists)
+            {
+                throw new CustomerExperienceException("TABLE_LABEL_CONFLICT", "A table with this label already exists.");
+            }
+        }
+
+        if (isActive is not null)
+        {
+            table.SetActive(isActive.Value);
+        }
+
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "TableUpdated",
+            true,
+            timeProvider.GetUtcNow(),
+            userId,
+            tenantId,
+            branchId,
+            table.Id,
+            table.Label));
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new CustomerExperienceException("TABLE_LABEL_CONFLICT", "A table with this label already exists.");
+        }
+
+        var activeQrCount = await dbContext.TableQrCodes.CountAsync(
+            qr => qr.TableId == table.Id
+                && qr.TenantId == tenantId
+                && qr.BranchId == branchId
+                && qr.Status == QrCodeStatus.Active,
+            cancellationToken);
+        return new ManagementTableResult(table.Id, table.Label, table.IsActive, activeQrCount);
+    }
+
+    public async Task<IReadOnlyList<ManagementQrCodeResult>> ListQrCodesAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.TableView, cancellationToken);
+        await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
+        return await dbContext.TableQrCodes
+            .AsNoTracking()
+            .Where(qr => qr.TenantId == tenantId && qr.BranchId == branchId && qr.TableId == tableId)
+            .OrderByDescending(qr => qr.CreatedAtUtc)
+            .Select(qr => new ManagementQrCodeResult(
+                qr.Id,
+                qr.TableId,
+                qr.Status.ToString().ToLowerInvariant(),
+                qr.CreatedAtUtc,
+                qr.RevokedAtUtc))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ManagementGeneratedQrResult> GenerateQrAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.TableEdit, cancellationToken);
+        var table = await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        var token = OpaqueToken.Create();
+        var protector = dataProtectionProvider.CreateProtector(ProtectorPurpose);
+        var qr = new TableQrCode(
+            Guid.NewGuid(),
+            tenantId,
+            branchId,
+            table.Id,
+            OpaqueToken.Hash(token),
+            now,
+            protector.Protect(token));
+
+        var previous = await dbContext.TableQrCodes
+            .Where(existing =>
+                existing.TenantId == tenantId
+                && existing.BranchId == branchId
+                && existing.TableId == table.Id
+                && existing.Status == QrCodeStatus.Active)
+            .ToListAsync(cancellationToken);
+        foreach (var existing in previous)
+        {
+            existing.Deactivate();
+        }
+
+        dbContext.TableQrCodes.Add(qr);
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "QrGenerated",
+            true,
+            now,
+            userId,
+            tenantId,
+            branchId,
+            qr.Id,
+            table.Label));
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var entryUrl = BuildEntryUrl(token);
+        return new ManagementGeneratedQrResult(
+            qr.Id,
+            qr.TableId,
+            table.Label,
+            qr.Status.ToString().ToLowerInvariant(),
+            token,
+            entryUrl,
+            CreateSvg(entryUrl),
+            qr.CreatedAtUtc);
+    }
+
+    public async Task<ManagementQrCodeResult> ChangeQrStatusAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid qrCodeId,
+        QrCodeStatus nextStatus,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.TableEdit, cancellationToken);
+        var qr = await dbContext.TableQrCodes.SingleOrDefaultAsync(
+            existing => existing.Id == qrCodeId && existing.TenantId == tenantId && existing.BranchId == branchId,
+            cancellationToken)
+            ?? throw new CustomerExperienceException("QR_NOT_FOUND", "QR code was not found.");
+
+        try
+        {
+            switch (nextStatus)
+            {
+                case QrCodeStatus.Active:
+                    var siblings = await dbContext.TableQrCodes
+                        .Where(existing =>
+                            existing.Id != qr.Id
+                            && existing.TenantId == tenantId
+                            && existing.BranchId == branchId
+                            && existing.TableId == qr.TableId
+                            && existing.Status == QrCodeStatus.Active)
+                        .ToListAsync(cancellationToken);
+                    foreach (var sibling in siblings)
+                    {
+                        sibling.Deactivate();
+                    }
+
+                    qr.Activate();
+                    break;
+                case QrCodeStatus.Inactive:
+                    qr.Deactivate();
+                    break;
+                case QrCodeStatus.Revoked:
+                    qr.Revoke(timeProvider.GetUtcNow());
+                    break;
+                default:
+                    throw new CustomerExperienceException("INVALID_QR_TRANSITION", "QR status is not supported.");
+            }
+        }
+        catch (InvalidQrCodeTransitionException exception)
+        {
+            throw new CustomerExperienceException("INVALID_QR_TRANSITION", exception.Message);
+        }
+
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "QrStatusChange",
+            true,
+            timeProvider.GetUtcNow(),
+            userId,
+            tenantId,
+            branchId,
+            qr.Id,
+            nextStatus.ToString().ToLowerInvariant()));
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new ManagementQrCodeResult(
+            qr.Id,
+            qr.TableId,
+            qr.Status.ToString().ToLowerInvariant(),
+            qr.CreatedAtUtc,
+            qr.RevokedAtUtc);
+    }
+
+    public async Task<ManagementQrPrintResult> GetPrintPayloadAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid qrCodeId,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.TableView, cancellationToken);
+        var qr = await dbContext.TableQrCodes
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                existing => existing.Id == qrCodeId && existing.TenantId == tenantId && existing.BranchId == branchId,
+                cancellationToken)
+            ?? throw new CustomerExperienceException("QR_NOT_FOUND", "QR code was not found.");
+
+        if (qr.Status == QrCodeStatus.Revoked)
+        {
+            throw new CustomerExperienceException("QR_REVOKED", "A revoked QR code cannot be printed.");
+        }
+
+        if (string.IsNullOrWhiteSpace(qr.ProtectedToken))
+        {
+            throw new CustomerExperienceException(
+                "QR_TOKEN_UNAVAILABLE",
+                "This QR cannot be reprinted. Generate a new QR code.");
+        }
+
+        string token;
+        try
+        {
+            token = dataProtectionProvider.CreateProtector(ProtectorPurpose).Unprotect(qr.ProtectedToken);
+        }
+        catch (CryptographicException)
+        {
+            throw new CustomerExperienceException(
+                "QR_TOKEN_UNAVAILABLE",
+                "This QR cannot be reprinted. Generate a new QR code.");
+        }
+
+        var entryUrl = BuildEntryUrl(token);
+        var table = await dbContext.DiningTables
+            .AsNoTracking()
+            .SingleAsync(
+                existing => existing.Id == qr.TableId && existing.TenantId == tenantId && existing.BranchId == branchId,
+                cancellationToken);
+        return new ManagementQrPrintResult(
+            qr.Id,
+            qr.TableId,
+            table.Label,
+            qr.Status.ToString().ToLowerInvariant(),
+            entryUrl,
+            CreateSvg(entryUrl));
+    }
+
+    private async Task<DiningTable> FindTableAsync(
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        CancellationToken cancellationToken) =>
+        await dbContext.DiningTables.SingleOrDefaultAsync(
+            table => table.Id == tableId && table.TenantId == tenantId && table.BranchId == branchId,
+            cancellationToken)
+        ?? throw new CustomerExperienceException("TABLE_NOT_FOUND", "Table was not found.");
+
+    private async Task EnsurePermissionAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        string permission,
+        CancellationToken cancellationToken)
+    {
+        var allowed = await dbContext.ManagementMemberships
+            .AsNoTracking()
+            .AnyAsync(membership =>
+                membership.UserId == userId
+                && membership.TenantId == tenantId
+                && membership.IsActive
+                && membership.BranchId == branchId
+                && dbContext.Branches.Any(branch =>
+                    branch.Id == branchId && branch.TenantId == tenantId)
+                && dbContext.ManagementRolePermissions.Any(rolePermission =>
+                    rolePermission.RoleId == membership.RoleId
+                    && rolePermission.Permission == permission),
+                cancellationToken);
+        if (!allowed)
+        {
+            throw new ManagementAuthException("FORBIDDEN", "The requested operation is not permitted.");
+        }
+    }
+
+    private string BuildEntryUrl(string token)
+    {
+        var baseUrl = customerWebOptions.Value.PublicBaseUrl.TrimEnd('/');
+        return $"{baseUrl}/?qr={Uri.EscapeDataString(token)}";
+    }
+
+    private static string CreateSvg(string payload)
+    {
+        using var generator = new QRCodeGenerator();
+        using var data = generator.CreateQrCode(payload, QRCodeGenerator.ECCLevel.Q);
+        return new SvgQRCode(data).GetGraphic(6);
+    }
+}

@@ -1,0 +1,87 @@
+@model RestaurantOS.Web.Models.EditMenuItemViewModel
+@{
+    ViewData["Title"] = "Ürün düzenle";
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Menü</p>
+        <h1>Ürün düzenle</h1>
+    </div>
+    <a class="btn btn-ghost" asp-action="Details" asp-route-id="@Model.MenuId">Geri</a>
+</div>
+
+<div asp-validation-summary="All" class="alert"></div>
+
+@if (!string.IsNullOrWhiteSpace(Model.PreviewImageUrl))
+{
+    <div class="photo-preview panel">
+        <img src="@Model.PreviewImageUrl" alt="@(Model.ImageAlt ?? Model.Name)" />
+    </div>
+}
+
+<form asp-action="EditItem" method="post" enctype="multipart/form-data" class="form-grid form-grid-wide panel">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="MenuId" />
+    <label>
+        Kategori
+        <select asp-for="CategoryId">
+            @foreach (var category in Model.Categories)
+            {
+                <option value="@category.Id">@category.Name</option>
+            }
+        </select>
+    </label>
+    <label>
+        Ürün adı
+        <input asp-for="Name" />
+    </label>
+    <label class="span-2">
+        Açıklama
+        <input asp-for="Description" />
+    </label>
+    <label class="narrow">
+        Fiyat (₺)
+        <input asp-for="PriceTry" inputmode="decimal" />
+    </label>
+    <label class="narrow">
+        Sıra
+        <input asp-for="SortOrder" />
+    </label>
+    <label class="narrow">
+        Hazırlama (dk)
+        <input asp-for="PrepMinutes" inputmode="numeric" />
+    </label>
+    <label class="narrow">
+        Hazırlama (sn)
+        <input asp-for="PrepSeconds" inputmode="numeric" />
+    </label>
+    <p class="muted span-2">Boş bırakılırsa ürün özel süresi kaldırılır; siparişlerde varsayılan süre kullanılır.</p>
+    @if (ViewData["CanUseProductImages"] as bool? == true)
+    {
+        <label class="span-2">
+            Yeni fotoğraf (JPG/PNG/WebP, max 2 MB)
+            <input asp-for="Photo" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
+        </label>
+        <label>
+            Fotoğraf URL
+            <input asp-for="ImageUrl" placeholder="https://… veya yüklü dosya yolu" />
+        </label>
+        <label>
+            Alt metin
+            <input asp-for="ImageAlt" />
+        </label>
+    }
+    else
+    {
+        <p class="muted span-2">Ürün fotoğrafı @((ViewData["PlanDisplayName"] as string) ?? "Free") planda kapalıdır. Pro ile açılır.</p>
+    }
+    <label class="check">
+        <input asp-for="IsAvailable" />
+        Satışa açık
+    </label>
+    <div class="form-actions span-2">
+        <button type="submit" class="btn">Kaydet</button>
+    </div>
+</form>

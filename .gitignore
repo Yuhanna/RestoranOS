@@ -1,0 +1,16 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/coverage/
+**/TestResults/
+**/dist/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.nupkg
+.env
+.env.*
+!.env.example
+apps/api/src/RestaurantOS.Api/media/

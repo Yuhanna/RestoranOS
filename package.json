@@ -1,0 +1,19 @@
+{
+  "name": "restaurant-os",
+  "private": true,
+  "packageManager": "pnpm@10.34.3",
+  "scripts": {
+    "web:dev": "pnpm --filter @restaurant-os/customer-web dev",
+    "web:format": "pnpm --filter @restaurant-os/customer-web format",
+    "web:lint": "pnpm --filter @restaurant-os/customer-web lint",
+    "web:typecheck": "pnpm --filter @restaurant-os/customer-web typecheck",
+    "web:test": "pnpm --filter @restaurant-os/customer-web test",
+    "web:build": "pnpm --filter @restaurant-os/customer-web build",
+    "restaurant:dev": "pnpm --filter @restaurant-os/restaurant-web dev",
+    "restaurant:format": "pnpm --filter @restaurant-os/restaurant-web format",
+    "restaurant:lint": "pnpm --filter @restaurant-os/restaurant-web lint",
+    "restaurant:typecheck": "pnpm --filter @restaurant-os/restaurant-web typecheck",
+    "restaurant:test": "pnpm --filter @restaurant-os/restaurant-web test",
+    "restaurant:build": "pnpm --filter @restaurant-os/restaurant-web build"
+  }
+}

@@ -1,0 +1,33 @@
+@model RestaurantOS.Web.Models.CreateTableViewModel
+@{
+    ViewData["Title"] = "Yeni masa";
+}
+
+<div class="page-head">
+    <h1>Yeni masa</h1>
+    <a class="btn btn-ghost" asp-action="Index">Geri</a>
+</div>
+
+@if (Model.IsLimitReached)
+{
+    <div class="alert" role="alertdialog" aria-modal="true">
+        <strong>Masa limiti</strong>
+        <p style="margin:0.5rem 0 0">@Model.LimitReachedMessage</p>
+        <p class="actions" style="margin-top:1rem">
+            <a class="btn" asp-action="Index">Masalara dön</a>
+        </p>
+    </div>
+}
+else
+{
+    <div asp-validation-summary="All" class="alert"></div>
+    <form asp-action="Create" method="post" class="stack">
+        @Html.AntiForgeryToken()
+        <label>
+            Masa etiketi
+            <input asp-for="Label" autocomplete="off" autofocus />
+        </label>
+        <button type="submit" class="btn">Kaydet</button>
+        <a asp-action="Index">İptal</a>
+    </form>
+}
