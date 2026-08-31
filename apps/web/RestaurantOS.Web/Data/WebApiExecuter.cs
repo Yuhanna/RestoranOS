@@ -18,15 +18,15 @@ public sealed class ApiCookieJarStore
     public void Remove(string sessionId) => _jars.TryRemove(sessionId, out _);
 }
 
-public sealed class WebApiExecuter(
+public class WebApiExecuter(
     IHttpContextAccessor httpContextAccessor,
     IHostEnvironment hostEnvironment,
     IOptions<ApiOptions> apiOptions,
-    ApiCookieJarStore cookieJarStore) : IWebApiExecuter
+    ApiCookieJarStore cookieJarStore,
+    ApiSessionScope sessionScope) : IWebApiExecuter
 {
-    private const string AccessTokenSessionKey = "RestaurantOS.AccessToken";
-    private const string RestaurantNameSessionKey = "RestaurantOS.RestaurantName";
-    private const string BranchNameSessionKey = "RestaurantOS.BranchName";
+    private readonly ApiSessionScope _sessionScope = sessionScope;
+    private readonly ApiCookieJarStore _cookieJarStore = cookieJarStore;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly ApiOptions _apiOptions = apiOptions.Value;
@@ -34,10 +34,10 @@ public sealed class WebApiExecuter(
     public bool IsAuthenticated => CurrentToken is not null;
 
     public string? CurrentRestaurantName =>
-        httpContextAccessor.HttpContext?.Session.GetString(RestaurantNameSessionKey);
+        httpContextAccessor.HttpContext?.Session.GetString(_sessionScope.RestaurantNameSessionKey);
 
     public string? CurrentBranchName =>
-        httpContextAccessor.HttpContext?.Session.GetString(BranchNameSessionKey);
+        httpContextAccessor.HttpContext?.Session.GetString(_sessionScope.BranchNameSessionKey);
 
     public JwtToken? CurrentToken
     {
@@ -49,7 +49,7 @@ public sealed class WebApiExecuter(
                 return null;
             }
 
-            var json = session.GetString(AccessTokenSessionKey);
+            var json = session.GetString(_sessionScope.AccessTokenSessionKey);
             return string.IsNullOrEmpty(json)
                 ? null
                 : JsonSerializer.Deserialize<JwtToken>(json, JsonOptions);
@@ -110,20 +110,26 @@ public sealed class WebApiExecuter(
         Guid? branchId = null,
         CancellationToken cancellationToken = default)
     {
+        await LoginCoreAsync(
+            "/api/v1/management/auth/login",
+            new { email, password, tenantId, branchId },
+            cancellationToken);
+        await RefreshWorkspaceIdentityAsync(cancellationToken);
+    }
+
+    protected async Task LoginCoreAsync(
+        string relativePath,
+        object body,
+        CancellationToken cancellationToken)
+    {
         EnsureSession();
         ClearAccessToken();
-        cookieJarStore.Remove(GetSessionId());
+        _cookieJarStore.Remove(GetSessionId());
 
         var token = await SendAsync<JwtToken>(
             HttpMethod.Post,
-            "/api/v1/management/auth/login",
-            new
-            {
-                email,
-                password,
-                tenantId,
-                branchId,
-            },
+            relativePath,
+            body,
             allowRetry: false,
             cancellationToken,
             attachBearer: false);
@@ -138,7 +144,6 @@ public sealed class WebApiExecuter(
         }
 
         StoreAccessToken(token);
-        await RefreshWorkspaceIdentityAsync(cancellationToken);
     }
 
     public async Task RegisterAsync(
@@ -150,7 +155,7 @@ public sealed class WebApiExecuter(
     {
         EnsureSession();
         ClearAccessToken();
-        cookieJarStore.Remove(GetSessionId());
+        _cookieJarStore.Remove(GetSessionId());
 
         var token = await SendAsync<JwtToken>(
             HttpMethod.Post,
@@ -179,13 +184,13 @@ public sealed class WebApiExecuter(
         await RefreshWorkspaceIdentityAsync(cancellationToken);
     }
 
-    public async Task LogoutAsync(CancellationToken cancellationToken = default)
+    public virtual async Task LogoutAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             await SendAsync<object>(
                 HttpMethod.Post,
-                "/api/v1/management/auth/logout",
+                LogoutRelativePath,
                 null,
                 allowRetry: false,
                 cancellationToken,
@@ -198,11 +203,13 @@ public sealed class WebApiExecuter(
         finally
         {
             ClearAccessToken();
-            cookieJarStore.Remove(GetSessionId());
+            _cookieJarStore.Remove(GetSessionId());
         }
     }
 
-    private async Task<T?> SendAsync<T>(
+    protected virtual string LogoutRelativePath => "/api/v1/management/auth/logout";
+
+    protected async Task<T?> SendAsync<T>(
         HttpMethod method,
         string relativePath,
         object? body,
@@ -325,7 +332,7 @@ public sealed class WebApiExecuter(
         var sessionId = GetSessionId();
         var handler = new HttpClientHandler
         {
-            CookieContainer = cookieJarStore.GetOrCreate(sessionId),
+            CookieContainer = _cookieJarStore.GetOrCreate(sessionId),
             UseCookies = true,
         };
 
@@ -341,17 +348,17 @@ public sealed class WebApiExecuter(
         };
     }
 
-    private void StoreAccessToken(JwtToken token)
+    protected void StoreAccessToken(JwtToken token)
     {
-        EnsureSession().SetString(AccessTokenSessionKey, JsonSerializer.Serialize(token, JsonOptions));
+        EnsureSession().SetString(_sessionScope.AccessTokenSessionKey, JsonSerializer.Serialize(token, JsonOptions));
     }
 
-    private void ClearAccessToken()
+    protected void ClearAccessToken()
     {
         var session = EnsureSession();
-        session.Remove(AccessTokenSessionKey);
-        session.Remove(RestaurantNameSessionKey);
-        session.Remove(BranchNameSessionKey);
+        session.Remove(_sessionScope.AccessTokenSessionKey);
+        session.Remove(_sessionScope.RestaurantNameSessionKey);
+        session.Remove(_sessionScope.BranchNameSessionKey);
     }
 
     private async Task RefreshWorkspaceIdentityAsync(CancellationToken cancellationToken)
@@ -364,13 +371,13 @@ public sealed class WebApiExecuter(
             var session = EnsureSession();
             if (workspace is null)
             {
-                session.Remove(RestaurantNameSessionKey);
-                session.Remove(BranchNameSessionKey);
+                session.Remove(_sessionScope.RestaurantNameSessionKey);
+                session.Remove(_sessionScope.BranchNameSessionKey);
                 return;
             }
 
-            session.SetString(RestaurantNameSessionKey, workspace.RestaurantName);
-            session.SetString(BranchNameSessionKey, workspace.BranchName);
+            session.SetString(_sessionScope.RestaurantNameSessionKey, workspace.RestaurantName);
+            session.SetString(_sessionScope.BranchNameSessionKey, workspace.BranchName);
         }
         catch (WebApiException)
         {
@@ -384,22 +391,21 @@ public sealed class WebApiExecuter(
         public string BranchName { get; set; } = string.Empty;
     }
 
-    private ISession EnsureSession()
+    protected ISession EnsureSession()
     {
         var session = httpContextAccessor.HttpContext?.Session
             ?? throw new InvalidOperationException("HTTP session is required for API access tokens.");
         return session;
     }
 
-    private string GetSessionId()
+    protected string GetSessionId()
     {
         var session = EnsureSession();
-        const string jarKey = "RestaurantOS.ApiJarId";
-        var id = session.GetString(jarKey);
+        var id = session.GetString(_sessionScope.ApiJarIdSessionKey);
         if (string.IsNullOrEmpty(id))
         {
             id = Guid.NewGuid().ToString("N");
-            session.SetString(jarKey, id);
+            session.SetString(_sessionScope.ApiJarIdSessionKey, id);
         }
 
         return id;

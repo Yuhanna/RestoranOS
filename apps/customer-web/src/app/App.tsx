@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Dialog } from "@restaurant-os/design-system";
-import { customerGateway } from "../data/customerGateway";
+import { getCustomerGateway } from "../data/customerGateway";
+import { readQrFromLocation } from "../data/resolveCustomerApiBaseUrl";
 import { DEMO_QR_TOKEN } from "../data/mockCustomerGateway";
 import {
   CustomerGatewayError,
@@ -26,6 +27,20 @@ const formatMoney = (money: Money) =>
     maximumFractionDigits: 0,
   }).format(money.amountMinor / 100);
 
+function PriceDisplay({ product, emphasize = false }: { product: Product; emphasize?: boolean }) {
+  const hasDiscount = (product.discount?.amountMinor ?? 0) > 0 && product.listPrice;
+  if (!hasDiscount) {
+    return <strong className={emphasize ? "price-final" : undefined}>{formatMoney(product.price)}</strong>;
+  }
+
+  return (
+    <span className="price-stack">
+      <span className="price-list">{formatMoney(product.listPrice!)}</span>
+      <strong className="price-final">{formatMoney(product.price)}</strong>
+    </span>
+  );
+}
+
 /** .NET often emits 7-digit fractional seconds; older mobile browsers reject them. */
 const formatClock = (iso: string) => {
   const normalized = iso.replace(/(\.\d{3})\d+/, "$1");
@@ -37,24 +52,12 @@ const formatClock = (iso: string) => {
   }).format(date);
 };
 
-const lineTotal = (line: CartLine): Money => {
-  const options = line.product.modifierGroups.flatMap((group) => group.options);
-  const modifierTotal = Object.values(line.selections).reduce(
-    (sum, optionId) =>
-      sum + (options.find((option) => option.id === optionId)?.priceDelta.amountMinor ?? 0),
-    0,
-  );
-  return {
-    amountMinor: (line.product.price.amountMinor + modifierTotal) * line.quantity,
-    currency: "TRY",
-  };
-};
+const lineTotal = (line: CartLine): Money => ({
+  amountMinor: line.product.price.amountMinor * line.quantity,
+  currency: "TRY",
+});
 
-const newLineKey = (product: Product, selections: Record<string, string>) =>
-  `${product.id}:${Object.entries(selections)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([group, option]) => `${group}-${option}`)
-    .join("|")}`;
+const newLineKey = (product: Product, note: string) => `${product.id}:${note.trim()}`;
 
 function ProductDialog({
   product,
@@ -67,21 +70,11 @@ function ProductDialog({
 }) {
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState("");
-  const [selections, setSelections] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      product.modifierGroups
-        .filter((group) => group.required && group.options[0])
-        .map((group) => [group.id, group.options[0]!.id]),
-    ),
-  );
-  const complete = product.modifierGroups.every(
-    (group) => !group.required || Boolean(selections[group.id]),
-  );
   const previewLine: CartLine = {
-    key: newLineKey(product, selections),
+    key: newLineKey(product, note),
     product,
     quantity,
-    selections,
+    selections: {},
     note,
   };
 
@@ -98,7 +91,7 @@ function ProductDialog({
               {product.badge ? <span className="badge badge--brand">{product.badge}</span> : null}
               <h2 id="product-title">{product.name}</h2>
             </div>
-            <strong>{formatMoney(product.price)}</strong>
+            <PriceDisplay product={product} emphasize />
           </div>
           <p>{product.description}</p>
           {product.allergens.length ? (
@@ -113,29 +106,6 @@ function ProductDialog({
               </div>
             </div>
           ) : null}
-          {product.modifierGroups.map((group) => (
-            <fieldset className="modifier-group" key={group.id}>
-              <legend>
-                {group.name} <small>{group.required ? t.required : t.optional}</small>
-              </legend>
-              {group.options.map((option) => (
-                <label className="modifier-option" key={option.id}>
-                  <input
-                    type="radio"
-                    name={group.id}
-                    checked={selections[group.id] === option.id}
-                    onChange={() =>
-                      setSelections((current) => ({ ...current, [group.id]: option.id }))
-                    }
-                  />
-                  <span>{option.name}</span>
-                  {option.priceDelta.amountMinor ? (
-                    <strong>+{formatMoney(option.priceDelta)}</strong>
-                  ) : null}
-                </label>
-              ))}
-            </fieldset>
-          ))}
           <label className="note-field">
             <span>{t.productNote}</span>
             <textarea
@@ -166,7 +136,6 @@ function ProductDialog({
             </div>
             <Button
               fullWidth
-              disabled={!complete}
               onClick={() => {
                 onAdd(previewLine);
                 onClose();
@@ -201,10 +170,22 @@ function CartDialog({
   onRemove: (key: string) => void;
   onSubmit: () => void;
 }) {
+  const listSubtotal: Money = {
+    amountMinor: lines.reduce((sum, line) => {
+      const unitList = line.product.listPrice?.amountMinor ?? line.product.price.amountMinor;
+      return sum + unitList * line.quantity;
+    }, 0),
+    currency: "TRY",
+  };
   const total: Money = {
     amountMinor: lines.reduce((sum, line) => sum + lineTotal(line).amountMinor, 0),
     currency: "TRY",
   };
+  const discountTotal: Money = {
+    amountMinor: Math.max(0, listSubtotal.amountMinor - total.amountMinor),
+    currency: "TRY",
+  };
+  const hasDiscount = discountTotal.amountMinor > 0;
 
   return (
     <Dialog
@@ -274,8 +255,20 @@ function CartDialog({
               ))}
             </ul>
             <div className="cart-total">
-              <span>{t.subtotal}</span>
-              <strong>{formatMoney(total)}</strong>
+              <div className="cart-total__row">
+                <span>{t.listPrice}</span>
+                <strong>{formatMoney(listSubtotal)}</strong>
+              </div>
+              {hasDiscount ? (
+                <div className="cart-total__row cart-total__row--discount">
+                  <span>{t.discountSavings}</span>
+                  <strong>-{formatMoney(discountTotal)}</strong>
+                </div>
+              ) : null}
+              <div className="cart-total__row cart-total__row--due">
+                <span>{hasDiscount ? t.amountDue : t.subtotal}</span>
+                <strong>{formatMoney(total)}</strong>
+              </div>
             </div>
             <p className="service-note">{t.serviceNote}</p>
           </>
@@ -563,7 +556,7 @@ function Menu({
         lines: lines.map((line) => ({
           productId: line.product.id,
           quantity: line.quantity,
-          modifierOptionIds: Object.values(line.selections),
+          modifierOptionIds: [],
           note: line.note || undefined,
         })),
       });
@@ -590,10 +583,10 @@ function Menu({
       <header className="site-header">
         <div className="restaurant-lockup">
           <span className="restaurant-mark" aria-hidden="true">
-            {session.restaurantName.slice(0, 1)}
+            {session.restaurantName?.slice(0, 1) ?? "R"}
           </span>
           <div>
-            <strong>{session.restaurantName}</strong>
+            <strong>{session.restaurantName ?? "Restoran"}</strong>
             <span>
               {session.branchName} · {session.tableLabel}
             </span>
@@ -672,7 +665,12 @@ function Menu({
             </Button>
           ))}
         </nav>
-        {filteredProducts.length ? (
+        {!session.products.length ? (
+          <section className="empty-state">
+            <h2>{t.menuEmptyTitle}</h2>
+            <p>{t.menuEmptyBody}</p>
+          </section>
+        ) : filteredProducts.length ? (
           <section className="product-grid" aria-live="polite">
             {filteredProducts.map((product) => (
               <article
@@ -705,7 +703,7 @@ function Menu({
                   </span>
                 </button>
                 <footer>
-                  <strong>{formatMoney(product.price)}</strong>
+                  <PriceDisplay product={product} emphasize />
                   <Button
                     aria-label={`${product.name}: ${t.add}`}
                     disabled={!product.available}
@@ -769,9 +767,12 @@ function Menu({
   );
 }
 
-export function App({ gateway = customerGateway, qrToken }: AppProps) {
-  const token =
-    qrToken === undefined ? new URLSearchParams(window.location.search).get("qr") : qrToken;
+export function App({ gateway, qrToken }: AppProps) {
+  const token = qrToken === undefined ? readQrFromLocation() : qrToken;
+  const activeGateway = useMemo(
+    () => gateway ?? getCustomerGateway(token),
+    [gateway, token],
+  );
   const [state, setState] = useState<
     | {
         status: "required" | "loading" | "invalid" | "menu-unavailable" | "error";
@@ -798,7 +799,7 @@ export function App({ gateway = customerGateway, qrToken }: AppProps) {
     }
     const controller = new AbortController();
     setState({ status: "loading" });
-    gateway
+    activeGateway
       .resolveQr(
         token,
         controller.signal,
@@ -826,7 +827,7 @@ export function App({ gateway = customerGateway, qrToken }: AppProps) {
         });
       });
     return () => controller.abort();
-  }, [gateway, token]);
+  }, [activeGateway, token]);
 
   return (
     <div className="app-shell">
@@ -870,7 +871,20 @@ export function App({ gateway = customerGateway, qrToken }: AppProps) {
           </span>
           <h1>{t.qrInvalidTitle}</h1>
           <p>{t.qrInvalidBody}</p>
-          <Button onClick={() => window.location.reload()}>{t.retry}</Button>
+          {state.detail ? <p className="service-note">{state.detail}</p> : null}
+          <div className="entry-state__actions">
+            <Button onClick={() => window.location.reload()}>{t.retry}</Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.set("qr", DEMO_QR_TOKEN);
+                window.location.assign(url);
+              }}
+            >
+              {t.openDemo}
+            </Button>
+          </div>
         </main>
       ) : null}
       {state.status === "menu-unavailable" ? (
@@ -895,7 +909,7 @@ export function App({ gateway = customerGateway, qrToken }: AppProps) {
         </main>
       ) : null}
       {state.status === "ready" && token ? (
-        <Menu session={state.session} gateway={gateway} qrToken={token} />
+        <Menu session={state.session} gateway={activeGateway} qrToken={token} />
       ) : null}
     </div>
   );

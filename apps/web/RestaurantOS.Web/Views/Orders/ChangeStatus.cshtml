@@ -5,8 +5,43 @@
 }
 
 <h1>Durum güncelle · @Model.DisplayNumber</h1>
-<p class="muted">Mevcut durum: @Model.CurrentStatus</p>
+<p class="muted">Mevcut durum: @StatusTr(Model.CurrentStatus)</p>
 <p class="muted">İleri adımlara atlayabilirsiniz; atlanan adımlar tamamlanmış sayılır.</p>
+
+@functions {
+    string StatusTr(string status) => status?.ToLowerInvariant() switch
+    {
+        "submitted" => "Alındı",
+        "accepted" => "Onaylandı",
+        "preparing" => "Hazırlanıyor",
+        "ready" => "Hazır / pasa çıktı",
+        "completed" => "Tamamlandı",
+        "cancelled" => "İptal",
+        _ => status ?? "—"
+    };
+
+    static int StatusRank(string status) => status.ToLowerInvariant() switch
+    {
+        "submitted" => 0,
+        "accepted" => 1,
+        "preparing" => 2,
+        "ready" => 3,
+        "completed" => 4,
+        _ => -1,
+    };
+
+    static bool IsAllowedTarget(string current, string candidate)
+    {
+        current = current.ToLowerInvariant();
+        candidate = candidate.ToLowerInvariant();
+        if (candidate == "cancelled")
+        {
+            return current is "submitted" or "accepted" or "preparing";
+        }
+
+        return StatusRank(candidate) > StatusRank(current);
+    }
+}
 
 <div asp-validation-summary="All" class="alert"></div>
 
@@ -15,15 +50,27 @@
     <input type="hidden" asp-for="OrderId" />
     <input type="hidden" asp-for="DisplayNumber" />
     <input type="hidden" asp-for="CurrentStatus" />
-    <input type="hidden" asp-for="ExpectedStatusChangedAtUtc" />
+    <input type="hidden" name="ExpectedStatusChangedAtUtc" value="@Model.ExpectedStatusChangedAtUtc.ToString("O", System.Globalization.CultureInfo.InvariantCulture)" />
     <label>
         Yeni durum
         <select asp-for="Status">
-            <option value="accepted">Onaylandı</option>
-            <option value="preparing">Hazırlanıyor</option>
-            <option value="ready">Hazır / pasa çıktı</option>
-            <option value="completed">Tamamlandı</option>
-            <option value="cancelled">İptal</option>
+            @{
+                var options = new (string Value, string Label)[]
+                {
+                    ("accepted", "Onaylandı"),
+                    ("preparing", "Hazırlanıyor"),
+                    ("ready", "Hazır / pasa çıktı"),
+                    ("completed", "Tamamlandı"),
+                    ("cancelled", "İptal"),
+                };
+            }
+            @foreach (var option in options)
+            {
+                if (IsAllowedTarget(Model.CurrentStatus, option.Value))
+                {
+                    <option value="@option.Value">@option.Label</option>
+                }
+            }
         </select>
     </label>
     <label>

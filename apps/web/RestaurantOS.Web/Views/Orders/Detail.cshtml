@@ -1,0 +1,98 @@
+@model RestaurantOS.Web.Models.OrderDetailViewModel
+@{
+    ViewData["Title"] = $"Sipariş {Model.DisplayNumber}";
+    string StatusTr(string status) => status?.ToLowerInvariant() switch
+    {
+        "submitted" => "Alındı",
+        "accepted" => "Onaylandı",
+        "preparing" => "Hazırlanıyor",
+        "ready" => "Hazır",
+        "completed" => "Tamamlandı",
+        "cancelled" => "İptal",
+        _ => status ?? "—"
+    };
+    string Money(long minor) => $"₺{(minor / 100m).ToString("N2")}";
+}
+
+<div class="page-head">
+    <div>
+        <h1>@Model.DisplayNumber</h1>
+        <p class="muted">Masa @Model.TableLabel · @StatusTr(Model.Status)</p>
+    </div>
+    <div class="page-head-actions">
+        <a class="btn btn-ghost" asp-action="Index">← Aktif siparişler</a>
+        @if (Model.Status is not "completed" and not "cancelled")
+        {
+            <a class="btn" asp-action="ChangeStatus" asp-route-id="@Model.Id">Durumu değiştir</a>
+        }
+    </div>
+</div>
+
+<section class="panel" style="margin-bottom:1.25rem">
+    <h2 style="margin-top:0;font-size:1.1rem">Özet</h2>
+    <dl class="detail-grid">
+        <div><dt>Oluşturulma</dt><dd>@Model.CreatedAtUtc.ToLocalTime().ToString("g")</dd></div>
+        <div><dt>Son güncelleme</dt><dd>@Model.StatusChangedAtUtc.ToLocalTime().ToString("g")</dd></div>
+        <div><dt>Tahmini hazır</dt><dd>@Model.EstimatedReadyAtUtc.ToLocalTime().ToString("g")</dd></div>
+        <div><dt>Ara toplam</dt><dd>@Money(Model.SubtotalAmountMinor)</dd></div>
+        @if (Model.DiscountAmountMinor > 0)
+        {
+            <div><dt>İndirim</dt><dd>−@Money(Model.DiscountAmountMinor)</dd></div>
+        }
+        <div><dt>Toplam</dt><dd><strong>@Money(Model.TotalAmountMinor)</strong></dd></div>
+    </dl>
+</section>
+
+<section class="panel" style="margin-bottom:1.25rem">
+    <h2 style="margin-top:0;font-size:1.1rem">Kalemler (@Model.Items.Count)</h2>
+    @if (Model.Items.Count == 0)
+    {
+        <p class="muted">Bu siparişte kalem kaydı yok.</p>
+    }
+    else
+    {
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Ürün</th>
+                    <th>Adet</th>
+                    <th>Birim</th>
+                    <th>Satır</th>
+                    <th>Not</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td>@item.Name</td>
+                        <td>@item.Quantity</td>
+                        <td>@Money(item.UnitPriceAmountMinor)</td>
+                        <td>@Money(item.LineTotalAmountMinor)</td>
+                        <td>@(string.IsNullOrWhiteSpace(item.Note) ? "—" : item.Note)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+<section class="panel">
+    <h2 style="margin-top:0;font-size:1.1rem">Durum geçmişi</h2>
+    @if (Model.StatusHistory.Count == 0)
+    {
+        <p class="muted">Kayıtlı durum geçmişi yok.</p>
+    }
+    else
+    {
+        <ol class="status-timeline">
+            @foreach (var entry in Model.StatusHistory)
+            {
+                <li>
+                    <strong>@StatusTr(entry.Status)</strong>
+                    <span class="muted">@entry.ChangedAtUtc.ToLocalTime().ToString("g")</span>
+                </li>
+            }
+        </ol>
+    }
+</section>

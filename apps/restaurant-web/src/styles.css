@@ -1,20 +1,64 @@
 @import "@restaurant-os/design-system/tokens.css";
 
-:root {
+:root,
+[data-theme="dark"] {
   color-scheme: dark;
-  font-family: var(--font-body);
-  color: #f5f5f4;
-  background: #080b0d;
   --ops-bg: #080b0d;
   --ops-surface: #101417;
   --ops-raised: #171c20;
   --ops-border: #293137;
   --ops-muted: #90999f;
   --ops-dim: #5f696f;
+  --ops-ink: #f5f5f4;
   --ops-accent: #d26531;
   --ops-blue: #4b91f1;
   --ops-green: #35bd72;
   --ops-red: #ef5555;
+  --ops-panel-bg: #0b0f11;
+  --ops-login-gradient: linear-gradient(135deg, #080b0d, #12181c);
+  --ops-brand-gradient: linear-gradient(135deg, #a9441f, #e1844e);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --ops-bg: #f5f3f0;
+  --ops-surface: #ffffff;
+  --ops-raised: #ece7e1;
+  --ops-border: #d8d2c9;
+  --ops-muted: #57534e;
+  --ops-dim: #78716c;
+  --ops-ink: #1c1917;
+  --ops-accent: #b45309;
+  --ops-blue: #2563eb;
+  --ops-green: #15803d;
+  --ops-red: #b91c1c;
+  --ops-panel-bg: #faf8f5;
+  --ops-login-gradient: linear-gradient(135deg, #faf8f5, #ece7e1);
+  --ops-brand-gradient: linear-gradient(135deg, #b45309, #d97706);
+}
+
+[data-theme="soft"] {
+  color-scheme: dark;
+  --ops-bg: #1a1816;
+  --ops-surface: #242120;
+  --ops-raised: #2e2b28;
+  --ops-border: #44403c;
+  --ops-muted: #a8a29e;
+  --ops-dim: #78716c;
+  --ops-ink: #fafaf9;
+  --ops-accent: #e07a45;
+  --ops-blue: #60a5fa;
+  --ops-green: #4ade80;
+  --ops-red: #f87171;
+  --ops-panel-bg: #201d1b;
+  --ops-login-gradient: linear-gradient(135deg, #1a1816, #292524);
+  --ops-brand-gradient: linear-gradient(135deg, #c05621, #e07a45);
+}
+
+:root {
+  font-family: var(--font-body);
+  color: var(--ops-ink);
+  background: var(--ops-bg);
 }
 
 * {
@@ -62,7 +106,7 @@ select:focus-visible {
 .ds-button--ghost {
   background: transparent;
   border-color: var(--ops-border);
-  color: #c4c9cc;
+  color: var(--ops-muted);
 }
 .ds-button--full {
   width: 100%;
@@ -85,7 +129,7 @@ select:focus-visible {
   width: 4rem;
   height: 4rem;
   border-radius: 1.1rem;
-  background: linear-gradient(135deg, #a9441f, #e1844e);
+  background: var(--ops-brand-gradient);
   color: white;
   font: 500 2rem var(--font-display);
   box-shadow:
@@ -111,7 +155,7 @@ select:focus-visible {
   grid-template-columns: minmax(0, 1.2fr) minmax(22rem, 0.8fr);
   background:
     radial-gradient(circle at 15% 20%, rgb(210 101 49 / 16%), transparent 30rem),
-    linear-gradient(135deg, #080b0d, #12181c);
+    var(--ops-login-gradient);
 }
 .login-copy {
   display: flex;
@@ -137,7 +181,7 @@ select:focus-visible {
   padding: clamp(1.5rem, 4vw, 2.5rem);
   border: 1px solid var(--ops-border);
   border-radius: var(--radius-lg);
-  background: rgb(16 20 23 / 92%);
+  background: color-mix(in srgb, var(--ops-surface) 92%, transparent);
   box-shadow: 0 2rem 6rem rgb(0 0 0 / 35%);
 }
 .login-card h2 {
@@ -151,7 +195,7 @@ label {
   display: grid;
   gap: 0.45rem;
   margin-bottom: 1rem;
-  color: #cdd2d4;
+  color: var(--ops-muted);
   font-size: 0.82rem;
   font-weight: 650;
 }
@@ -161,8 +205,8 @@ select {
   border: 1px solid var(--ops-border);
   border-radius: 0.65rem;
   padding: 0 0.85rem;
-  color: white;
-  background: #0b0f11;
+  color: var(--ops-ink);
+  background: var(--ops-panel-bg);
 }
 .form-error,
 .notice {
@@ -194,7 +238,7 @@ select {
   min-height: 4.5rem;
   padding: 0.8rem clamp(1rem, 3vw, 2rem);
   border-bottom: 1px solid var(--ops-border);
-  background: rgb(16 20 23 / 94%);
+  background: color-mix(in srgb, var(--ops-surface) 94%, transparent);
   backdrop-filter: blur(16px);
 }
 .identity,
@@ -217,7 +261,7 @@ select {
   font: 700 0.65rem monospace;
 }
 .metric strong {
-  color: white;
+  color: var(--ops-ink);
   font-size: 1.15rem;
 }
 .connection {
@@ -278,6 +322,56 @@ select {
   color: inherit;
   background: transparent;
   cursor: pointer;
+}
+
+.audience-banners {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem clamp(1rem, 3vw, 2rem) 0;
+}
+
+.audience-banner {
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(210 101 49 / 35%);
+  background: rgb(210 101 49 / 10%);
+}
+
+.audience-banner--offer {
+  border-color: rgb(56 189 248 / 35%);
+  background: rgb(56 189 248 / 10%);
+}
+
+.audience-banner strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.audience-banner p {
+  margin: 0;
+  color: rgb(226 232 240 / 85%);
+  font-size: 0.9rem;
+}
+
+.notice-inline {
+  margin: 0 clamp(1rem, 3vw, 2rem);
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.5rem;
+  background: rgb(56 189 248 / 12%);
+  color: rgb(186 230 253);
+  font-size: 0.875rem;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.table-list textarea {
+  width: 100%;
+  min-height: 5rem;
+  resize: vertical;
 }
 
 .order-grid {
@@ -358,6 +452,82 @@ select {
 .order-card footer .ds-button {
   flex: 1;
 }
+
+.order-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.55);
+}
+
+.order-detail-panel {
+  width: min(100%, 32rem);
+  max-height: min(90vh, 40rem);
+  overflow: auto;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid var(--ops-border);
+  background: var(--ops-panel);
+  color: var(--ops-text);
+}
+
+.order-detail-panel header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.order-detail-close {
+  border: 0;
+  background: transparent;
+  color: var(--ops-dim);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.order-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.order-detail-summary dt {
+  font: 600 0.65rem monospace;
+  letter-spacing: 0.08em;
+  color: var(--ops-dim);
+}
+
+.order-detail-lines,
+.order-detail-history {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.order-detail-lines li,
+.order-detail-history li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--ops-border);
+}
+
+.order-detail-lines li span {
+  color: var(--ops-accent);
+}
+
+.order-detail-lines li em {
+  color: var(--ops-dim);
+  font-style: normal;
+  font-size: 0.9rem;
+}
+
 .all-clear {
   grid-column: 1 / -1;
   display: grid;
@@ -545,4 +715,136 @@ select {
       transform: translateY(0.4rem);
     }
   }
+}
+
+.dashboard-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.dashboard-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface-elevated);
+}
+
+.dashboard-card span {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dashboard-card strong {
+  font-size: 1.35rem;
+}
+
+.settings-panel {
+  max-width: 36rem;
+}
+
+.settings-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.settings-list div {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.75rem;
+}
+
+.settings-list dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.settings-warnings {
+  margin: 0 0 1rem;
+  padding-left: 1.1rem;
+  color: var(--warn, #b45309);
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.analytics-bars {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.analytics-bars li {
+  display: grid;
+  grid-template-columns: 6rem 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.analytics-bar {
+  background: var(--ops-border);
+  border-radius: 999px;
+  height: 0.55rem;
+  overflow: hidden;
+}
+
+.analytics-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--ops-accent), #7dd3fc);
+  border-radius: inherit;
+}
+
+.theme-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ops-muted);
+  font-size: 0.72rem;
+}
+
+.theme-picker__label {
+  white-space: nowrap;
+}
+
+.theme-picker select {
+  min-height: 2.35rem;
+  padding: 0 0.55rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--ops-border);
+  background: var(--ops-surface);
+  color: var(--ops-ink);
+  font-size: 0.72rem;
+}
+
+.login-card .theme-picker {
+  margin-top: 1rem;
+  justify-content: center;
+  width: 100%;
 }

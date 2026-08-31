@@ -30,6 +30,131 @@ export type Order = {
   estimatedReadyAtUtc: string;
   amountMinor: number;
   currency: string;
+  tableId: string;
+  tableLabel: string;
+};
+
+export type TodayDashboard = {
+  todaysOrderCount: number;
+  todaysRevenueMinor: number;
+  openTablesCount: number;
+  pendingOrdersCount: number;
+  completedOrdersTodayCount: number;
+  currency: string;
+  dayStartUtc: string;
+  dayEndUtc: string;
+};
+
+export type OrderLine = {
+  id: string;
+  menuItemId: string;
+  name: string;
+  quantity: number;
+  listUnitPriceAmountMinor: number;
+  discountUnitAmountMinor: number;
+  unitPriceAmountMinor: number;
+  currency: string;
+  note: string | null;
+};
+
+export type OrderStatusHistoryEntry = {
+  status: OrderStatus | string;
+  changedAtUtc: string;
+  changedByUserId: string | null;
+};
+
+export type OrderDetail = {
+  id: string;
+  displayNumber: string;
+  status: OrderStatus;
+  createdAtUtc: string;
+  statusChangedAtUtc: string;
+  estimatedReadyAtUtc: string;
+  tableId: string;
+  tableLabel: string;
+  subtotalAmountMinor: number;
+  discountAmountMinor: number;
+  totalAmountMinor: number;
+  currency: string;
+  items: OrderLine[];
+  statusHistory: OrderStatusHistoryEntry[];
+};
+
+export type ServiceRequestType = "waiter" | "bill" | string;
+
+export type ServiceRequest = {
+  id: string;
+  tableId: string;
+  tableLabel: string;
+  type: ServiceRequestType;
+  status: string;
+  note: string | null;
+  createdAtUtc: string;
+  completedAtUtc: string | null;
+};
+
+export type WorkspaceEntitlements = {
+  planCode: string;
+  planDisplayName: string;
+  isTrial: boolean;
+  trialEndsAtUtc: string | null;
+};
+
+export type AudienceNotification = {
+  id: string;
+  title: string;
+  body: string;
+  actionUrl?: string | null;
+};
+
+export type SubscriptionOffer = {
+  id: string;
+  targetPlanCode: string;
+  discountPercent: number;
+  durationMonths: number;
+  title: string;
+  body: string;
+};
+
+export type Workspace = {
+  tenantId: string;
+  restaurantId: string;
+  restaurantName: string;
+  branchId: string;
+  branchName: string;
+  entitlements: WorkspaceEntitlements | null;
+  canViewFinancialAnalytics?: boolean;
+  notifications?: AudienceNotification[];
+  subscriptionOffers?: SubscriptionOffer[];
+};
+
+export type AnalyticsSummary = {
+  grossSalesMinor: number;
+  estimatedCostMinor: number | null;
+  grossProfitMinor: number | null;
+  cancelledSalesMinor: number;
+  completedOrderCount: number;
+  cancelledOrderCount: number;
+  openServiceRequestCount: number;
+  averageTicketMinor: number;
+  currency: string;
+  canViewFinancials: boolean;
+};
+
+export type SalesPeriod = {
+  periodStartUtc: string;
+  grossSalesMinor: number;
+  grossProfitMinor: number | null;
+  orderCount: number;
+};
+
+export type TopItem = {
+  menuItemId: string;
+  name: string;
+  quantitySold: number;
+  revenueMinor: number;
+  estimatedCostMinor: number | null;
+  grossProfitMinor: number | null;
 };
 
 export type ProblemDetails = {
@@ -44,6 +169,7 @@ export type DiningTable = {
   label: string;
   isActive: boolean;
   activeQrCount: number;
+  operationalStatus: "available" | "occupied" | "has_pending_order" | string;
 };
 
 export type QrCodeStatus = "active" | "inactive" | "revoked";
@@ -113,6 +239,69 @@ export type MenuProductRecord = {
 export type MenuDetail = MenuSummary & {
   categories: MenuCategoryRecord[];
   items: MenuProductRecord[];
+};
+
+export type MenuPromotionScope = "all_menu" | "category" | "product";
+export type MenuPromotionDiscountKind = "percent" | "fixed_minor";
+export type SubscriptionAudience = "all" | "free" | "pro" | "trial" | "non_pro";
+
+export type MenuPromotion = {
+  id: string;
+  name: string;
+  scope: MenuPromotionScope;
+  discountKind: MenuPromotionDiscountKind;
+  discountValue: number;
+  startsAtUtc: string;
+  endsAtUtc: string | null;
+  dailyStartLocal: string | null;
+  dailyEndLocal: string | null;
+  categoryId: string | null;
+  menuItemId: string | null;
+  isActive: boolean;
+};
+
+export type CreateMenuPromotionInput = {
+  name: string;
+  scope: MenuPromotionScope;
+  discountKind: MenuPromotionDiscountKind;
+  discountValue: number;
+  startsAtUtc: string;
+  endsAtUtc?: string | null;
+  dailyStartLocal?: string | null;
+  dailyEndLocal?: string | null;
+  categoryId?: string | null;
+  menuItemId?: string | null;
+  isActive?: boolean;
+};
+
+export type ManagedNotification = {
+  id: string;
+  tenantId: string | null;
+  audience: SubscriptionAudience | string;
+  title: string;
+  body: string;
+  actionUrl: string | null;
+  startsAtUtc: string;
+  endsAtUtc: string | null;
+  isActive: boolean;
+  lastDispatchedAtUtc: string | null;
+};
+
+export type CreateNotificationInput = {
+  audience: SubscriptionAudience | string;
+  title: string;
+  body: string;
+  startsAtUtc: string;
+  endsAtUtc?: string | null;
+  actionUrl?: string | null;
+  isActive?: boolean;
+  broadcastToAllTenants?: boolean;
+};
+
+export type NotificationDispatchResult = {
+  emailSentCount: number;
+  pushSentCount: number;
+  recipientEmails: string[];
 };
 
 export const nextStatuses: Record<OrderStatus, OrderStatus[]> = {

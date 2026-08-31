@@ -29,6 +29,33 @@ public sealed class ManagementOrdersController(IManagementOrderService orderServ
         return Ok(orders.Select(ToOrderResponse).ToArray());
     }
 
+    [HttpGet("{orderId:guid}")]
+    [Authorize(Policy = ManagementPolicies.OrderView)]
+    [ProducesResponseType(typeof(ManagementOrderDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetOrderByIdAsync(Guid orderId, CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out var tenantId, out var branchId))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        var detail = await orderService.GetOrderByIdAsync(
+            userId,
+            tenantId,
+            branchId,
+            orderId,
+            cancellationToken);
+        if (detail is null)
+        {
+            return ApiProblem.Create(StatusCodes.Status404NotFound, "ORDER_NOT_FOUND", "Order was not found.");
+        }
+
+        return Ok(ToOrderDetailResponse(detail));
+    }
+
     [HttpPut("{orderId:guid}/status")]
     [Authorize(Policy = ManagementPolicies.OrderModify)]
     [ProducesResponseType(typeof(ManagementOrderResponse), StatusCodes.Status200OK)]
@@ -76,7 +103,9 @@ public sealed class ManagementOrdersController(IManagementOrderService orderServ
                 result.StatusChangedAtUtc,
                 result.EstimatedReadyAtUtc,
                 result.AmountMinor,
-                result.Currency));
+                result.Currency,
+                Guid.Empty,
+                string.Empty));
         }
         catch (CustomerExperienceException exception)
         {
@@ -103,5 +132,36 @@ public sealed class ManagementOrdersController(IManagementOrderService orderServ
             order.StatusChangedAtUtc,
             order.EstimatedReadyAtUtc,
             order.AmountMinor,
-            order.Currency);
+            order.Currency,
+            order.TableId,
+            order.TableLabel);
+
+    private static ManagementOrderDetailResponse ToOrderDetailResponse(ManagementOrderDetailResult detail) =>
+        new(
+            detail.Id,
+            detail.DisplayNumber,
+            detail.Status,
+            detail.TableId,
+            detail.TableLabel,
+            detail.CreatedAtUtc,
+            detail.StatusChangedAtUtc,
+            detail.EstimatedReadyAtUtc,
+            detail.SubtotalAmountMinor,
+            detail.DiscountAmountMinor,
+            detail.TotalAmountMinor,
+            detail.Currency,
+            detail.Items.Select(item => new ManagementOrderLineResponse(
+                item.Id,
+                item.MenuItemId,
+                item.Name,
+                item.Quantity,
+                item.ListUnitPriceAmountMinor,
+                item.DiscountUnitAmountMinor,
+                item.UnitPriceAmountMinor,
+                item.Currency,
+                item.Note)).ToArray(),
+            detail.StatusHistory.Select(entry => new ManagementOrderStatusHistoryResponse(
+                entry.Status,
+                entry.ChangedAtUtc,
+                entry.ChangedByUserId)).ToArray());
 }

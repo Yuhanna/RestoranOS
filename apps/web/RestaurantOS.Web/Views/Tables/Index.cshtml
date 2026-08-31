@@ -40,7 +40,8 @@ else
         <thead>
             <tr>
                 <th>Etiket</th>
-                <th>Durum</th>
+                <th>Operasyon durumu</th>
+                <th>Kayıt</th>
                 <th>Aktif QR</th>
                 <th></th>
             </tr>
@@ -48,8 +49,15 @@ else
         <tbody>
         @foreach (var table in Model)
         {
+            var statusLabel = table.OperationalStatus switch
+            {
+                "has_pending_order" => "Bekleyen sipariş",
+                "occupied" => "Dolu",
+                _ => "Müsait",
+            };
             <tr>
                 <td>@table.Label</td>
+                <td><span class="badge">@statusLabel</span></td>
                 <td>@(table.IsActive ? "Aktif" : "Kapalı")</td>
                 <td>@table.ActiveQrCount</td>
                 <td>

@@ -73,6 +73,49 @@ public sealed class ManagementSecurityEndpointsTests
     }
 
     [Fact]
+    public async Task GetOrderDetailReturnsItemsHistoryAndEnforcesIsolation()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        await SeedAsync(factory, includeModifyPermission: true);
+        var access = await LoginForAccessAsync(client);
+
+        using var ownRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/management/orders/{SeedIds.OrderA}");
+        ownRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", access);
+        var ownResponse = await client.SendAsync(ownRequest);
+        var detail = await ownResponse.Content.ReadFromJsonAsync<ManagementOrderDetailResponse>();
+
+        using var foreignRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/management/orders/{SeedIds.OrderB}");
+        foreignRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", access);
+        var foreignResponse = await client.SendAsync(foreignRequest);
+
+        Assert.Equal(HttpStatusCode.OK, ownResponse.StatusCode);
+        Assert.NotNull(detail);
+        Assert.Equal(SeedIds.OrderA, detail.Id);
+        Assert.Equal("Masa 1", detail.TableLabel);
+        Assert.Single(detail.Items);
+        Assert.Equal("Test Burger", detail.Items[0].Name);
+        Assert.Equal(2, detail.Items[0].Quantity);
+        Assert.Equal("Az pişmiş", detail.Items[0].Note);
+        Assert.NotEmpty(detail.StatusHistory);
+        Assert.Equal("submitted", detail.StatusHistory[0].Status);
+
+        var accepted = await ChangeStatusAsync(client, access, SeedIds.OrderA, "accepted");
+        Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+
+        using var refreshedRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/management/orders/{SeedIds.OrderA}");
+        refreshedRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", access);
+        var refreshedResponse = await client.SendAsync(refreshedRequest);
+        var refreshed = await refreshedResponse.Content.ReadFromJsonAsync<ManagementOrderDetailResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, refreshedResponse.StatusCode);
+        Assert.NotNull(refreshed);
+        Assert.Contains(refreshed.StatusHistory, x => x.Status == "accepted");
+
+        Assert.Equal(HttpStatusCode.NotFound, foreignResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task StatusChangeEnforcesPermissionAndTenantBranchIsolation()
     {
         using var factory = CreateFactory();
@@ -154,7 +197,7 @@ public sealed class ManagementSecurityEndpointsTests
     }
 
     [Fact]
-    public async Task StatusChangeRejectsStaleExpectedVersion()
+    public async Task StatusChangeAcceptsIdempotentRetryWithStaleExpectedVersion()
     {
         using var factory = CreateFactory();
         using var client = factory.CreateClient();
@@ -162,12 +205,58 @@ public sealed class ManagementSecurityEndpointsTests
         var access = await LoginForAccessAsync(client);
 
         var first = await ChangeStatusAsync(client, access, SeedIds.OrderA, "accepted");
-        var stale = await ChangeStatusAsync(client, access, SeedIds.OrderA, "accepted");
-        var problem = await stale.Content.ReadFromJsonAsync<ProblemContract>();
+        var second = await ChangeStatusAsync(client, access, SeedIds.OrderA, "accepted");
+        var order = await second.Content.ReadFromJsonAsync<ManagementOrderResponse>();
 
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
-        Assert.Equal("ORDER_CONCURRENCY_CONFLICT", problem?.Code);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        Assert.Equal("accepted", order?.Status);
+    }
+
+    [Fact]
+    public async Task StatusChangeAcceptsStaleVersionWhenOrderAlreadyCompleted()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        await SeedAsync(factory, includeModifyPermission: true);
+        var access = await LoginForAccessAsync(client);
+
+        var completed = await ChangeStatusAsync(client, access, SeedIds.OrderA, "completed");
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+
+        var retry = await ChangeStatusAsync(
+            client,
+            access,
+            SeedIds.OrderA,
+            "completed",
+            SeedIds.CreatedAtUtc);
+        var order = await retry.Content.ReadFromJsonAsync<ManagementOrderResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
+        Assert.Equal("completed", order?.Status);
+    }
+
+    [Fact]
+    public async Task StatusChangeTreatsStaleBackwardSelectionAsNoOpWhenAlreadyPast()
+    {
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        await SeedAsync(factory, includeModifyPermission: true);
+        var access = await LoginForAccessAsync(client);
+
+        var preparing = await ChangeStatusAsync(client, access, SeedIds.OrderA, "preparing");
+        Assert.Equal(HttpStatusCode.OK, preparing.StatusCode);
+        var updated = await preparing.Content.ReadFromJsonAsync<ManagementOrderResponse>();
+
+        var staleAccepted = await ChangeStatusAsync(
+            client,
+            access,
+            SeedIds.OrderA,
+            "accepted",
+            SeedIds.CreatedAtUtc);
+
+        Assert.Equal(HttpStatusCode.OK, staleAccepted.StatusCode);
+        Assert.Equal("preparing", updated?.Status);
     }
 
     [Fact]
@@ -312,6 +401,15 @@ public sealed class ManagementSecurityEndpointsTests
             now);
         var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<ManagementUser>>();
         user.UpdatePasswordHash(hasher.HashPassword(user, Password));
+        var orderA = CreateOrder(SeedIds.OrderA, SeedIds.TenantA, SeedIds.BranchA, SeedIds.TableA, now);
+        orderA.Items.Add(new CustomerOrderItem(
+            SeedIds.OrderLineA,
+            SeedIds.OrderA,
+            SeedIds.MenuItemA,
+            "Test Burger",
+            Money.Try(500),
+            2,
+            "Az pişmiş"));
         db.AddRange(
             new Tenant(SeedIds.TenantA, "Tenant A"),
             new Restaurant(SeedIds.RestaurantA, SeedIds.TenantA, "Restaurant A"),
@@ -328,8 +426,9 @@ public sealed class ManagementSecurityEndpointsTests
                 SeedIds.TenantA,
                 SeedIds.BranchA,
                 role.Id),
-            CreateOrder(SeedIds.OrderA, SeedIds.TenantA, SeedIds.BranchA, now),
-            CreateOrder(SeedIds.OrderB, SeedIds.TenantB, SeedIds.BranchB, now));
+            new DiningTable(SeedIds.TableA, SeedIds.TenantA, SeedIds.BranchA, "Masa 1"),
+            orderA,
+            CreateOrder(SeedIds.OrderB, SeedIds.TenantB, SeedIds.BranchB, SeedIds.TableB, now));
         if (includeModifyPermission)
         {
             db.ManagementRolePermissions.Add(
@@ -343,12 +442,13 @@ public sealed class ManagementSecurityEndpointsTests
         Guid id,
         Guid tenantId,
         Guid branchId,
+        Guid tableId,
         DateTimeOffset now) =>
         new(
             id,
             tenantId,
             branchId,
-            Guid.NewGuid(),
+            tableId,
             Guid.NewGuid(),
             $"key-{id:N}",
             new string('A', 64),
@@ -363,6 +463,7 @@ public sealed class ManagementSecurityEndpointsTests
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseEnvironment("Testing");
             builder.UseSetting(
                 "ManagementAuth:SigningKey",
                 "test-only-signing-key-32-bytes-minimum-value");
@@ -392,6 +493,10 @@ public sealed class ManagementSecurityEndpointsTests
         public static readonly Guid Role = Guid.Parse("33000000-0000-0000-0000-000000000002");
         public static readonly Guid OrderA = Guid.Parse("34000000-0000-0000-0000-000000000001");
         public static readonly Guid OrderB = Guid.Parse("34000000-0000-0000-0000-000000000002");
+        public static readonly Guid TableA = Guid.Parse("34000000-0000-0000-0000-000000000010");
+        public static readonly Guid TableB = Guid.Parse("34000000-0000-0000-0000-000000000011");
+        public static readonly Guid MenuItemA = Guid.Parse("34000000-0000-0000-0000-000000000012");
+        public static readonly Guid OrderLineA = Guid.Parse("34000000-0000-0000-0000-000000000013");
         public static readonly DateTimeOffset CreatedAtUtc =
             DateTimeOffset.Parse("2026-08-25T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
     }

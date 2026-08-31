@@ -1,0 +1,51 @@
+@using RestaurantOS.Web.Data
+@inject IPlatformWebApiExecuter PlatformApi
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] ?? "Platform") · Restaurant OS</title>
+    <script>
+        (function () {
+            var key = "restaurantos-theme";
+            var pref = "system";
+            try {
+                var stored = localStorage.getItem(key);
+                if (stored === "light" || stored === "dark" || stored === "soft" || stored === "system") {
+                    pref = stored;
+                }
+            } catch (_) { }
+            var theme = pref === "system"
+                ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+                : pref;
+            document.documentElement.dataset.theme = theme;
+            document.documentElement.dataset.themePreference = pref;
+        })();
+    </script>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="topbar topbar-platform">
+        <a class="brand" href="/platform">Restaurant OS · Platform</a>
+        @if (PlatformApi.IsAuthenticated)
+        {
+            <nav aria-label="Platform menü">
+                <a href="/platform">Özet</a>
+                <a href="/platform/notifications">Bildirimler</a>
+                <a href="/platform/subscription-offers">Üyelik kampanyaları</a>
+            </nav>
+            <span class="scope-chip">Site yönetimi</span>
+            <form action="/platform/account/logout" method="post" class="inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="linkish">Çıkış yap</button>
+            </form>
+        }
+    </header>
+    <main class="container">
+        @RenderBody()
+    </main>
+    <script src="~/js/theme.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

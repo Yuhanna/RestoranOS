@@ -14,6 +14,8 @@
     "restaurant:lint": "pnpm --filter @restaurant-os/restaurant-web lint",
     "restaurant:typecheck": "pnpm --filter @restaurant-os/restaurant-web typecheck",
     "restaurant:test": "pnpm --filter @restaurant-os/restaurant-web test",
-    "restaurant:build": "pnpm --filter @restaurant-os/restaurant-web build"
+    "restaurant:build": "pnpm --filter @restaurant-os/restaurant-web build",
+    "api:e2e": "dotnet test apps/api/tests/RestaurantOS.Api.Tests/RestaurantOS.Api.Tests.csproj --filter FullyQualifiedName~Release1EndToEndTests",
+    "api:qr-security": "dotnet test apps/api/tests/RestaurantOS.Api.Tests/RestaurantOS.Api.Tests.csproj --filter FullyQualifiedName~QrSecurityEndpointsTests"
   }
 }

@@ -23,17 +23,7 @@ const products: Product[] = [
     badge: "Çok sevilen",
     dietaryTags: ["glutenFree"],
     allergens: ["Balık", "Süt ürünü"],
-    modifierGroups: [
-      {
-        id: "preparation",
-        name: "Pişirme şekli",
-        required: true,
-        options: [
-          { id: "pan", name: "Tavada", priceDelta: tryMoney(0) },
-          { id: "grill", name: "Odun ateşinde", priceDelta: tryMoney(0) },
-        ],
-      },
-    ],
+    modifierGroups: [],
   },
   {
     id: "m2",
@@ -47,17 +37,7 @@ const products: Product[] = [
     available: true,
     dietaryTags: ["vegetarian", "glutenFree"],
     allergens: ["Süt ürünü"],
-    modifierGroups: [
-      {
-        id: "truffle",
-        name: "Trüf miktarı",
-        required: false,
-        options: [
-          { id: "standard", name: "Standart", priceDelta: tryMoney(0) },
-          { id: "extra", name: "Ekstra trüf", priceDelta: tryMoney(8_000) },
-        ],
-      },
-    ],
+    modifierGroups: [],
   },
   {
     id: "s1",
@@ -166,13 +146,7 @@ export const mockCustomerGateway: CustomerGateway = {
       if (!product?.available) {
         throw new CustomerGatewayError("ORDER_REJECTED", "Product is unavailable");
       }
-      const modifiers = product.modifierGroups.flatMap((group) => group.options);
-      const optionTotal = line.modifierOptionIds.reduce(
-        (sum, optionId) =>
-          sum + (modifiers.find((option) => option.id === optionId)?.priceDelta.amountMinor ?? 0),
-        0,
-      );
-      return total + (product.price.amountMinor + optionTotal) * line.quantity;
+      return total + product.price.amountMinor * line.quantity;
     }, 0);
 
     const order = {

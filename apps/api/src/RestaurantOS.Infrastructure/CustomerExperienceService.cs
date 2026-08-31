@@ -10,7 +10,8 @@ public sealed class CustomerExperienceService(
     RestaurantOsDbContext dbContext,
     TimeProvider timeProvider,
     IOrderStatusNotifier orderStatusNotifier,
-    IManagementOrderNotifier managementOrderNotifier) : ICustomerExperienceService
+    IManagementOrderNotifier managementOrderNotifier,
+    ICustomerOrderGuard customerOrderGuard) : ICustomerExperienceService
 {
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(4);
     private static readonly TimeSpan DefaultPrepTime = TimeSpan.FromMinutes(18);
@@ -18,10 +19,12 @@ public sealed class CustomerExperienceService(
     public async Task<CustomerSessionResult> ResolveQrAsync(
         string qrToken,
         string locale,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        CustomerClientContext? client = null)
     {
         if (string.IsNullOrWhiteSpace(qrToken) || qrToken.Length is < 32 or > 512)
         {
+            customerOrderGuard.RecordFailedRequest(client);
             throw new CustomerExperienceException("INVALID_QR", "QR token is invalid.");
         }
 
@@ -43,6 +46,7 @@ public sealed class CustomerExperienceService(
 
         if (qr is null)
         {
+            customerOrderGuard.RecordFailedRequest(client);
             throw new CustomerExperienceException("INVALID_QR", "QR token is invalid.");
         }
 
@@ -83,10 +87,17 @@ public sealed class CustomerExperienceService(
             .Where(x => x.TenantId == qr.TenantId && x.BranchId == qr.BranchId && productIds.Contains(x.ItemId))
             .ToListAsync(cancellationToken);
 
-        var sessionToken = OpaqueToken.Create();
         var now = timeProvider.GetUtcNow();
+        var promotions = await dbContext.MenuPromotions
+            .AsNoTracking()
+            .Where(x => x.TenantId == qr.TenantId && x.BranchId == qr.BranchId && x.IsActive)
+            .ToListAsync(cancellationToken);
+        var activePromotions = PromotionPricingService.FilterActivePromotions(promotions, now);
+
+        var sessionToken = OpaqueToken.Create();
+        var tableSessionId = Guid.NewGuid();
         dbContext.CustomerSessions.Add(new CustomerSession(
-            Guid.NewGuid(),
+            tableSessionId,
             qr.TenantId,
             qr.BranchId,
             qr.TableId,
@@ -94,6 +105,16 @@ public sealed class CustomerExperienceService(
             resolvedLocale,
             now,
             now.Add(SessionLifetime)));
+        dbContext.GuestSessions.Add(new GuestSession(
+            Guid.NewGuid(),
+            qr.TenantId,
+            qr.BranchId,
+            tableSessionId,
+            client?.DeviceId,
+            HashClientIp(client?.ClientIp),
+            resolvedLocale,
+            now,
+            now));
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var openTypes = await dbContext.ServiceRequests
@@ -135,16 +156,25 @@ public sealed class CustomerExperienceService(
             {
                 var translation = itemTranslations.FirstOrDefault(x => x.ItemId == item.Id && x.Locale == resolvedLocale)
                     ?? itemTranslations.FirstOrDefault(x => x.ItemId == item.Id && x.Locale == SupportedLocales.Turkish);
+                var promotion = PromotionPricingService.ResolveBestPromotion(
+                    activePromotions,
+                    item.Id,
+                    item.CategoryId,
+                    now);
+                var pricing = PromotionPricingService.PriceMenuItem(item, promotion);
                 return new MenuItemResult(
                     item.Id,
                     item.CategoryId,
                     translation?.Name ?? item.Name,
                     translation?.Description ?? item.Description,
-                    item.Price.AmountMinor,
-                    item.Price.Currency,
+                    pricing.FinalAmountMinor,
+                    pricing.Currency,
                     item.IsAvailable,
                     item.ImageUrl,
-                    string.IsNullOrWhiteSpace(item.ImageAlt) ? (translation?.Name ?? item.Name) : item.ImageAlt);
+                    string.IsNullOrWhiteSpace(item.ImageAlt) ? (translation?.Name ?? item.Name) : item.ImageAlt,
+                    pricing.ListAmountMinor,
+                    pricing.DiscountAmountMinor,
+                    promotion?.Name);
             }).ToArray(),
             openTypes.Select(ServiceRequest.ToApiCode).ToArray(),
             activeOrders.Select(MapOrder).ToArray());
@@ -154,10 +184,12 @@ public sealed class CustomerExperienceService(
         string sessionToken,
         string idempotencyKey,
         IReadOnlyCollection<CreateOrderLine> lines,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        CustomerClientContext? client = null)
     {
         if (string.IsNullOrWhiteSpace(sessionToken) || sessionToken.Length is < 32 or > 512)
         {
+            customerOrderGuard.RecordFailedRequest(client);
             throw new CustomerExperienceException("INVALID_SESSION", "Customer session is invalid.");
         }
 
@@ -178,6 +210,7 @@ public sealed class CustomerExperienceService(
             cancellationToken);
         if (session is null)
         {
+            customerOrderGuard.RecordFailedRequest(client);
             throw new CustomerExperienceException("INVALID_SESSION", "Customer session is invalid.");
         }
 
@@ -201,6 +234,8 @@ public sealed class CustomerExperienceService(
             return MapOrder(existing);
         }
 
+        customerOrderGuard.EnsureCanPlaceOrder(session.Id, client);
+
         var productIds = lines.Select(x => x.ProductId).Distinct().ToArray();
         var products = await dbContext.MenuItems
             .AsNoTracking()
@@ -219,8 +254,40 @@ public sealed class CustomerExperienceService(
             throw new CustomerExperienceException("ORDER_REJECTED", "One or more products are unavailable.");
         }
 
+        var promotions = await dbContext.MenuPromotions
+            .AsNoTracking()
+            .Where(x => x.TenantId == session.TenantId && x.BranchId == session.BranchId && x.IsActive)
+            .ToListAsync(cancellationToken);
+        var activePromotions = PromotionPricingService.FilterActivePromotions(promotions, now);
+
         var orderId = Guid.NewGuid();
-        var totalMinor = lines.Sum(line => checked(products[line.ProductId].Price.AmountMinor * line.Quantity));
+        long subtotalMinor = 0;
+        long discountMinor = 0;
+        var orderLines = new List<CustomerOrderItem>();
+        foreach (var line in lines)
+        {
+            var product = products[line.ProductId];
+            var promotion = PromotionPricingService.ResolveBestPromotion(
+                activePromotions,
+                product.Id,
+                product.CategoryId,
+                now);
+            var pricing = PromotionPricingService.PriceMenuItem(product, promotion);
+            subtotalMinor = checked(subtotalMinor + pricing.ListAmountMinor * line.Quantity);
+            discountMinor = checked(discountMinor + pricing.DiscountAmountMinor * line.Quantity);
+            orderLines.Add(new CustomerOrderItem(
+                Guid.NewGuid(),
+                orderId,
+                product.Id,
+                product.Name,
+                Money.Try(pricing.ListAmountMinor),
+                Money.Try(pricing.DiscountAmountMinor),
+                Money.Try(pricing.FinalAmountMinor),
+                line.Quantity,
+                line.Note));
+        }
+
+        var totalMinor = checked(subtotalMinor - discountMinor);
         var prepSeconds = lines
             .Select(line => products[line.ProductId].PrepTimeSeconds is > 0
                 ? products[line.ProductId].PrepTimeSeconds!.Value
@@ -236,20 +303,26 @@ public sealed class CustomerExperienceService(
             idempotencyKey,
             requestHash,
             $"#{now:MMddHHmm}-{orderId.ToString("N")[..4].ToUpperInvariant()}",
+            Money.Try(subtotalMinor),
+            Money.Try(discountMinor),
             Money.Try(totalMinor),
             now,
             now.AddSeconds(prepSeconds));
-        foreach (var line in lines)
+        foreach (var orderLine in orderLines)
         {
-            var product = products[line.ProductId];
-            order.Items.Add(new CustomerOrderItem(
-                Guid.NewGuid(),
-                order.Id,
-                product.Id,
-                product.Name,
-                product.Price,
-                line.Quantity,
-                line.Note));
+            order.Items.Add(orderLine);
+        }
+
+        var guestSession = await dbContext.GuestSessions
+            .Where(entry =>
+                entry.TableSessionId == session.Id
+                && entry.Status == GuestSessionStatus.Active)
+            .OrderByDescending(entry => entry.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (guestSession is not null)
+        {
+            guestSession.Touch(now);
+            order.AttachGuestSession(guestSession.Id);
         }
 
         dbContext.CustomerOrders.Add(order);
@@ -482,9 +555,19 @@ public sealed class CustomerExperienceService(
             throw new CustomerExperienceException("ORDER_NOT_FOUND", "Order was not found.");
         }
 
-        if (expectedStatusChangedAtUtc is not null
-            && order.StatusChangedAtUtc != expectedStatusChangedAtUtc.Value.ToUniversalTime())
+        if (order.Status == nextStatus)
         {
+            return MapOrder(order);
+        }
+
+        if (expectedStatusChangedAtUtc is not null
+            && !StatusVersionMatches(order.StatusChangedAtUtc, expectedStatusChangedAtUtc.Value))
+        {
+            if (IsAlreadyAtOrBeyondTarget(order.Status, nextStatus))
+            {
+                return MapOrder(order);
+            }
+
             throw new CustomerExperienceException(
                 "ORDER_CONCURRENCY_CONFLICT",
                 "Order status changed concurrently. Reload and retry.");
@@ -561,9 +644,45 @@ public sealed class CustomerExperienceService(
             order.Status.ToString().ToLowerInvariant(),
             order.StatusChangedAtUtc,
             order.EstimatedReadyAtUtc,
-            order.Total.AmountMinor,
-            order.Total.Currency,
-            order.CreatedAtUtc);
+            order.TotalAmountMinor,
+            order.TotalCurrency,
+            order.CreatedAtUtc,
+            order.SubtotalAmountMinor,
+            order.DiscountAmountMinor);
+
+    private static bool StatusVersionMatches(DateTimeOffset actual, DateTimeOffset expected)
+    {
+        actual = actual.ToUniversalTime();
+        expected = expected.ToUniversalTime();
+        if (actual == expected)
+        {
+            return true;
+        }
+
+        // Hidden MVC fields and JSON round-trips often drop fractional seconds.
+        if (Math.Abs((actual - expected).TotalMilliseconds) <= 1000)
+        {
+            return true;
+        }
+
+        return actual.UtcDateTime.Ticks / TimeSpan.TicksPerSecond
+            == expected.UtcDateTime.Ticks / TimeSpan.TicksPerSecond;
+    }
+
+    private static bool IsAlreadyAtOrBeyondTarget(OrderStatus current, OrderStatus requested)
+    {
+        if (requested == OrderStatus.Cancelled)
+        {
+            return false;
+        }
+
+        return (int)current >= (int)requested;
+    }
+
+    private static string? HashClientIp(string? clientIp) =>
+        string.IsNullOrWhiteSpace(clientIp)
+            ? null
+            : OpaqueToken.Hash(clientIp.Trim().ToLowerInvariant());
 
     private static string HashOrder(IEnumerable<CreateOrderLine> lines)
     {

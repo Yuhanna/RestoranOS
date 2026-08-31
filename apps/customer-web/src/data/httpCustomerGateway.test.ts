@@ -63,6 +63,48 @@ describe("http customer gateway", () => {
     });
   });
 
+  it("normalizes product payloads from the API contract", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          sessionToken: "opaque-session-token",
+          restaurantName: "Marea",
+          branchName: "Nişantaşı",
+          tableLabel: "Masa 7",
+          locale: "tr",
+          categories: [{ id: "cat-1", name: "Ana yemekler" }],
+          products: [
+            {
+              id: "product-1",
+              categoryId: "cat-1",
+              name: "Levrek",
+              description: "Izgara",
+              price: { amountMinor: 42000, currency: "TRY" },
+              imageUrl: "/media/levrek.jpg",
+              imageAlt: "Levrek",
+              available: true,
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const session =
+      await createHttpCustomerGateway("http://localhost:5183/").resolveQr("opaque-qr-token");
+
+    expect(session.products).toHaveLength(1);
+    expect(session.products[0]).toMatchObject({
+      id: "product-1",
+      categoryId: "cat-1",
+      price: { amountMinor: 42000, currency: "TRY" },
+      dietaryTags: [],
+      allergens: [],
+      modifierGroups: [],
+    });
+  });
+
   it("sends idempotency as an HTTP header", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

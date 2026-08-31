@@ -1,8 +1,13 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@restaurant-os/design-system";
+import { AnalyticsPanel } from "./AnalyticsPanel";
+import { DashboardPanel } from "./DashboardPanel";
+import { PromotionsPanel } from "./PromotionsPanel";
+import { SettingsPanel } from "./SettingsPanel";
 import { ApiError, api as defaultApi, type ManagementApi } from "./api";
 import {
   nextStatuses,
+  type AudienceNotification,
   type DiningTable,
   type GeneratedQr,
   type LoginInput,
@@ -10,12 +15,26 @@ import {
   type MenuProductRecord,
   type MenuSummary,
   type Order,
+  type OrderDetail,
   type OrderStatus,
   type QrPrint,
+  type ServiceRequest,
   type Session,
+  type SubscriptionOffer,
   type TableQrCode,
+  type Workspace,
 } from "./domain";
+import {
+  bindBackgroundAlertRecovery,
+  isSoundEnabled,
+  notifyAudience,
+  playAlertChime,
+  requestNotificationPermission,
+  setSoundEnabled,
+} from "./notifications";
 import { realtime as defaultRealtime, type RealtimeClient, type RealtimeState } from "./realtime";
+import { ServiceRequestsPanel } from "./ServiceRequestsPanel";
+import { ThemePicker } from "./ThemePicker";
 
 const statusLabel: Record<OrderStatus, string> = {
   submitted: "YENİ",
@@ -38,6 +57,15 @@ const actionLabel: Record<OrderStatus, string> = {
 const stationFor = (status: OrderStatus) =>
   status === "submitted" ? "Giriş" : status === "ready" ? "Pas" : "Mutfak";
 
+const tableStatusLabel: Record<string, string> = {
+  available: "MÜSAİT",
+  occupied: "DOLU",
+  has_pending_order: "BEKLEYEN SİPARİŞ",
+};
+
+const formatOrderMoney = (minor: number, currency: string) =>
+  (minor / 100).toLocaleString("tr-TR", { style: "currency", currency });
+
 const errorMessage = (error: unknown) => {
   if (!(error instanceof ApiError)) return "Beklenmeyen bir hata oluştu.";
   if (error.status === 403) return "Bu işlem için Order.Modify yetkiniz bulunmuyor.";
@@ -56,7 +84,13 @@ const mergeOrder = (orders: Order[], incoming: Order) => {
   }
   const current = orders.find((order) => order.id === incoming.id);
   const merged = current
-    ? { ...current, ...incoming, createdAtUtc: incoming.createdAtUtc ?? current.createdAtUtc }
+    ? {
+        ...current,
+        ...incoming,
+        createdAtUtc: incoming.createdAtUtc ?? current.createdAtUtc,
+        tableId: incoming.tableId || current.tableId,
+        tableLabel: incoming.tableLabel || current.tableLabel,
+      }
     : incoming;
   return current
     ? orders.map((order) => (order.id === incoming.id ? merged : order))
@@ -75,16 +109,29 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
   const [error, setError] = useState("");
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<string | null>(null);
+  const [detailOrder, setDetailOrder] = useState<OrderDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [realtimeState, setRealtimeState] = useState<RealtimeState>("offline");
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all");
   const [stationFilter, setStationFilter] = useState("Tümü");
   const [now, setNow] = useState(() => Date.now());
-  const [view, setView] = useState<"orders" | "tables" | "menus">("orders");
+  const [view, setView] = useState<
+    "dashboard" | "orders" | "tables" | "menus" | "promotions" | "service" | "analytics" | "settings"
+  >("dashboard");
+  const [soundOn, setSoundOn] = useState(isSoundEnabled);
+  const [incomingServiceRequest, setIncomingServiceRequest] = useState<ServiceRequest | null>(null);
+  const [workspaceMessages, setWorkspaceMessages] = useState<{
+    notifications: AudienceNotification[];
+    subscriptionOffers: SubscriptionOffer[];
+  }>({ notifications: [], subscriptionOffers: [] });
+  const previousOrderIds = useRef<Set<string>>(new Set());
 
   const loadOrders = useCallback(async () => {
     setLoadingOrders(true);
     try {
-      setOrders(await managementApi.getActiveOrders());
+      const nextOrders = await managementApi.getActiveOrders();
+      previousOrderIds.current = new Set(nextOrders.map((order) => order.id));
+      setOrders(nextOrders);
       setError("");
     } catch (loadError) {
       if (loadError instanceof ApiError && loadError.status === 401) setSession(null);
@@ -114,19 +161,34 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
     };
   }, [loadOrders, managementApi]);
 
+  useEffect(() => bindBackgroundAlertRecovery(), []);
+
   useEffect(() => {
     if (!session) return;
     let stop: (() => Promise<void>) | undefined;
     let cancelled = false;
     realtimeClient
-      .start(
-        (incoming) => setOrders((current) => mergeOrder(current, incoming)),
-        setOrders,
-        (state) => {
+      .start({
+        onOrder: (incoming) => {
+          setOrders((current) => {
+            const merged = mergeOrder(current, incoming);
+            const isNew = incoming.status === "submitted" && !previousOrderIds.current.has(incoming.id);
+            if (isNew) playAlertChime("order");
+            previousOrderIds.current = new Set(merged.map((order) => order.id));
+            return merged;
+          });
+        },
+        onResync: (nextOrders) => {
+          previousOrderIds.current = new Set(nextOrders.map((order) => order.id));
+          setOrders(nextOrders);
+        },
+        onState: (state) => {
           setRealtimeState(state);
           if (state === "offline" && !managementApi.getSession()) setSession(null);
         },
-      )
+        onServiceRequest: (request) => setIncomingServiceRequest(request),
+        onAudienceNotification: (notification) => notifyAudience(notification),
+      })
       .then((stopClient) => {
         if (cancelled) void stopClient();
         else stop = stopClient;
@@ -142,6 +204,29 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!session) {
+      setWorkspaceMessages({ notifications: [], subscriptionOffers: [] });
+      return;
+    }
+    let active = true;
+    managementApi
+      .getWorkspace()
+      .then((workspace) => {
+        if (!active) return;
+        setWorkspaceMessages({
+          notifications: workspace.notifications ?? [],
+          subscriptionOffers: workspace.subscriptionOffers ?? [],
+        });
+      })
+      .catch(() => {
+        if (active) setWorkspaceMessages({ notifications: [], subscriptionOffers: [] });
+      });
+    return () => {
+      active = false;
+    };
+  }, [managementApi, session]);
 
   const login = async (input: LoginInput) => {
     try {
@@ -163,15 +248,34 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
   const changeStatus = async (order: Order, status: OrderStatus) => {
     setPendingOrder(order.id);
     try {
-      const changed = await managementApi.changeStatus(order, status);
+      const latest = orders.find((item) => item.id === order.id) ?? order;
+      const changed = await managementApi.changeStatus(latest, status);
       setOrders((current) => mergeOrder(current, changed));
       setError("");
     } catch (statusError) {
-      setError(errorMessage(statusError));
-      if (statusError instanceof ApiError && statusError.status === 409) await loadOrders();
+      const message = errorMessage(statusError);
+      setError(message);
+      if (statusError instanceof ApiError && statusError.status === 409) {
+        await loadOrders();
+        setError(message);
+      }
       if (statusError instanceof ApiError && statusError.status === 401) setSession(null);
     } finally {
       setPendingOrder(null);
+    }
+  };
+
+  const openOrderDetail = async (orderId: string) => {
+    setDetailLoading(true);
+    try {
+      const detail = await managementApi.getOrder(orderId);
+      setDetailOrder(detail);
+      setError("");
+    } catch (detailError) {
+      setError(errorMessage(detailError));
+      if (detailError instanceof ApiError && detailError.status === 401) setSession(null);
+    } finally {
+      setDetailLoading(false);
     }
   };
 
@@ -221,6 +325,12 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
           <span className={`connection connection--${realtimeState}`}>{realtimeState}</span>
           <nav className="view-switch" aria-label="Ekranlar">
             <button
+              className={view === "dashboard" ? "filter active" : "filter"}
+              onClick={() => setView("dashboard")}
+            >
+              Gösterge
+            </button>
+            <button
               className={view === "orders" ? "filter active" : "filter"}
               onClick={() => setView("orders")}
             >
@@ -238,7 +348,47 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
             >
               Menü
             </button>
+            <button
+              className={view === "promotions" ? "filter active" : "filter"}
+              onClick={() => setView("promotions")}
+            >
+              İndirimler
+            </button>
+            <button
+              className={view === "service" ? "filter active" : "filter"}
+              onClick={() => setView("service")}
+            >
+              Garson
+            </button>
+            <button
+              className={view === "analytics" ? "filter active" : "filter"}
+              onClick={() => setView("analytics")}
+            >
+              İstatistik
+            </button>
+            <button
+              className={view === "settings" ? "filter active" : "filter"}
+              onClick={() => setView("settings")}
+            >
+              Ayarlar
+            </button>
           </nav>
+          <button
+            type="button"
+            className={soundOn ? "filter active" : "filter"}
+            onClick={() => {
+              const next = !soundOn;
+              setSoundOn(next);
+              setSoundEnabled(next);
+              if (next) {
+                void requestNotificationPermission();
+                playAlertChime("order", { force: true });
+              }
+            }}
+          >
+            Ses {soundOn ? "açık" : "kapalı"}
+          </button>
+          <ThemePicker />
           <Button variant="ghost" onClick={logout}>
             Çıkış
           </Button>
@@ -254,10 +404,43 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
         </div>
       ) : null}
 
-      {view === "tables" ? (
+      {workspaceMessages.subscriptionOffers.length || workspaceMessages.notifications.length ? (
+        <section className="audience-banners" aria-label="Hesap bildirimleri">
+          {workspaceMessages.subscriptionOffers.map((offer) => (
+            <article className="audience-banner audience-banner--offer" key={offer.id}>
+              <strong>{offer.title}</strong>
+              <p>
+                {offer.body} ({offer.discountPercent}% · {offer.durationMonths} ay)
+              </p>
+            </article>
+          ))}
+          {workspaceMessages.notifications.map((notification) => (
+            <article className="audience-banner" key={notification.id}>
+              <strong>{notification.title}</strong>
+              <p>{notification.body}</p>
+            </article>
+          ))}
+        </section>
+      ) : null}
+
+      {view === "dashboard" ? (
+        <DashboardPanel managementApi={managementApi} onError={setError} />
+      ) : view === "tables" ? (
         <TablesPanel managementApi={managementApi} onError={setError} />
       ) : view === "menus" ? (
         <MenuPanel managementApi={managementApi} onError={setError} />
+      ) : view === "promotions" ? (
+        <PromotionsPanel managementApi={managementApi} onError={setError} />
+      ) : view === "service" ? (
+        <ServiceRequestsPanel
+          managementApi={managementApi}
+          onError={setError}
+          incoming={incomingServiceRequest}
+        />
+      ) : view === "analytics" ? (
+        <AnalyticsPanel managementApi={managementApi} onError={setError} />
+      ) : view === "settings" ? (
+        <SettingsPanel managementApi={managementApi} onError={setError} onLogout={logout} />
       ) : (
         <>
       <section className="filters" aria-label="Sipariş filtreleri">
@@ -299,6 +482,7 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
             now={now}
             pending={pendingOrder === order.id}
             onStatus={changeStatus}
+            onDetail={openOrderDetail}
           />
         ))}
         {!loadingOrders && visibleOrders.length === 0 ? (
@@ -309,6 +493,13 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
           </div>
         ) : null}
       </section>
+      {detailOrder ? (
+        <OrderDetailPanel
+          detail={detailOrder}
+          loading={detailLoading}
+          onClose={() => setDetailOrder(null)}
+        />
+      ) : null}
         </>
       )}
     </main>
@@ -373,6 +564,7 @@ function LoginScreen({
         <Button type="submit" fullWidth disabled={submitting}>
           {submitting ? "Bağlanıyor…" : "Operasyon ekranını aç"}
         </Button>
+        <ThemePicker />
         <p className="security-note">
           Erişim anahtarı yalnızca bellekte tutulur. Kalıcı oturum HttpOnly yenileme çereziyle
           sağlanır.
@@ -396,11 +588,13 @@ function OrderCard({
   now,
   pending,
   onStatus,
+  onDetail,
 }: {
   order: Order;
   now: number;
   pending: boolean;
   onStatus: (order: Order, status: OrderStatus) => void;
+  onDetail: (orderId: string) => void;
 }) {
   const ageMinutes = Math.max(
     0,
@@ -418,30 +612,36 @@ function OrderCard({
       </header>
       <dl>
         <div>
+          <dt>MASA</dt>
+          <dd>{order.tableLabel || "—"}</dd>
+        </div>
+        <div>
+          <dt>SİPARİŞ ZAMANI</dt>
+          <dd>
+            {new Date(order.createdAtUtc ?? order.statusChangedAtUtc).toLocaleTimeString("tr-TR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </dd>
+        </div>
+        <div>
+          <dt>TUTAR</dt>
+          <dd>{formatOrderMoney(order.amountMinor, order.currency)}</dd>
+        </div>
+        <div>
+          <dt>DURUM</dt>
+          <dd>{statusLabel[order.status]}</dd>
+        </div>
+        <div>
           <dt>İSTASYON</dt>
           <dd>{stationFor(order.status)}</dd>
         </div>
-        <div>
-          <dt>DURUM DEĞİŞİMİ</dt>
-          <dd>
-            {new Date(order.statusChangedAtUtc).toLocaleTimeString("tr-TR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </dd>
-        </div>
-        <div>
-          <dt>HEDEF</dt>
-          <dd>
-            {new Date(order.estimatedReadyAtUtc).toLocaleTimeString("tr-TR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </dd>
-        </div>
       </dl>
       <footer>
-        {nextStatuses[order.status].map((next) => (
+        <Button variant="secondary" disabled={pending} onClick={() => onDetail(order.id)}>
+          Detay
+        </Button>
+        {(nextStatuses[order.status] ?? []).map((next) => (
           <Button
             key={next}
             variant={next === "cancelled" ? "ghost" : "primary"}
@@ -453,6 +653,90 @@ function OrderCard({
         ))}
       </footer>
     </article>
+  );
+}
+
+function OrderDetailPanel({
+  detail,
+  loading,
+  onClose,
+}: {
+  detail: OrderDetail;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const formatMoney = (minor: number) =>
+    `₺${(minor / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  return (
+    <div className="order-detail-backdrop" role="presentation" onClick={onClose}>
+      <section
+        className="order-detail-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-detail-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header>
+          <div>
+            <p className="eyebrow">SİPARİŞ DETAYI</p>
+            <h2 id="order-detail-title">{detail.displayNumber}</h2>
+            <p className="muted">
+              Masa {detail.tableLabel} · {statusLabel[detail.status]}
+            </p>
+          </div>
+          <button type="button" className="order-detail-close" onClick={onClose} aria-label="Kapat">
+            ×
+          </button>
+        </header>
+        {loading ? <p className="muted">Yükleniyor…</p> : null}
+        <dl className="order-detail-summary">
+          <div>
+            <dt>Ara toplam</dt>
+            <dd>{formatMoney(detail.subtotalAmountMinor)}</dd>
+          </div>
+          {detail.discountAmountMinor > 0 ? (
+            <div>
+              <dt>İndirim</dt>
+              <dd>−{formatMoney(detail.discountAmountMinor)}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt>Toplam</dt>
+            <dd>{formatMoney(detail.totalAmountMinor)}</dd>
+          </div>
+        </dl>
+        <section>
+          <h3>Kalemler</h3>
+          {detail.items?.length ? (
+            <ul className="order-detail-lines">
+              {detail.items.map((item) => (
+                <li key={item.id}>
+                  <strong>
+                    {item.quantity}× {item.name}
+                  </strong>
+                  <span>{formatMoney(item.unitPriceAmountMinor * item.quantity)}</span>
+                  {item.note ? <em>{item.note}</em> : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">Kalem kaydı yok.</p>
+          )}
+        </section>
+        <section>
+          <h3>Durum geçmişi</h3>
+          <ol className="order-detail-history">
+            {(detail.statusHistory ?? []).map((entry, index) => (
+              <li key={`${entry.status}-${entry.changedAtUtc}-${index}`}>
+                <strong>{statusLabel[entry.status as OrderStatus] ?? entry.status}</strong>
+                <time>{new Date(entry.changedAtUtc).toLocaleString("tr-TR")}</time>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </section>
+    </div>
   );
 }
 
@@ -590,7 +874,8 @@ function TablesPanel({
               >
                 <strong>{table.label}</strong>
                 <span>
-                  {table.isActive ? "Aktif" : "Kapalı"} · {table.activeQrCount} QR
+                  {tableStatusLabel[table.operationalStatus] ?? table.operationalStatus} ·{" "}
+                  {table.isActive ? "Kayıt aktif" : "Kapalı"} · {table.activeQrCount} QR
                 </span>
               </button>
             </li>
@@ -613,6 +898,12 @@ function TablesPanel({
                     dangerouslySetInnerHTML={{ __html: print.svgMarkup }}
                   />
                   <p className="qr-print__url">{print.entryUrl}</p>
+                  {print.entryUrl.includes("localhost") || print.entryUrl.includes("127.0.0.1") ? (
+                    <p className="security-note" role="alert">
+                      Bu URL telefonunuzdan açılmaz. API yeniden başlatılıp yeni QR üretin; adres otomatik
+                      olarak Wi‑Fi IP’nize ayarlanır.
+                    </p>
+                  ) : null}
                   {"token" in print ? (
                     <p className="security-note">
                       Ham token yalnızca bu üretim yanıtında gösterilir; listelerde saklanmaz.

@@ -1,0 +1,111 @@
+@model RestaurantOS.Web.Models.PlatformNotificationsPageViewModel
+@{
+    Layout = "_PlatformLayout";
+    ViewData["Title"] = "Platform bildirimleri";
+    var audienceLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["all"] = "Tüm üyeler",
+        ["free"] = "Ücretsiz plan",
+        ["pro"] = "Pro üyeler",
+        ["trial"] = "Deneme sürecindekiler",
+        ["non_pro"] = "Pro olmayanlar",
+    };
+}
+
+<div class="page-head">
+    <div>
+        <h1>Platform bildirimleri</h1>
+        <p class="muted">Tüm restoranlara hedef kitleye göre e-posta ve push bildirimi gönderin.</p>
+    </div>
+</div>
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert success" role="status">@message</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert" role="alert">@error</div>
+}
+@if (!string.IsNullOrWhiteSpace(Model.LastDispatchSummary))
+{
+    <div class="alert success" role="status">@Model.LastDispatchSummary</div>
+}
+
+<div asp-validation-summary="All" class="alert"></div>
+
+<section class="panel">
+    <h2>Yeni platform bildirimi</h2>
+    <form action="/platform/notifications" method="post" class="stack">
+        @Html.AntiForgeryToken()
+        <label>
+            Hedef kitle
+            <select asp-for="Create.Audience">
+                @foreach (var entry in audienceLabels)
+                {
+                    <option value="@entry.Key">@entry.Value</option>
+                }
+            </select>
+        </label>
+        <label>
+            Başlık
+            <input asp-for="Create.Title" required />
+        </label>
+        <label>
+            Mesaj
+            <textarea asp-for="Create.Body" rows="4" required></textarea>
+        </label>
+        <label>
+            Bağlantı (isteğe bağlı)
+            <input asp-for="Create.ActionUrl" placeholder="/subscription" />
+        </label>
+        <button type="submit" class="btn">Bildirim oluştur</button>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>Kayıtlı bildirimler</h2>
+    @if (Model.Notifications.Count == 0)
+    {
+        <p class="muted">Henüz platform bildirimi yok.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Başlık</th>
+                    <th>Kitle</th>
+                    <th>Son gönderim</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var notification in Model.Notifications)
+            {
+                <tr>
+                    <td>
+                        <strong>@notification.Title</strong>
+                        <p class="muted">@notification.Body</p>
+                    </td>
+                    <td>@(audienceLabels.GetValueOrDefault(notification.Audience) ?? notification.Audience)</td>
+                    <td>@(notification.LastDispatchedAtUtc?.ToLocalTime().ToString("g") ?? "—")</td>
+                    <td>
+                        <form action="/platform/notifications/dispatch" method="post" class="inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@notification.Id" />
+                            <button type="submit" class="linkish" @(notification.IsActive ? null : "disabled")>
+                                E-posta + push gönder
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</section>
+
+<p class="muted">
+    Geliştirmede e-postalar log’a yazılır. SMTP için API <code>Email:Provider</code> = <code>Smtp</code>.
+</p>

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RestaurantOS.Api.Models.Dto;
 using RestaurantOS.Application;
+using RestaurantOS.Domain;
 using RestaurantOS.Infrastructure;
 
 namespace RestaurantOS.Api.Controllers;
@@ -71,6 +72,13 @@ public sealed class ManagementWorkspaceController(
         }
 
         var usage = await entitlements.GetUsageAsync(tenantId, branchId, cancellationToken);
+        var canViewFinancialAnalytics = await PermissionAuthorizationHandler.HasPermissionAsync(
+            dbContext,
+            userId,
+            tenantId,
+            branchId,
+            ManagementPermissions.AnalyticsFinancialView,
+            cancellationToken);
         return Ok(new ManagementWorkspaceResponse(
             workspace.TenantId,
             workspace.RestaurantId,
@@ -94,6 +102,19 @@ public sealed class ManagementWorkspaceController(
                 usage.HasPrioritySupport,
                 usage.Warnings,
                 usage.IsTrial,
-                usage.TrialEndsAtUtc)));
+                usage.TrialEndsAtUtc,
+                canViewFinancialAnalytics),
+            (usage.Notifications ?? [])
+                .Select(x => new ManagementAudienceNotificationResponse(x.Id, x.Title, x.Body, x.ActionUrl))
+                .ToArray(),
+            (usage.SubscriptionOffers ?? [])
+                .Select(x => new ManagementSubscriptionOfferResponse(
+                    x.Id,
+                    x.TargetPlanCode,
+                    x.DiscountPercent,
+                    x.DurationMonths,
+                    x.Title,
+                    x.Body))
+                .ToArray()));
     }
 }

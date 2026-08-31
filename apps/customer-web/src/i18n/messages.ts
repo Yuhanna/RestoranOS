@@ -6,9 +6,11 @@ export const messages = {
   openDemo: "Demo QR akışını aç",
   qrResolving: "Masa bilgileriniz doğrulanıyor…",
   qrInvalidTitle: "Bu QR kodu kullanılamıyor",
-  qrInvalidBody: "Lütfen masanızdaki güncel QR kodunu yeniden okutun.",
+  qrInvalidBody:
+    "Lütfen masanızdaki güncel QR kodunu yeniden okutun. Eski veya iptal edilmiş QR kodları çalışmaz; yönetim panelinden yeni QR üretin.",
   qrLoadErrorTitle: "Masa bilgileri alınamadı",
-  qrLoadErrorBody: "Bağlantınızı kontrol edip yeniden deneyin.",
+  qrLoadErrorBody:
+    "Bağlantınızı kontrol edip yeniden deneyin. Geliştirme ortamında bilgisayarda customer-web (5173) ve API (5183) çalışıyor olmalı; telefon aynı Wi‑Fi ağında olmalı.",
   qrMenuUnavailableTitle: "Menü henüz yayınlanmamış",
   qrMenuUnavailableBody:
     "Restoran bu masa için menüyü henüz yayınlamamış. Lütfen bir süre sonra tekrar deneyin.",
@@ -38,12 +40,18 @@ export const messages = {
   addToCart: "Siparişe ekle",
   emptyResultsTitle: "Aramanızla eşleşen ürün yok",
   emptyResultsBody: "Başka bir kategori veya arama deneyin.",
+  menuEmptyTitle: "Menüde henüz ürün yok",
+  menuEmptyBody:
+    "Restoran menüyü yayınlamış ancak henüz ürün eklememiş. Lütfen bir süre sonra tekrar deneyin.",
   cartTitle: "Siparişiniz",
   cartEmpty: "Sepetiniz henüz boş.",
   remove: "Ürünü kaldır",
   productNote: "Mutfak notu",
   productNotePlaceholder: "Örn. soğansız olsun",
   subtotal: "Ara toplam",
+  discountSavings: "İndirim kazancı",
+  amountDue: "Ödenecek tutar",
+  listPrice: "Liste fiyatı",
   serviceNote: "Varsa servis ücreti restoranda hesaplanır.",
   submitOrder: "Siparişi mutfağa gönder",
   submitting: "Sipariş gönderiliyor…",

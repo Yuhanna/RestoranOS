@@ -1,15 +1,27 @@
 import type {
+  AnalyticsSummary,
+  CreateMenuPromotionInput,
+  CreateNotificationInput,
   DiningTable,
   GeneratedQr,
   LoginInput,
+  ManagedNotification,
   MenuDetail,
+  MenuPromotion,
   MenuSummary,
+  NotificationDispatchResult,
   Order,
+  OrderDetail,
   OrderStatus,
   ProblemDetails,
   QrPrint,
+  SalesPeriod,
+  ServiceRequest,
   Session,
   TableQrCode,
+  TopItem,
+  TodayDashboard,
+  Workspace,
 } from "./domain";
 
 const fallbackMessages: Record<number, string> = {
@@ -72,6 +84,14 @@ export class ManagementApi {
 
   async getActiveOrders(signal?: AbortSignal): Promise<Order[]> {
     return this.authorized<Order[]>("/api/v1/management/orders/active", { signal });
+  }
+
+  async getTodayDashboard(signal?: AbortSignal): Promise<TodayDashboard> {
+    return this.authorized<TodayDashboard>("/api/v1/management/dashboard/today", { signal });
+  }
+
+  async getOrder(orderId: string, signal?: AbortSignal): Promise<OrderDetail> {
+    return this.authorized<OrderDetail>(`/api/v1/management/orders/${orderId}`, { signal });
   }
 
   async changeStatus(order: Order, status: OrderStatus): Promise<Order> {
@@ -193,6 +213,94 @@ export class ManagementApi {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, description }),
     });
+  }
+
+  async getWorkspace(): Promise<Workspace> {
+    return this.authorized<Workspace>("/api/v1/management/workspace");
+  }
+
+  async listOpenServiceRequests(): Promise<ServiceRequest[]> {
+    return this.authorized<ServiceRequest[]>("/api/v1/management/service-requests/open");
+  }
+
+  async completeServiceRequest(requestId: string): Promise<ServiceRequest> {
+    return this.authorized<ServiceRequest>(`/api/v1/management/service-requests/${requestId}/complete`, {
+      method: "POST",
+    });
+  }
+
+  async checkoutPlan(planCode: "Pro" | "Enterprise"): Promise<Workspace["entitlements"]> {
+    return this.authorized("/api/v1/management/subscription/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ planCode }),
+    });
+  }
+
+  async getAnalyticsSummary(fromUtc?: string, toUtc?: string): Promise<AnalyticsSummary> {
+    const params = new URLSearchParams();
+    if (fromUtc) params.set("fromUtc", fromUtc);
+    if (toUtc) params.set("toUtc", toUtc);
+    const query = params.toString();
+    return this.authorized<AnalyticsSummary>(
+      `/api/v1/management/analytics/summary${query ? `?${query}` : ""}`,
+    );
+  }
+
+  async getSalesByPeriod(fromUtc?: string, toUtc?: string, granularity = "day"): Promise<SalesPeriod[]> {
+    const params = new URLSearchParams({ granularity });
+    if (fromUtc) params.set("fromUtc", fromUtc);
+    if (toUtc) params.set("toUtc", toUtc);
+    return this.authorized<SalesPeriod[]>(`/api/v1/management/analytics/sales-by-period?${params}`);
+  }
+
+  async getTopItems(fromUtc?: string, toUtc?: string, limit = 10): Promise<TopItem[]> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (fromUtc) params.set("fromUtc", fromUtc);
+    if (toUtc) params.set("toUtc", toUtc);
+    return this.authorized<TopItem[]>(`/api/v1/management/analytics/top-items?${params}`);
+  }
+
+  async listMenuPromotions(): Promise<MenuPromotion[]> {
+    return this.authorized<MenuPromotion[]>("/api/v1/management/promotions/menu");
+  }
+
+  async createMenuPromotion(input: CreateMenuPromotionInput) {
+    return this.authorized<MenuPromotion>("/api/v1/management/promotions/menu", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  }
+
+  async updateMenuPromotion(
+    promotionId: string,
+    input: { name?: string; isActive?: boolean; endsAtUtc?: string | null },
+  ) {
+    return this.authorized<MenuPromotion>(`/api/v1/management/promotions/menu/${promotionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  }
+
+  async listManagedNotifications(): Promise<ManagedNotification[]> {
+    return this.authorized<ManagedNotification[]>("/api/v1/management/notifications");
+  }
+
+  async createManagedNotification(input: CreateNotificationInput) {
+    return this.authorized<ManagedNotification>("/api/v1/management/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  }
+
+  async dispatchNotification(notificationId: string): Promise<NotificationDispatchResult> {
+    return this.authorized<NotificationDispatchResult>(
+      `/api/v1/management/notifications/${notificationId}/dispatch`,
+      { method: "POST" },
+    );
   }
 
   private async authorized<T>(path: string, init: RequestInit, retried = false): Promise<T> {

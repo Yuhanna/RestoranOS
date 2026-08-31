@@ -1,0 +1,51 @@
+@model RestaurantOS.Web.Models.DashboardTodayViewModel
+@{
+    ViewData["Title"] = "Gösterge paneli";
+    string Money(long minor, string currency) =>
+        (minor / 100m).ToString("C", System.Globalization.CultureInfo.GetCultureInfo("tr-TR"));
+}
+
+<div class="page-head">
+    <div>
+        <h1>Gösterge paneli</h1>
+        <p class="muted">
+            Bugün (UTC) · @Model.DayStartUtc.ToLocalTime().ToString("d") – @Model.DayEndUtc.ToLocalTime().ToString("d")
+        </p>
+    </div>
+    <div class="page-head-actions">
+        <a class="btn btn-ghost" asp-controller="Orders" asp-action="Index">Canlı siparişler</a>
+        <a class="btn btn-ghost" asp-controller="Home" asp-action="Index">Kurulum kontrol listesi</a>
+    </div>
+</div>
+
+@if (TempData["Error"] is string error)
+{
+    <div class="alert" role="alert">@error</div>
+}
+
+<div class="stats-grid">
+    <article class="stat-card">
+        <span class="stat-label">Bugünkü siparişler</span>
+        <strong>@Model.TodaysOrderCount</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Bugünkü gelir</span>
+        <strong>@Money(Model.TodaysRevenueMinor, Model.Currency)</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Açık masalar</span>
+        <strong>@Model.OpenTablesCount</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Bekleyen siparişler</span>
+        <strong>@Model.PendingOrdersCount</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Tamamlanan (bugün)</span>
+        <strong>@Model.CompletedOrdersTodayCount</strong>
+    </article>
+</div>
+
+<p class="muted" style="margin-top:1.5rem">
+    Gelişmiş istatistikler için <a asp-controller="Analytics" asp-action="Index">İstatistikler</a> sayfasını kullanın.
+</p>

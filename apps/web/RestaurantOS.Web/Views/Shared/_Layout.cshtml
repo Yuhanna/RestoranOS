@@ -6,6 +6,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@(ViewData["Title"] ?? "Operasyon") · Restaurant OS</title>
+    <script>
+        (function () {
+            var key = "restaurantos-theme";
+            var pref = "system";
+            try {
+                var stored = localStorage.getItem(key);
+                if (stored === "light" || stored === "dark" || stored === "soft" || stored === "system") {
+                    pref = stored;
+                }
+            } catch (_) { }
+            var theme = pref === "system"
+                ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+                : pref;
+            document.documentElement.dataset.theme = theme;
+            document.documentElement.dataset.themePreference = pref;
+        })();
+    </script>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
@@ -14,9 +31,13 @@
         @if (Api.IsAuthenticated)
         {
             <nav aria-label="Ana menü">
+                <a asp-controller="Dashboard" asp-action="Index">Gösterge paneli</a>
                 <a asp-controller="Orders" asp-action="Index">Siparişler</a>
                 <a asp-controller="Tables" asp-action="Index">Masalar</a>
                 <a asp-controller="Menus" asp-action="Index">Menüler</a>
+                <a asp-controller="Promotions" asp-action="Index">İndirimler</a>
+                <a asp-controller="Analytics" asp-action="Index">İstatistikler</a>
+                <a asp-controller="Settings" asp-action="Index">Ayarlar</a>
             </nav>
             @if (!string.IsNullOrWhiteSpace(Api.CurrentRestaurantName))
             {
@@ -28,6 +49,15 @@
                     }
                 </span>
             }
+            <label class="theme-picker">
+                <span class="theme-picker__label">Tema</span>
+                <select id="theme-select" aria-label="Tema seçin">
+                    <option value="system">Sistem</option>
+                    <option value="light">Açık</option>
+                    <option value="dark">Koyu</option>
+                    <option value="soft">Yumuşak koyu</option>
+                </select>
+            </label>
             <form asp-controller="Account" asp-action="Logout" method="post" class="inline">
                 @Html.AntiForgeryToken()
                 <button type="submit" class="linkish">Çıkış yap</button>
@@ -39,6 +69,15 @@
                 <a asp-controller="Account" asp-action="Register">Hesap oluştur</a>
                 <a asp-controller="Account" asp-action="Login" class="nav-cta">Giriş yap</a>
             </nav>
+            <label class="theme-picker">
+                <span class="theme-picker__label">Tema</span>
+                <select id="theme-select" aria-label="Tema seçin">
+                    <option value="system">Sistem</option>
+                    <option value="light">Açık</option>
+                    <option value="dark">Koyu</option>
+                    <option value="soft">Yumuşak koyu</option>
+                </select>
+            </label>
         }
     </header>
     <main class="page">
@@ -48,5 +87,6 @@
         <span>RESTAURANT OS · YÖNETİM</span>
     </footer>
     @await RenderSectionAsync("Scripts", required: false)
+    <script src="~/js/theme.js" asp-append-version="true"></script>
 </body>
 </html>

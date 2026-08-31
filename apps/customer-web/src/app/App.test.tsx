@@ -27,6 +27,13 @@ describe("customer experience", () => {
     expect(screen.queryByRole("heading", { name: "Özenle hazırlandı." })).not.toBeInTheDocument();
   });
 
+  it("loads the demo menu through the default gateway wiring", async () => {
+    render(<App qrToken={DEMO_QR_TOKEN} />);
+
+    expect(await screen.findByText(/Masa 7/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Özenle hazırlandı." })).toBeInTheDocument();
+  });
+
   it("resolves a valid QR and filters the menu", async () => {
     const user = userEvent.setup();
     render(<App gateway={mockCustomerGateway} qrToken={DEMO_QR_TOKEN} />);

@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#080b0d" />
     <title>Restaurant OS · Operasyon</title>
+    <script>
+      (function () {
+        var key = "restaurantos-theme";
+        var pref = "system";
+        try {
+          var stored = localStorage.getItem(key);
+          if (stored === "light" || stored === "dark" || stored === "soft" || stored === "system") {
+            pref = stored;
+          }
+        } catch (_) {}
+        var theme =
+          pref === "system"
+            ? window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light"
+            : pref;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.themePreference = pref;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

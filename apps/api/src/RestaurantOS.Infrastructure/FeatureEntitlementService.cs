@@ -29,6 +29,26 @@ public sealed class FeatureEntitlementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<TenantEntitlementUsageResult> ConvertToPaidPlanAsync(
+        Guid tenantId,
+        Guid branchId,
+        string planCode,
+        CancellationToken cancellationToken)
+    {
+        var normalized = PlanCatalog.Normalize(planCode);
+        if (normalized is not (SubscriptionPlanCodes.Pro or SubscriptionPlanCodes.Enterprise))
+        {
+            throw new EntitlementException("VALIDATION_ERROR", "Only Pro or Enterprise can be purchased.");
+        }
+
+        var subscription = await GetOrCreateSubscriptionAsync(tenantId, cancellationToken);
+        await ApplyExpiryIfNeededAsync(subscription, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        subscription.ConvertToPaid(normalized, now);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return await GetUsageAsync(tenantId, branchId, cancellationToken);
+    }
+
     public async Task<FeatureEntitlements> GetEntitlementsAsync(
         Guid tenantId,
         CancellationToken cancellationToken)
@@ -61,6 +81,30 @@ public sealed class FeatureEntitlementService(
             .Distinct()
             .CountAsync(cancellationToken);
 
+        var notifications = await dbContext.TenantNotifications
+            .AsNoTracking()
+            .Where(x => (x.TenantId == null || x.TenantId == tenantId) && x.IsActive)
+            .ToListAsync(cancellationToken);
+        var visibleNotifications = notifications
+            .Where(x => x.IsVisibleAt(now) && SubscriptionAudiences.Matches(x.Audience, subscription, now))
+            .Select(x => new TenantAudienceNotificationResult(x.Id, x.Title, x.Body, x.ActionUrl))
+            .ToArray();
+
+        var offers = await dbContext.SubscriptionOffers
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .ToListAsync(cancellationToken);
+        var visibleOffers = offers
+            .Where(x => x.IsActiveAt(now) && SubscriptionAudiences.Matches(x.Audience, subscription, now))
+            .Select(x => new SubscriptionOfferResult(
+                x.Id,
+                x.TargetPlanCode,
+                x.DiscountPercent,
+                x.DurationMonths,
+                x.Title,
+                x.Body))
+            .ToArray();
+
         // Do not push plan/limit nags onto every screen. Limits are enforced at the
         // action (create table/user/branch, translation upsert) with a clear message.
         return new TenantEntitlementUsageResult(
@@ -80,7 +124,9 @@ public sealed class FeatureEntitlementService(
             entitlements.HasPrioritySupport,
             Warnings: [],
             isTrial,
-            isTrial ? subscription.ExpiresAtUtc : null);
+            isTrial ? subscription.ExpiresAtUtc : null,
+            visibleNotifications,
+            visibleOffers);
     }
 
     public async Task EnsureCanCreateBranchAsync(Guid tenantId, CancellationToken cancellationToken)

@@ -13,9 +13,20 @@
         <div class="alert" role="alert">@Model.ErrorMessage</div>
     }
 
-    <form asp-action="Login" method="post" class="stack" autocomplete="on">
+    <form asp-controller="Account" asp-action="Login" method="post" class="stack" autocomplete="on">
         @Html.AntiForgeryToken()
-        <input type="hidden" name="returnUrl" value="@Context.Request.Query["returnUrl"]" />
+        @{
+            var safeReturnUrl = Context.Request.Query["returnUrl"].ToString();
+            if (!string.IsNullOrWhiteSpace(safeReturnUrl)
+                && safeReturnUrl.StartsWith("/platform", StringComparison.OrdinalIgnoreCase))
+            {
+                safeReturnUrl = string.Empty;
+            }
+        }
+        @if (!string.IsNullOrWhiteSpace(safeReturnUrl))
+        {
+            <input type="hidden" name="returnUrl" value="@safeReturnUrl" />
+        }
         <label>
             E-posta
             <input asp-for="Email" autocomplete="username" inputmode="email" />

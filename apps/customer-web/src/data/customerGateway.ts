@@ -1,8 +1,21 @@
 import { createHttpCustomerGateway } from "./httpCustomerGateway";
 import { mockCustomerGateway } from "./mockCustomerGateway";
+import { resolveCustomerApiBaseUrl } from "./resolveCustomerApiBaseUrl";
+import type { CustomerGateway } from "../domain/customer";
 
-const apiBaseUrl = import.meta.env.VITE_CUSTOMER_API_BASE_URL?.trim();
+const gatewayCache = new Map<string, CustomerGateway>();
 
-export const customerGateway = apiBaseUrl
-  ? createHttpCustomerGateway(apiBaseUrl)
-  : mockCustomerGateway;
+/** Resolve on demand; reuse gateway instances so effects are not aborted every render. */
+export function getCustomerGateway(qrToken?: string | null): CustomerGateway {
+  const apiBaseUrl = resolveCustomerApiBaseUrl(qrToken);
+  const cacheKey = apiBaseUrl ?? "__mock__";
+  const cached = gatewayCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const gateway =
+    apiBaseUrl !== undefined ? createHttpCustomerGateway(apiBaseUrl) : mockCustomerGateway;
+  gatewayCache.set(cacheKey, gateway);
+  return gateway;
+}

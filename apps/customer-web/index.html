@@ -8,7 +8,30 @@
     <title>Restaurant OS · Masa Menüsü</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main
+        id="boot-fallback"
+        style="
+          min-height: 100dvh;
+          margin: 0;
+          padding: 2rem 1.5rem;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          font-family: system-ui, sans-serif;
+          background: #f8f5ef;
+          color: #21170f;
+        "
+      >
+        <p style="margin: 0 0 0.5rem; color: #a8461e; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;">
+          Restaurant OS
+        </p>
+        <h1 style="margin: 0; font-size: 1.75rem; line-height: 1.2">Menü yükleniyor…</h1>
+        <p style="margin: 1rem 0 0; color: #74675d; line-height: 1.6">
+          Bu ekran birkaç saniyeden uzun sürerse Wi‑Fi bağlantınızı kontrol edin ve sayfayı yenileyin.
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

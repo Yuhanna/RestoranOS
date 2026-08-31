@@ -4,6 +4,7 @@ using RestaurantOS.Web.Models;
 
 namespace RestaurantOS.Web.Controllers;
 
+[Route("Account/[action]")]
 public sealed class AccountController(IWebApiExecuter api) : Controller
 {
     [HttpGet]
@@ -109,8 +110,18 @@ public sealed class AccountController(IWebApiExecuter api) : Controller
                 : exception.Message,
         };
 
-    private IActionResult RedirectToLocal(string? returnUrl) =>
-        !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
-            ? Redirect(returnUrl)
-            : RedirectToAction("Index", "Home");
+    private IActionResult RedirectToLocal(string? returnUrl)
+    {
+        if (IsSafeRestaurantReturnUrl(returnUrl))
+        {
+            return Redirect(returnUrl!);
+        }
+
+        return RedirectToAction("Index", "Home");
+    }
+
+    private bool IsSafeRestaurantReturnUrl(string? returnUrl) =>
+        !string.IsNullOrWhiteSpace(returnUrl)
+        && Url.IsLocalUrl(returnUrl)
+        && !returnUrl.StartsWith("/platform", StringComparison.OrdinalIgnoreCase);
 }

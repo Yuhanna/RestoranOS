@@ -8,6 +8,14 @@ namespace RestaurantOS.Api.Controllers;
 [Route("api/v1/customer")]
 public sealed class CustomerController(ICustomerExperienceService service) : ControllerBase
 {
+    private CustomerClientContext ClientContext()
+    {
+        var deviceId = Request.Headers["X-Device-Id"].ToString();
+        return new CustomerClientContext(
+            string.IsNullOrWhiteSpace(deviceId) ? null : deviceId.Trim(),
+            HttpContext.Connection.RemoteIpAddress?.ToString());
+    }
+
     [HttpPost("sessions/resolve")]
     [ProducesResponseType(typeof(CustomerSessionResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -23,7 +31,7 @@ public sealed class CustomerController(ICustomerExperienceService service) : Con
 
         try
         {
-            var result = await service.ResolveQrAsync(request.QrToken, request.Locale, cancellationToken);
+            var result = await service.ResolveQrAsync(request.QrToken, request.Locale, cancellationToken, ClientContext());
             return Ok(new CustomerSessionResponse(
                 result.SessionToken,
                 result.RestaurantName,
@@ -31,26 +39,9 @@ public sealed class CustomerController(ICustomerExperienceService service) : Con
                 result.TableLabel,
                 result.Locale,
                 result.Categories.Select(x => new MenuCategoryResponse(x.Id.ToString(), x.Name)).ToArray(),
-                result.Products.Select(x => new MenuProductResponse(
-                    x.Id.ToString(),
-                    x.CategoryId.ToString(),
-                    x.Name,
-                    x.Description,
-                    new MoneyResponse(x.AmountMinor, x.Currency),
-                    AbsolutizeMediaUrl(x.ImageUrl),
-                    string.IsNullOrWhiteSpace(x.ImageAlt) ? x.Name : x.ImageAlt,
-                    x.Available,
-                    [],
-                    [],
-                    [])).ToArray(),
+                result.Products.Select(ToProductResponse).ToArray(),
                 result.OpenServiceRequestTypes,
-                result.ActiveOrders.Select(order => new CustomerOrderResponse(
-                    order.Id.ToString(),
-                    order.DisplayNumber,
-                    order.Status,
-                    order.StatusChangedAtUtc,
-                    order.EstimatedReadyAtUtc,
-                    new MoneyResponse(order.AmountMinor, order.Currency))).ToArray()));
+                result.ActiveOrders.Select(ToOrderResponse).ToArray()));
         }
         catch (CustomerExperienceException exception)
         {
@@ -89,14 +80,9 @@ public sealed class CustomerController(ICustomerExperienceService service) : Con
                 request.SessionToken,
                 idempotencyKey,
                 request.Lines.Select(x => new CreateOrderLine(Guid.Parse(x.ProductId), x.Quantity, x.Note)).ToArray(),
-                cancellationToken);
-            var response = new CustomerOrderResponse(
-                result.Id.ToString(),
-                result.DisplayNumber,
-                result.Status,
-                result.StatusChangedAtUtc,
-                result.EstimatedReadyAtUtc,
-                new MoneyResponse(result.AmountMinor, result.Currency));
+                cancellationToken,
+                ClientContext());
+            var response = ToOrderResponse(result);
             return Created($"/api/v1/customer/orders/{result.Id}", response);
         }
         catch (CustomerExperienceException exception)
@@ -104,6 +90,7 @@ public sealed class CustomerController(ICustomerExperienceService service) : Con
             var status = exception.Code switch
             {
                 "INVALID_SESSION" => StatusCodes.Status401Unauthorized,
+                "ORDER_RATE_LIMITED" or "ORDER_BLOCKED" => StatusCodes.Status429TooManyRequests,
                 "IDEMPOTENCY_CONFLICT" or "ORDER_REJECTED" => StatusCodes.Status409Conflict,
                 _ => StatusCodes.Status400BadRequest,
             };
@@ -123,13 +110,7 @@ public sealed class CustomerController(ICustomerExperienceService service) : Con
                 Request.Headers["X-Customer-Session"].ToString(),
                 orderId,
                 cancellationToken);
-            return Ok(new CustomerOrderResponse(
-                result.Id.ToString(),
-                result.DisplayNumber,
-                result.Status,
-                result.StatusChangedAtUtc,
-                result.EstimatedReadyAtUtc,
-                new MoneyResponse(result.AmountMinor, result.Currency)));
+            return Ok(ToOrderResponse(result));
         }
         catch (CustomerExperienceException exception)
         {
@@ -187,6 +168,48 @@ public sealed class CustomerController(ICustomerExperienceService service) : Con
             };
             return ApiProblem.Create(status, exception.Code, exception.Message);
         }
+    }
+
+    private MenuProductResponse ToProductResponse(MenuItemResult item)
+    {
+        var listMinor = item.ListAmountMinor > 0 ? item.ListAmountMinor : item.AmountMinor;
+        var discountMinor = item.DiscountAmountMinor;
+        var pricing = discountMinor > 0
+            ? new PriceBreakdownResponse(
+                new MoneyResponse(listMinor, item.Currency),
+                new MoneyResponse(discountMinor, item.Currency),
+                new MoneyResponse(item.AmountMinor, item.Currency))
+            : null;
+        return new MenuProductResponse(
+            item.Id.ToString(),
+            item.CategoryId.ToString(),
+            item.Name,
+            item.Description,
+            new MoneyResponse(item.AmountMinor, item.Currency),
+            AbsolutizeMediaUrl(item.ImageUrl),
+            string.IsNullOrWhiteSpace(item.ImageAlt) ? item.Name : item.ImageAlt,
+            item.Available,
+            [],
+            [],
+            [],
+            pricing,
+            item.PromotionLabel);
+    }
+
+    private static CustomerOrderResponse ToOrderResponse(CustomerOrderResult order)
+    {
+        var total = new MoneyResponse(order.AmountMinor, order.Currency);
+        var subtotalMinor = order.SubtotalAmountMinor > 0 ? order.SubtotalAmountMinor : order.AmountMinor;
+        var discountMinor = order.DiscountAmountMinor;
+        return new CustomerOrderResponse(
+            order.Id.ToString(),
+            order.DisplayNumber,
+            order.Status,
+            order.StatusChangedAtUtc,
+            order.EstimatedReadyAtUtc,
+            total,
+            new MoneyResponse(subtotalMinor, order.Currency),
+            discountMinor > 0 ? new MoneyResponse(discountMinor, order.Currency) : null);
     }
 
     private string AbsolutizeMediaUrl(string imageUrl)

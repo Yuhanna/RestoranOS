@@ -1,0 +1,153 @@
+@model RestaurantOS.Web.Models.AnalyticsDashboardViewModel
+@{
+    ViewData["Title"] = "İstatistikler";
+    string Money(long minor, string currency) =>
+        (minor / 100m).ToString("C", System.Globalization.CultureInfo.GetCultureInfo("tr-TR"));
+    string MoneyOrDash(long? minor, string currency) =>
+        minor is null ? "—" : Money(minor.Value, currency);
+}
+
+<h1>İstatistikler</h1>
+<p class="muted">
+    Son @Model.Days gün · tamamlanan siparişler üzerinden
+    @(Model.CanViewFinancials ? "ciro ve brüt kâr" : "ciro ve sipariş metrikleri")
+</p>
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert success" role="status">@message</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert" role="alert">@error</div>
+}
+
+<p class="actions">
+    @foreach (var range in new[] { 7, 30, 90 })
+    {
+        <a class="btn @(Model.Days == range ? null : "btn-ghost")" asp-action="Index" asp-route-days="@range">@range gün</a>
+    }
+    @if (Model.CanViewFinancials)
+    {
+        <form asp-action="Checkout" method="post" class="inline">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="planCode" value="Pro" />
+            <button type="submit" class="btn btn-ghost">Pro&apos;ya yükselt (demo)</button>
+        </form>
+    }
+</p>
+
+@if (Model.Summary is null)
+{
+    <p class="muted">İstatistik verisi yüklenemedi veya henüz tamamlanan sipariş yok.</p>
+}
+else
+{
+    var currency = Model.Summary.Currency;
+    <div class="stats-grid">
+        <article class="stat-card">
+            <span class="stat-label">Ciro</span>
+            <strong>@Money(Model.Summary.GrossSalesMinor, currency)</strong>
+        </article>
+        @if (Model.CanViewFinancials)
+        {
+            <article class="stat-card">
+                <span class="stat-label">Tahmini maliyet</span>
+                <strong>@MoneyOrDash(Model.Summary.EstimatedCostMinor, currency)</strong>
+            </article>
+            <article class="stat-card">
+                <span class="stat-label">Brüt kâr</span>
+                <strong>@MoneyOrDash(Model.Summary.GrossProfitMinor, currency)</strong>
+            </article>
+        }
+        <article class="stat-card">
+            <span class="stat-label">Tamamlanan sipariş</span>
+            <strong>@Model.Summary.CompletedOrderCount</strong>
+        </article>
+        <article class="stat-card">
+            <span class="stat-label">Ortalama sepet</span>
+            <strong>@Money(Model.Summary.AverageTicketMinor, currency)</strong>
+        </article>
+        <article class="stat-card">
+            <span class="stat-label">İptal</span>
+            <strong>@Model.Summary.CancelledOrderCount</strong>
+        </article>
+    </div>
+
+    <h2>Satış trendi</h2>
+    @if (Model.Periods.Count == 0)
+    {
+        <p class="muted">Trend verisi yok.</p>
+    }
+    else
+    {
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Dönem</th>
+                    <th>Ciro</th>
+                    @if (Model.CanViewFinancials)
+                    {
+                        <th>Brüt kâr</th>
+                    }
+                    <th>Sipariş</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var period in Model.Periods)
+                {
+                    <tr>
+                        <td>@period.PeriodStartUtc.ToLocalTime().ToString("g")</td>
+                        <td>@Money(period.GrossSalesMinor, currency)</td>
+                        @if (Model.CanViewFinancials)
+                        {
+                            <td>@MoneyOrDash(period.GrossProfitMinor, currency)</td>
+                        }
+                        <td>@period.OrderCount</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2>En çok satan ürünler</h2>
+    @if (Model.TopItems.Count == 0)
+    {
+        <p class="muted">Ürün satış verisi yok.</p>
+    }
+    else
+    {
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Ürün</th>
+                    <th>Adet</th>
+                    <th>Ciro</th>
+                    @if (Model.CanViewFinancials)
+                    {
+                        <th>Brüt kâr</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.TopItems)
+                {
+                    <tr>
+                        <td>@item.Name</td>
+                        <td>@item.QuantitySold</td>
+                        <td>@Money(item.RevenueMinor, currency)</td>
+                        @if (Model.CanViewFinancials)
+                        {
+                            <td>@MoneyOrDash(item.GrossProfitMinor, currency)</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@if (Model.CanViewFinancials)
+{
+    <p class="muted">Brüt kâr = ciro − (ürün maliyeti × adet). Maliyet yalnızca restoran sahibi tarafından görülür.</p>
+}

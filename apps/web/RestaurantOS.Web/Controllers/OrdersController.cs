@@ -34,28 +34,62 @@ public sealed class OrdersController(IWebApiExecuter api) : Controller
     }
 
     [HttpGet]
-    public IActionResult ChangeStatus(
-        Guid id,
-        string displayNumber,
-        string status,
-        DateTimeOffset expectedStatusChangedAtUtc,
-        DateTimeOffset? estimatedReadyAtUtc = null)
+    public async Task<IActionResult> Detail(Guid id, CancellationToken cancellationToken)
     {
         if (!EnsureAuthenticated())
         {
             return ChallengeLogin();
         }
 
-        return View(new ChangeOrderStatusViewModel
+        try
         {
-            OrderId = id,
-            DisplayNumber = displayNumber,
-            CurrentStatus = status,
-            ExpectedStatusChangedAtUtc = expectedStatusChangedAtUtc,
-            CurrentEstimatedReadyAtUtc = estimatedReadyAtUtc,
-            Status = NextStatus(status),
-            EstimatedReadyInput = null,
-        });
+            var detail = await api.InvokeGetAsync<OrderDetailViewModel>(
+                $"/api/v1/management/orders/{id}",
+                cancellationToken);
+            if (detail is null)
+            {
+                TempData["Message"] = "Sipariş bulunamadı.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            return View(detail);
+        }
+        catch (WebApiException exception) when (exception.StatusCode == StatusCodes.Status404NotFound)
+        {
+            TempData["Message"] = "Sipariş bulunamadı.";
+            return RedirectToAction(nameof(Index));
+        }
+        catch (WebApiException exception)
+        {
+            TempData["Error"] = exception.Message;
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ChangeStatus(Guid id, CancellationToken cancellationToken)
+    {
+        if (!EnsureAuthenticated())
+        {
+            return ChallengeLogin();
+        }
+
+        try
+        {
+            var model = await LoadChangeStatusModelAsync(id, cancellationToken);
+            if (model is null)
+            {
+                TempData["Message"] = "Bu sipariş artık aktif değil (tamamlanmış veya iptal edilmiş olabilir).";
+                return RedirectToAction(nameof(Index));
+            }
+
+            return View(model);
+        }
+        catch (WebApiException exception)
+        {
+            TempData["Error"] = exception.Message;
+            return RedirectToAction(nameof(Index));
+        }
     }
 
     [HttpPost]
@@ -88,8 +122,39 @@ public sealed class OrdersController(IWebApiExecuter api) : Controller
                     estimatedReadyAtUtc,
                 },
                 cancellationToken);
-            TempData["Message"] = $"{model.DisplayNumber} siparişi «{model.Status}» durumuna alındı.";
+            TempData["Message"] = $"{model.DisplayNumber} siparişi «{StatusTr(model.Status)}» durumuna alındı.";
             return RedirectToAction(nameof(Index));
+        }
+        catch (WebApiException exception) when (exception.Error?.Code == "ORDER_CONCURRENCY_CONFLICT")
+        {
+            ModelState.AddModelError(
+                string.Empty,
+                "Sipariş başka bir ekranda güncellendi. Güncel durum yüklendi; tekrar kaydedebilirsiniz.");
+            var refreshed = await TryLoadChangeStatusModelAsync(model.OrderId, cancellationToken);
+            if (refreshed is null)
+            {
+                TempData["Message"] = $"{model.DisplayNumber} siparişi zaten kapanmış (tamamlandı veya iptal).";
+                return RedirectToAction(nameof(Index));
+            }
+
+            refreshed.EstimatedReadyInput = model.EstimatedReadyInput;
+            return View(refreshed);
+        }
+        catch (WebApiException exception) when (exception.Error?.Code == "INVALID_STATUS_TRANSITION")
+        {
+            var refreshed = await TryLoadChangeStatusModelAsync(model.OrderId, cancellationToken);
+            if (refreshed is null)
+            {
+                TempData["Message"] = $"{model.DisplayNumber} siparişi zaten kapanmış (tamamlandı veya iptal).";
+                return RedirectToAction(nameof(Index));
+            }
+
+            ModelState.AddModelError(
+                string.Empty,
+                $"«{StatusTr(model.Status)}» durumuna geçilemez. Mevcut durum: «{StatusTr(refreshed.CurrentStatus)}». " +
+                "Yalnızca ileri adımlar veya iptal seçilebilir.");
+            refreshed.EstimatedReadyInput = model.EstimatedReadyInput;
+            return View(refreshed);
         }
         catch (WebApiException exception)
         {
@@ -97,6 +162,61 @@ public sealed class OrdersController(IWebApiExecuter api) : Controller
             return View(model);
         }
     }
+
+    private async Task<ChangeOrderStatusViewModel?> LoadChangeStatusModelAsync(
+        Guid orderId,
+        CancellationToken cancellationToken)
+    {
+        var order = await FindActiveOrderAsync(orderId, cancellationToken);
+        return order is null ? null : ToChangeStatusModel(order);
+    }
+
+    private async Task<ChangeOrderStatusViewModel?> TryLoadChangeStatusModelAsync(
+        Guid orderId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await LoadChangeStatusModelAsync(orderId, cancellationToken);
+        }
+        catch (WebApiException)
+        {
+            return null;
+        }
+    }
+
+    private async Task<OrderListItemViewModel?> FindActiveOrderAsync(
+        Guid orderId,
+        CancellationToken cancellationToken)
+    {
+        var orders = await api.InvokeGetAsync<List<OrderListItemViewModel>>(
+            "/api/v1/management/orders/active",
+            cancellationToken) ?? [];
+        return orders.FirstOrDefault(order => order.Id == orderId);
+    }
+
+    private static ChangeOrderStatusViewModel ToChangeStatusModel(OrderListItemViewModel order) =>
+        new()
+        {
+            OrderId = order.Id,
+            DisplayNumber = order.DisplayNumber,
+            CurrentStatus = order.Status,
+            ExpectedStatusChangedAtUtc = order.StatusChangedAtUtc,
+            CurrentEstimatedReadyAtUtc = order.EstimatedReadyAtUtc,
+            Status = NextStatus(order.Status),
+            EstimatedReadyInput = null,
+        };
+
+    private static string StatusTr(string status) => status.ToLowerInvariant() switch
+    {
+        "submitted" => "Alındı",
+        "accepted" => "Onaylandı",
+        "preparing" => "Hazırlanıyor",
+        "ready" => "Hazır",
+        "completed" => "Tamamlandı",
+        "cancelled" => "İptal",
+        _ => status,
+    };
 
     private bool EnsureAuthenticated() => api.IsAuthenticated;
 

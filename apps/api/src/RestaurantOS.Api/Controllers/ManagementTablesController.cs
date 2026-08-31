@@ -280,7 +280,7 @@ public sealed class ManagementTablesController(IManagementTableService tableServ
     }
 
     private static ManagementTableResponse ToTableResponse(ManagementTableResult table) =>
-        new(table.Id, table.Label, table.IsActive, table.ActiveQrCount);
+        new(table.Id, table.Label, table.IsActive, table.ActiveQrCount, table.OperationalStatus);
 
     private static ManagementQrCodeResponse ToQrResponse(ManagementQrCodeResult qr) =>
         new(qr.Id, qr.TableId, qr.Status, qr.CreatedAtUtc, qr.RevokedAtUtc);

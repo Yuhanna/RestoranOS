@@ -18,6 +18,11 @@ public interface IManagementAuthService
         Guid? branchId,
         CancellationToken cancellationToken);
 
+    Task<ManagementTokenResult> LoginPlatformAsync(
+        string email,
+        string password,
+        CancellationToken cancellationToken);
+
     Task<ManagementTokenResult> RefreshAsync(
         string refreshToken,
         CancellationToken cancellationToken);
@@ -31,6 +36,13 @@ public interface IManagementOrderService
         Guid userId,
         Guid tenantId,
         Guid branchId,
+        CancellationToken cancellationToken);
+
+    Task<ManagementOrderDetailResult?> GetOrderByIdAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid orderId,
         CancellationToken cancellationToken);
 
     Task<CustomerOrderResult> ChangeOrderStatusAsync(
@@ -98,7 +110,12 @@ public interface IManagementTableService
         CancellationToken cancellationToken);
 }
 
-public sealed record ManagementTableResult(Guid Id, string Label, bool IsActive, int ActiveQrCount);
+public sealed record ManagementTableResult(
+    Guid Id,
+    string Label,
+    bool IsActive,
+    int ActiveQrCount,
+    string OperationalStatus);
 
 public sealed record ManagementQrCodeResult(
     Guid Id,
@@ -350,7 +367,41 @@ public sealed record ManagementOrderResult(
     DateTimeOffset StatusChangedAtUtc,
     DateTimeOffset EstimatedReadyAtUtc,
     long AmountMinor,
-    string Currency);
+    string Currency,
+    Guid TableId,
+    string TableLabel);
+
+public sealed record ManagementOrderLineResult(
+    Guid Id,
+    Guid MenuItemId,
+    string Name,
+    int Quantity,
+    long ListUnitPriceAmountMinor,
+    long DiscountUnitAmountMinor,
+    long UnitPriceAmountMinor,
+    string Currency,
+    string? Note);
+
+public sealed record ManagementOrderStatusHistoryEntry(
+    string Status,
+    DateTimeOffset ChangedAtUtc,
+    Guid? ChangedByUserId);
+
+public sealed record ManagementOrderDetailResult(
+    Guid Id,
+    string DisplayNumber,
+    string Status,
+    Guid TableId,
+    string TableLabel,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset StatusChangedAtUtc,
+    DateTimeOffset EstimatedReadyAtUtc,
+    long SubtotalAmountMinor,
+    long DiscountAmountMinor,
+    long TotalAmountMinor,
+    string Currency,
+    IReadOnlyList<ManagementOrderLineResult> Items,
+    IReadOnlyList<ManagementOrderStatusHistoryEntry> StatusHistory);
 
 public sealed class ManagementAuthException(string code, string message) : Exception(message)
 {
@@ -387,7 +438,82 @@ public interface IFeatureEntitlementService
         Guid tenantId,
         string planCode,
         CancellationToken cancellationToken);
+
+    Task<TenantEntitlementUsageResult> ConvertToPaidPlanAsync(
+        Guid tenantId,
+        Guid branchId,
+        string planCode,
+        CancellationToken cancellationToken);
 }
+
+public interface IManagementDashboardService
+{
+    Task<ManagementTodayDashboardResult> GetTodayAsync(
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken);
+}
+
+public sealed record ManagementTodayDashboardResult(
+    int TodaysOrderCount,
+    long TodaysRevenueMinor,
+    int OpenTablesCount,
+    int PendingOrdersCount,
+    int CompletedOrdersTodayCount,
+    string Currency,
+    DateTimeOffset DayStartUtc,
+    DateTimeOffset DayEndUtc);
+
+public interface IManagementAnalyticsService
+{
+    Task<ManagementAnalyticsSummaryResult> GetSummaryAsync(
+        Guid tenantId,
+        Guid branchId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ManagementSalesPeriodResult>> GetSalesByPeriodAsync(
+        Guid tenantId,
+        Guid branchId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string granularity,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ManagementTopItemResult>> GetTopItemsAsync(
+        Guid tenantId,
+        Guid branchId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        int limit,
+        CancellationToken cancellationToken);
+}
+
+public sealed record ManagementAnalyticsSummaryResult(
+    long GrossSalesMinor,
+    long EstimatedCostMinor,
+    long GrossProfitMinor,
+    long CancelledSalesMinor,
+    int CompletedOrderCount,
+    int CancelledOrderCount,
+    int OpenServiceRequestCount,
+    long AverageTicketMinor,
+    string Currency);
+
+public sealed record ManagementSalesPeriodResult(
+    DateTimeOffset PeriodStartUtc,
+    long GrossSalesMinor,
+    long GrossProfitMinor,
+    int OrderCount);
+
+public sealed record ManagementTopItemResult(
+    Guid MenuItemId,
+    string Name,
+    int QuantitySold,
+    long RevenueMinor,
+    long EstimatedCostMinor,
+    long GrossProfitMinor);
 
 public sealed record TenantEntitlementUsageResult(
     string PlanCode,
@@ -406,5 +532,175 @@ public sealed record TenantEntitlementUsageResult(
     bool HasPrioritySupport,
     IReadOnlyList<string> Warnings,
     bool IsTrial = false,
-    DateTimeOffset? TrialEndsAtUtc = null);
+    DateTimeOffset? TrialEndsAtUtc = null,
+    IReadOnlyList<TenantAudienceNotificationResult>? Notifications = null,
+    IReadOnlyList<SubscriptionOfferResult>? SubscriptionOffers = null);
+
+public sealed record TenantAudienceNotificationResult(
+    Guid Id,
+    string Title,
+    string Body,
+    string? ActionUrl);
+
+public sealed record SubscriptionOfferResult(
+    Guid Id,
+    string TargetPlanCode,
+    int DiscountPercent,
+    int DurationMonths,
+    string Title,
+    string Body);
+
+public interface IPromotionManagementService
+{
+    Task<IReadOnlyList<MenuPromotionResult>> ListMenuPromotionsAsync(
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken);
+
+    Task<MenuPromotionResult> CreateMenuPromotionAsync(
+        Guid tenantId,
+        Guid branchId,
+        CreateMenuPromotionCommand command,
+        CancellationToken cancellationToken);
+
+    Task<MenuPromotionResult> UpdateMenuPromotionAsync(
+        Guid tenantId,
+        Guid branchId,
+        Guid promotionId,
+        UpdateMenuPromotionCommand command,
+        CancellationToken cancellationToken);
+}
+
+public sealed record MenuPromotionResult(
+    Guid Id,
+    string Name,
+    string Scope,
+    string DiscountKind,
+    int DiscountValue,
+    DateTimeOffset StartsAtUtc,
+    DateTimeOffset? EndsAtUtc,
+    TimeOnly? DailyStartLocal,
+    TimeOnly? DailyEndLocal,
+    Guid? CategoryId,
+    Guid? MenuItemId,
+    bool IsActive);
+
+public sealed record CreateMenuPromotionCommand(
+    string Name,
+    string Scope,
+    string DiscountKind,
+    int DiscountValue,
+    DateTimeOffset StartsAtUtc,
+    DateTimeOffset? EndsAtUtc,
+    TimeOnly? DailyStartLocal,
+    TimeOnly? DailyEndLocal,
+    Guid? CategoryId,
+    Guid? MenuItemId,
+    bool IsActive = true);
+
+public sealed record UpdateMenuPromotionCommand(
+    string? Name,
+    bool? IsActive,
+    DateTimeOffset? EndsAtUtc);
+
+public interface INotificationManagementService
+{
+    Task<IReadOnlyList<ManagedNotificationResult>> ListAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken);
+
+    Task<ManagedNotificationResult> CreateAsync(
+        Guid tenantId,
+        CreateManagedNotificationCommand command,
+        CancellationToken cancellationToken);
+
+    Task<NotificationDispatchResult> DispatchAsync(
+        Guid tenantId,
+        Guid notificationId,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ManagedNotificationResult>> ListPlatformAsync(
+        CancellationToken cancellationToken);
+
+    Task<ManagedNotificationResult> CreatePlatformAsync(
+        CreatePlatformNotificationCommand command,
+        CancellationToken cancellationToken);
+
+    Task<NotificationDispatchResult> DispatchPlatformAsync(
+        Guid notificationId,
+        CancellationToken cancellationToken);
+}
+
+public sealed record CreatePlatformNotificationCommand(
+    string Audience,
+    string Title,
+    string Body,
+    DateTimeOffset StartsAtUtc,
+    DateTimeOffset? EndsAtUtc,
+    string? ActionUrl,
+    bool IsActive = true);
+
+public interface IPlatformSubscriptionOfferService
+{
+    Task<IReadOnlyList<ManagedSubscriptionOfferResult>> ListAsync(CancellationToken cancellationToken);
+
+    Task<ManagedSubscriptionOfferResult> CreateAsync(
+        CreateSubscriptionOfferCommand command,
+        CancellationToken cancellationToken);
+
+    Task<ManagedSubscriptionOfferResult> SetActiveAsync(
+        Guid offerId,
+        bool isActive,
+        CancellationToken cancellationToken);
+}
+
+public sealed record ManagedSubscriptionOfferResult(
+    Guid Id,
+    string Audience,
+    string TargetPlanCode,
+    int DiscountPercent,
+    int DurationMonths,
+    string Title,
+    string Body,
+    DateTimeOffset StartsAtUtc,
+    DateTimeOffset? EndsAtUtc,
+    bool IsActive);
+
+public sealed record CreateSubscriptionOfferCommand(
+    string Audience,
+    string TargetPlanCode,
+    int DiscountPercent,
+    int DurationMonths,
+    string Title,
+    string Body,
+    DateTimeOffset StartsAtUtc,
+    DateTimeOffset? EndsAtUtc,
+    bool IsActive = true);
+
+public sealed record ManagedNotificationResult(
+    Guid Id,
+    Guid? TenantId,
+    string Audience,
+    string Title,
+    string Body,
+    string? ActionUrl,
+    DateTimeOffset StartsAtUtc,
+    DateTimeOffset? EndsAtUtc,
+    bool IsActive,
+    DateTimeOffset? LastDispatchedAtUtc);
+
+public sealed record CreateManagedNotificationCommand(
+    string Audience,
+    string Title,
+    string Body,
+    DateTimeOffset StartsAtUtc,
+    DateTimeOffset? EndsAtUtc,
+    string? ActionUrl,
+    bool IsActive = true,
+    bool BroadcastToAllTenants = false);
+
+public sealed record NotificationDispatchResult(
+    int EmailSentCount,
+    int PushSentCount,
+    IReadOnlyList<string> RecipientEmails);
 

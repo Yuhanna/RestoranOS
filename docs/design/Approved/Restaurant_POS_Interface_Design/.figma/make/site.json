@@ -1,0 +1,10 @@
+{
+  "description": "Streamlines restaurant operations with QR ordering, real-time tracking, and integrated management tools for staff and customers across multiple languages.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

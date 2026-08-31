@@ -5,13 +5,15 @@ public interface ICustomerExperienceService
     Task<CustomerSessionResult> ResolveQrAsync(
         string qrToken,
         string locale,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        CustomerClientContext? client = null);
 
     Task<CustomerOrderResult> CreateOrderAsync(
         string sessionToken,
         string idempotencyKey,
         IReadOnlyCollection<CreateOrderLine> lines,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        CustomerClientContext? client = null);
 
     Task<CustomerOrderResult> GetOrderAsync(
         string sessionToken,
@@ -82,7 +84,10 @@ public sealed record MenuItemResult(
     string Currency,
     bool Available,
     string ImageUrl = "",
-    string ImageAlt = "");
+    string ImageAlt = "",
+    long ListAmountMinor = 0,
+    long DiscountAmountMinor = 0,
+    string? PromotionLabel = null);
 
 public sealed record CreateOrderLine(Guid ProductId, int Quantity, string? Note);
 
@@ -94,7 +99,9 @@ public sealed record CustomerOrderResult(
     DateTimeOffset EstimatedReadyAtUtc,
     long AmountMinor,
     string Currency,
-    DateTimeOffset? CreatedAtUtc = null);
+    DateTimeOffset? CreatedAtUtc = null,
+    long SubtotalAmountMinor = 0,
+    long DiscountAmountMinor = 0);
 
 public sealed record ServiceRequestResult(
     Guid Id,

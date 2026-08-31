@@ -65,6 +65,12 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CustomerSessionId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("GuestSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("DiscountAmountMinor")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("DisplayNumber")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -98,6 +104,9 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("StatusChangedAtUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<long>("SubtotalAmountMinor")
+                        .HasColumnType("bigint");
+
                     b.Property<Guid>("TableId")
                         .HasColumnType("uniqueidentifier");
 
@@ -127,6 +136,12 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("DiscountUnitAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ListUnitPriceAmountMinor")
+                        .HasColumnType("bigint");
 
                     b.Property<Guid>("MenuItemId")
                         .HasColumnType("uniqueidentifier");
@@ -201,6 +216,57 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "BranchId", "ExpiresAtUtc");
 
                     b.ToTable("CustomerSessions", "customer");
+                });
+
+            modelBuilder.Entity("RestaurantOS.Domain.GuestSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DeviceIdentifier")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("IpHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTimeOffset>("LastActivityAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Locale")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.Property<int>("RiskScore")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<Guid>("TableSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TableSessionId", "Status");
+
+                    b.HasIndex("TenantId", "BranchId", "LastActivityAtUtc");
+
+                    b.ToTable("GuestSessions", "customer");
                 });
 
             modelBuilder.Entity("RestaurantOS.Domain.DiningTable", b =>
@@ -307,7 +373,7 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "TenantId", "BranchId", "RoleId")
                         .IsUnique();
 
-                    b.ToTable("Memberships", "identity");
+                    b.ToTable("Memberships", "auth");
                 });
 
             modelBuilder.Entity("RestaurantOS.Domain.ManagementRefreshSession", b =>
@@ -363,7 +429,7 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("FamilyId", "RevokedAtUtc");
 
-                    b.ToTable("RefreshSessions", "identity");
+                    b.ToTable("RefreshSessions", "auth");
                 });
 
             modelBuilder.Entity("RestaurantOS.Domain.ManagementRole", b =>
@@ -382,7 +448,7 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Roles", "identity");
+                    b.ToTable("Roles", "auth");
                 });
 
             modelBuilder.Entity("RestaurantOS.Domain.ManagementRolePermissionGrant", b =>
@@ -396,7 +462,7 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("RoleId", "Permission");
 
-                    b.ToTable("RolePermissions", "identity");
+                    b.ToTable("RolePermissions", "auth");
                 });
 
             modelBuilder.Entity("RestaurantOS.Domain.ManagementUser", b =>
@@ -440,7 +506,7 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.HasIndex("NormalizedEmail")
                         .IsUnique();
 
-                    b.ToTable("Users", "identity");
+                    b.ToTable("Users", "auth");
                 });
 
             modelBuilder.Entity("RestaurantOS.Domain.MenuCategory", b =>
@@ -516,6 +582,9 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<long?>("CostAmountMinor")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -604,6 +673,64 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.ToTable("MenuItemTranslations", "customer");
                 });
 
+            modelBuilder.Entity("RestaurantOS.Domain.MenuPromotion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<TimeOnly?>("DailyEndLocal")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly?>("DailyStartLocal")
+                        .HasColumnType("time");
+
+                    b.Property<string>("DiscountKind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<int>("DiscountValue")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("EndsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("MenuItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "BranchId", "IsActive", "StartsAtUtc");
+
+                    b.ToTable("MenuPromotions", "customer");
+                });
+
             modelBuilder.Entity("RestaurantOS.Domain.PublishedMenu", b =>
                 {
                     b.Property<Guid>("Id")
@@ -656,6 +783,101 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.ToTable("Restaurants", "customer");
                 });
 
+            modelBuilder.Entity("RestaurantOS.Domain.ServiceRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CustomerSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<Guid>("TableId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerSessionId", "Type", "Status");
+
+                    b.HasIndex("TenantId", "BranchId", "Status", "CreatedAtUtc");
+
+                    b.ToTable("ServiceRequests", "customer");
+                });
+
+            modelBuilder.Entity("RestaurantOS.Domain.SubscriptionOffer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("DiscountPercent")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DurationMonths")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("EndsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("TargetPlanCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Audience", "IsActive", "StartsAtUtc");
+
+                    b.ToTable("SubscriptionOffers", "billing");
+                });
+
             modelBuilder.Entity("RestaurantOS.Domain.TableQrCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -704,53 +926,6 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.ToTable("TableQrCodes", "customer");
                 });
 
-            modelBuilder.Entity("RestaurantOS.Domain.ServiceRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("BranchId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("CompletedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("CustomerSessionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(160)
-                        .HasColumnType("nvarchar(160)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("nvarchar(24)");
-
-                    b.Property<Guid>("TableId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(24)
-                        .HasColumnType("nvarchar(24)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CustomerSessionId", "Type", "Status");
-
-                    b.HasIndex("TenantId", "BranchId", "Status", "CreatedAtUtc");
-
-                    b.ToTable("ServiceRequests", "customer");
-                });
-
             modelBuilder.Entity("RestaurantOS.Domain.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -765,6 +940,53 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Tenants", "customer");
+                });
+
+            modelBuilder.Entity("RestaurantOS.Domain.TenantNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActionUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTimeOffset?>("EndsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("LastDispatchedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Audience", "IsActive", "StartsAtUtc");
+
+                    b.ToTable("TenantNotifications", "billing");
                 });
 
             modelBuilder.Entity("RestaurantOS.Domain.TenantSubscription", b =>

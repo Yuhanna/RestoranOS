@@ -220,6 +220,94 @@ public sealed class ManagementAuthService(
         return result.Result;
     }
 
+    public async Task<ManagementTokenResult> LoginPlatformAsync(
+        string email,
+        string password,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        var normalizedEmail = NormalizeEmail(email);
+        var user = await dbContext.ManagementUsers
+            .SingleOrDefaultAsync(x => x.NormalizedEmail == normalizedEmail, cancellationToken);
+        var passwordValid = VerifyPassword(user, password);
+
+        if (user is null || !user.IsActive || user.IsLockedOut(now) || !passwordValid)
+        {
+            if (user is not null && user.IsActive && !user.IsLockedOut(now))
+            {
+                user.RecordFailedLogin(
+                    now,
+                    _options.MaxFailedAttempts,
+                    TimeSpan.FromMinutes(_options.LockoutMinutes));
+            }
+
+            dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+                Guid.NewGuid(),
+                "FailedPlatformLogin",
+                false,
+                now,
+                user?.Id));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            throw InvalidCredentials();
+        }
+
+        var platformMembership = await dbContext.ManagementMemberships
+            .AsNoTracking()
+            .Where(membership =>
+                membership.UserId == user.Id
+                && membership.IsActive
+                && dbContext.ManagementRolePermissions.Any(grant =>
+                    grant.RoleId == membership.RoleId
+                    && grant.Permission == ManagementPermissions.PlatformManage)
+                && dbContext.Branches.Any(branch =>
+                    branch.Id == membership.BranchId && branch.TenantId == membership.TenantId))
+            .OrderBy(membership => membership.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (platformMembership is null)
+        {
+            user.RecordFailedLogin(
+                now,
+                _options.MaxFailedAttempts,
+                TimeSpan.FromMinutes(_options.LockoutMinutes));
+            dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+                Guid.NewGuid(),
+                "FailedPlatformLogin",
+                false,
+                now,
+                user.Id));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            throw new ManagementAuthException(
+                "PLATFORM_ACCESS_DENIED",
+                "This account is not authorized for platform management.");
+        }
+
+        var verification = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+        if (verification == PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            user.UpdatePasswordHash(passwordHasher.HashPassword(user, password));
+        }
+
+        user.RecordSuccessfulLogin(now);
+        var result = CreateTokenPair(
+            user.Id,
+            platformMembership.TenantId,
+            platformMembership.BranchId,
+            Guid.NewGuid(),
+            now);
+        dbContext.ManagementRefreshSessions.Add(result.Session);
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "PlatformLogin",
+            true,
+            now,
+            user.Id,
+            platformMembership.TenantId,
+            platformMembership.BranchId));
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return result.Result;
+    }
+
     private async Task<ManagementRole> EnsureOwnerRoleAsync(CancellationToken cancellationToken)
     {
         var role = await dbContext.ManagementRoles
@@ -239,6 +327,9 @@ public sealed class ManagementAuthService(
                      ManagementPermissions.MenuView,
                      ManagementPermissions.MenuEdit,
                      ManagementPermissions.MenuPublish,
+                     ManagementPermissions.AnalyticsView,
+                     ManagementPermissions.AnalyticsFinancialView,
+                     ManagementPermissions.SubscriptionManage,
                  })
         {
             if (!await dbContext.ManagementRolePermissions

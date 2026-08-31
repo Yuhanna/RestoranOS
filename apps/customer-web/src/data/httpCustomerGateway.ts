@@ -4,9 +4,44 @@ import {
   type CustomerGateway,
   type CustomerSession,
   type Order,
+  type Product,
   type ServiceRequest,
   type SubmitOrderRequest,
 } from "../domain/customer";
+
+const REQUEST_TIMEOUT_MS = 12_000;
+
+const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<Response> => {
+  const timeoutController = new AbortController();
+  const timeoutId = window.setTimeout(() => timeoutController.abort(), timeoutMs);
+  const upstream = init?.signal;
+
+  if (upstream) {
+    if (upstream.aborted) {
+      window.clearTimeout(timeoutId);
+      throw new DOMException("Aborted", "AbortError");
+    }
+    upstream.addEventListener("abort", () => timeoutController.abort(), { once: true });
+  }
+
+  try {
+    return await fetch(input, { ...init, signal: timeoutController.signal });
+  } catch (error) {
+    if (timeoutController.signal.aborted && !(upstream?.aborted)) {
+      throw new CustomerGatewayError(
+        "NETWORK",
+        "Sunucu yanıt vermedi. API çalışıyor mu ve customer-web yeniden başlatıldı mı?",
+      );
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
 
 type ProblemDetails = {
   code?: string;
@@ -52,8 +87,46 @@ const problemFor = async (response: Response): Promise<CustomerGatewayError> => 
   );
 };
 
+const mapProduct = (raw: Record<string, unknown>): Product => {
+  const price = raw.price as { amountMinor?: number; currency?: string } | undefined;
+  const pricing = raw.pricing as
+    | { list?: { amountMinor?: number }; discount?: { amountMinor?: number }; final?: { amountMinor?: number } }
+    | undefined;
+  const currency = (price?.currency as "TRY") ?? "TRY";
+  const finalMinor = Number(price?.amountMinor ?? pricing?.final?.amountMinor ?? 0);
+  const listMinor = Number(pricing?.list?.amountMinor ?? finalMinor);
+  const discountMinor = Number(pricing?.discount?.amountMinor ?? 0);
+  return {
+    id: String(raw.id ?? ""),
+    categoryId: String(raw.categoryId ?? ""),
+    name: String(raw.name ?? ""),
+    description: String(raw.description ?? ""),
+    price: { amountMinor: finalMinor, currency },
+    listPrice: discountMinor > 0 ? { amountMinor: listMinor, currency } : undefined,
+    discount: discountMinor > 0 ? { amountMinor: discountMinor, currency } : undefined,
+    promotionLabel: typeof raw.promotionLabel === "string" ? raw.promotionLabel : undefined,
+    imageUrl: String(raw.imageUrl ?? ""),
+    imageAlt: String(raw.imageAlt ?? raw.name ?? ""),
+    available: raw.available !== false,
+    badge:
+      typeof raw.badge === "string"
+        ? raw.badge
+        : typeof raw.promotionLabel === "string"
+          ? raw.promotionLabel
+          : undefined,
+    dietaryTags: Array.isArray(raw.dietaryTags) ? (raw.dietaryTags as Product["dietaryTags"]) : [],
+    allergens: Array.isArray(raw.allergens) ? (raw.allergens as string[]) : [],
+    modifierGroups: Array.isArray(raw.modifierGroups)
+      ? (raw.modifierGroups as Product["modifierGroups"])
+      : [],
+  };
+};
+
 const mapOrder = (raw: Record<string, unknown>): Order => {
   const total = raw.total as { amountMinor?: number; currency?: string } | undefined;
+  const subtotal = raw.subtotal as { amountMinor?: number; currency?: string } | undefined;
+  const discount = raw.discount as { amountMinor?: number; currency?: string } | undefined;
+  const currency = (total?.currency as "TRY") ?? "TRY";
   return {
     id: String(raw.id ?? ""),
     displayNumber: String(raw.displayNumber ?? ""),
@@ -62,8 +135,14 @@ const mapOrder = (raw: Record<string, unknown>): Order => {
     estimatedReadyAt: String(raw.estimatedReadyAt ?? raw.estimatedReadyAtUtc ?? ""),
     total: {
       amountMinor: Number(total?.amountMinor ?? raw.amountMinor ?? 0),
-      currency: (total?.currency as "TRY") ?? "TRY",
+      currency,
     },
+    subtotal: subtotal
+      ? { amountMinor: Number(subtotal.amountMinor ?? 0), currency: (subtotal.currency as "TRY") ?? currency }
+      : undefined,
+    discount: discount?.amountMinor
+      ? { amountMinor: Number(discount.amountMinor), currency: (discount.currency as "TRY") ?? currency }
+      : undefined,
   };
 };
 
@@ -74,7 +153,7 @@ export const createHttpCustomerGateway = (baseUrl: string): CustomerGateway => {
     async resolveQr(qrToken, signal, locale = "tr") {
       let response: Response;
       try {
-        response = await fetch(`${apiBase}/api/v1/customer/sessions/resolve`, {
+        response = await fetchWithTimeout(`${apiBase}/api/v1/customer/sessions/resolve`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ qrToken, locale }),
@@ -86,15 +165,34 @@ export const createHttpCustomerGateway = (baseUrl: string): CustomerGateway => {
       }
 
       if (!response.ok) throw await problemFor(response);
-      const session = (await response.json()) as CustomerSession & {
+
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        throw new CustomerGatewayError(
+          "NETWORK",
+          "Backend returned an invalid response. Is the API running?",
+        );
+      }
+
+      const session = payload as CustomerSession & {
         activeOrders?: Record<string, unknown>[];
       };
+      const products = (session.products ?? []).map((item) =>
+        mapProduct(item as Record<string, unknown>),
+      );
       return {
-        ...session,
+        sessionToken: String(session.sessionToken ?? ""),
+        restaurantName: String(session.restaurantName ?? "Restoran"),
+        branchName: String(session.branchName ?? ""),
+        tableLabel: String(session.tableLabel ?? ""),
+        locale: session.locale === "en" ? "en" : "tr",
         categories: [
           { id: "all", name: session.locale === "en" ? "All" : "Tümü" },
-          ...session.categories,
+          ...(session.categories ?? []),
         ],
+        products,
         activeOrders: (session.activeOrders ?? []).map((item) =>
           mapOrder(item as Record<string, unknown>),
         ),
@@ -105,7 +203,7 @@ export const createHttpCustomerGateway = (baseUrl: string): CustomerGateway => {
     async submitOrder(request: SubmitOrderRequest, signal) {
       let response: Response;
       try {
-        response = await fetch(`${apiBase}/api/v1/customer/orders`, {
+        response = await fetchWithTimeout(`${apiBase}/api/v1/customer/orders`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -129,7 +227,7 @@ export const createHttpCustomerGateway = (baseUrl: string): CustomerGateway => {
     async createServiceRequest(sessionToken, type, note, signal) {
       let response: Response;
       try {
-        response = await fetch(`${apiBase}/api/v1/customer/service-requests`, {
+        response = await fetchWithTimeout(`${apiBase}/api/v1/customer/service-requests`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionToken, type, note }),
@@ -147,7 +245,7 @@ export const createHttpCustomerGateway = (baseUrl: string): CustomerGateway => {
     async getOrder(orderId, sessionToken, signal) {
       let response: Response;
       try {
-        response = await fetch(`${apiBase}/api/v1/customer/orders/${orderId}`, {
+        response = await fetchWithTimeout(`${apiBase}/api/v1/customer/orders/${orderId}`, {
           headers: { "X-Customer-Session": sessionToken },
           signal,
         });

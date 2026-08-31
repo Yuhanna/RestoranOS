@@ -31,3 +31,25 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Build MVC site
         run: dotnet build apps/web/RestaurantOS.Web/RestaurantOS.Web.csproj -c Release
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Test customer-web
+        run: pnpm web:test
+      - name: Test restaurant-web
+        run: pnpm restaurant:test
+      - name: Build customer-web
+        run: pnpm web:build
+      - name: Build restaurant-web
+        run: pnpm restaurant:build

@@ -87,7 +87,7 @@ public sealed class ManagementRegistrationEndpointsTests
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("Development");
+            builder.UseEnvironment("Testing");
             builder.UseSetting(
                 "ManagementAuth:SigningKey",
                 "test-only-signing-key-32-bytes-minimum-value");

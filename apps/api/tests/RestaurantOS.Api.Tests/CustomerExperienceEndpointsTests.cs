@@ -83,6 +83,24 @@ public sealed class CustomerExperienceEndpointsTests : IAsyncLifetime, IDisposab
     }
 
     [Fact]
+    public async Task ResolveQrCreatesGuestSessionLinkedToTableSession()
+    {
+        var sessionResponse = await ResolveAsync(ValidQrToken);
+        var session = await sessionResponse.Content.ReadFromJsonAsync<CustomerSessionResponse>();
+        Assert.NotNull(session);
+
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<RestaurantOsDbContext>();
+        var tableSession = await db.CustomerSessions.SingleAsync(
+            x => x.TokenHash == OpaqueToken.Hash(session.SessionToken));
+        var guestSession = await db.GuestSessions.SingleAsync(x => x.TableSessionId == tableSession.Id);
+
+        Assert.Equal(GuestSessionStatus.Active, guestSession.Status);
+        Assert.Equal(tableSession.TenantId, guestSession.TenantId);
+        Assert.Equal(tableSession.BranchId, guestSession.BranchId);
+    }
+
+    [Fact]
     public async Task RepeatedOrderRequestReturnsSameOrder()
     {
         var sessionResponse = await ResolveAsync(ValidQrToken);
@@ -112,6 +130,73 @@ public sealed class CustomerExperienceEndpointsTests : IAsyncLifetime, IDisposab
         await using var scope = _factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<RestaurantOsDbContext>();
         Assert.Equal(1, await dbContext.CustomerOrders.CountAsync());
+    }
+
+    [Fact]
+    public async Task GuestOrderRateLimitRejectsBurstOrders()
+    {
+        var sessionResponse = await ResolveAsync(ValidQrToken);
+        var session = await sessionResponse.Content.ReadFromJsonAsync<CustomerSessionResponse>();
+        Assert.NotNull(session);
+
+        using var first = CreateOrderRequest(session.SessionToken, "rate-limit-order-001", SeedIds.ProductA);
+        using var second = CreateOrderRequest(session.SessionToken, "rate-limit-order-002", SeedIds.ProductA);
+        using var third = CreateOrderRequest(session.SessionToken, "rate-limit-order-003", SeedIds.ProductA);
+
+        Assert.Equal(HttpStatusCode.Created, (await _client.SendAsync(first)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await _client.SendAsync(second)).StatusCode);
+
+        var limited = await _client.SendAsync(third);
+        var problem = await limited.Content.ReadFromJsonAsync<ProblemDetailsContract>();
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
+        Assert.Equal("ORDER_RATE_LIMITED", problem?.Code);
+    }
+
+    [Fact]
+    public async Task IdempotentOrderRetryDoesNotConsumeGuestRateLimit()
+    {
+        var sessionResponse = await ResolveAsync(ValidQrToken);
+        var session = await sessionResponse.Content.ReadFromJsonAsync<CustomerSessionResponse>();
+        Assert.NotNull(session);
+
+        using var first = CreateOrderRequest(session.SessionToken, "rate-limit-idempotent-001", SeedIds.ProductA);
+        using var retry = CreateOrderRequest(session.SessionToken, "rate-limit-idempotent-001", SeedIds.ProductA);
+        using var second = CreateOrderRequest(session.SessionToken, "rate-limit-idempotent-002", SeedIds.ProductA);
+        using var third = CreateOrderRequest(session.SessionToken, "rate-limit-idempotent-003", SeedIds.ProductA);
+
+        Assert.Equal(HttpStatusCode.Created, (await _client.SendAsync(first)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await _client.SendAsync(retry)).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await _client.SendAsync(second)).StatusCode);
+
+        var limited = await _client.SendAsync(third);
+        Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
+    }
+
+    [Fact]
+    public async Task MenuPromotionAppliesDiscountToSessionAndOrder()
+    {
+        var sessionResponse = await ResolveAsync(ValidQrToken);
+        var session = await sessionResponse.Content.ReadFromJsonAsync<CustomerSessionResponse>();
+        Assert.NotNull(session);
+        var product = session.Products[0];
+        Assert.Equal(33_600, product.Price.AmountMinor);
+        Assert.NotNull(product.Pricing);
+        Assert.Equal(42_000, product.Pricing!.List.AmountMinor);
+        Assert.Equal(8_400, product.Pricing.Discount.AmountMinor);
+
+        using var createRequest = CreateOrderRequest(
+            session.SessionToken,
+            "discount-order-key-000001",
+            SeedIds.ProductA);
+        var orderResponse = await _client.SendAsync(createRequest);
+        var order = await orderResponse.Content.ReadFromJsonAsync<CustomerOrderResponse>();
+
+        Assert.Equal(HttpStatusCode.Created, orderResponse.StatusCode);
+        Assert.NotNull(order);
+        Assert.Equal(67_200, order.Total.AmountMinor);
+        Assert.Equal(84_000, order.Subtotal!.AmountMinor);
+        Assert.Equal(16_800, order.Discount!.AmountMinor);
     }
 
     [Fact]
@@ -281,6 +366,21 @@ public sealed class CustomerExperienceEndpointsTests : IAsyncLifetime, IDisposab
                 Money.Try(42_000),
                 true,
                 1),
+            new MenuPromotion(
+                Guid.Parse("10000000-0000-0000-0000-000000000099"),
+                SeedIds.TenantA,
+                SeedIds.BranchA,
+                "Test %20",
+                PromotionScopes.AllMenu,
+                DiscountKinds.Percent,
+                20,
+                now.AddDays(-1),
+                endsAtUtc: null,
+                dailyStartLocal: null,
+                dailyEndLocal: null,
+                categoryId: null,
+                menuItemId: null,
+                isActive: true),
             new Tenant(SeedIds.TenantB, "Tenant B"),
             new Restaurant(SeedIds.RestaurantB, SeedIds.TenantB, "Tenant B Restaurant"),
             new Branch(SeedIds.BranchB, SeedIds.TenantB, SeedIds.RestaurantB, "Branch B"),

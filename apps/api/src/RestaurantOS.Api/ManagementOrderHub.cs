@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using RestaurantOS.Api.Models.Dto;
 using RestaurantOS.Application;
+using RestaurantOS.Infrastructure;
 
 namespace RestaurantOS.Api;
 
@@ -23,19 +25,48 @@ public sealed class ManagementOrderHub : Hub
         await Groups.AddToGroupAsync(
             Context.ConnectionId,
             ManagementOrderGroup.Name(tenantId, branchId));
+        await Groups.AddToGroupAsync(
+            Context.ConnectionId,
+            ManagementTenantGroup.Name(tenantId));
         await base.OnConnectedAsync();
     }
 }
 
 public sealed class SignalRManagementOrderNotifier(
-    IHubContext<ManagementOrderHub> hubContext) : IManagementOrderNotifier
+    IHubContext<ManagementOrderHub> hubContext,
+    IServiceScopeFactory scopeFactory) : IManagementOrderNotifier
 {
-    public Task NotifyAsync(
+    public async Task NotifyAsync(
         Guid tenantId,
         Guid branchId,
         CustomerOrderResult order,
-        CancellationToken cancellationToken) =>
-        hubContext.Clients
+        CancellationToken cancellationToken)
+    {
+        Guid tableId = Guid.Empty;
+        string tableLabel = "—";
+        await using (var scope = scopeFactory.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<RestaurantOsDbContext>();
+            var table = await dbContext.CustomerOrders
+                .AsNoTracking()
+                .Where(entry => entry.Id == order.Id)
+                .Select(entry => new
+                {
+                    entry.TableId,
+                    TableLabel = dbContext.DiningTables
+                        .Where(table => table.Id == entry.TableId)
+                        .Select(table => table.Label)
+                        .FirstOrDefault(),
+                })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (table is not null)
+            {
+                tableId = table.TableId;
+                tableLabel = table.TableLabel ?? "—";
+            }
+        }
+
+        await hubContext.Clients
             .Group(ManagementOrderGroup.Name(tenantId, branchId))
             .SendAsync(
                 "orderStatusChanged",
@@ -47,8 +78,11 @@ public sealed class SignalRManagementOrderNotifier(
                     order.StatusChangedAtUtc,
                     order.EstimatedReadyAtUtc,
                     order.AmountMinor,
-                    order.Currency),
+                    order.Currency,
+                    tableId,
+                    tableLabel),
                 cancellationToken);
+    }
 
     public Task NotifyServiceRequestAsync(
         Guid tenantId,
@@ -71,8 +105,32 @@ public sealed class SignalRManagementOrderNotifier(
                 cancellationToken);
 }
 
+public sealed class SignalRManagementNotificationNotifier(
+    IHubContext<ManagementOrderHub> hubContext) : IManagementNotificationNotifier
+{
+    public Task NotifyAsync(
+        Guid tenantId,
+        ManagedNotificationResult notification,
+        CancellationToken cancellationToken) =>
+        hubContext.Clients
+            .Group(ManagementTenantGroup.Name(tenantId))
+            .SendAsync(
+                "audienceNotificationPublished",
+                new ManagementAudienceNotificationResponse(
+                    notification.Id,
+                    notification.Title,
+                    notification.Body,
+                    notification.ActionUrl),
+                cancellationToken);
+}
+
 internal static class ManagementOrderGroup
 {
     public static string Name(Guid tenantId, Guid branchId) =>
         $"management-orders:{tenantId:N}:{branchId:N}";
+}
+
+internal static class ManagementTenantGroup
+{
+    public static string Name(Guid tenantId) => $"management-tenant:{tenantId:N}";
 }

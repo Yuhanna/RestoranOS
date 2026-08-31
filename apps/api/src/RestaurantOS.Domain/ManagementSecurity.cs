@@ -9,6 +9,10 @@ public static class ManagementPermissions
     public const string MenuView = "Menu.View";
     public const string MenuEdit = "Menu.Edit";
     public const string MenuPublish = "Menu.Publish";
+    public const string AnalyticsView = "Analytics.View";
+    public const string AnalyticsFinancialView = "Analytics.FinancialView";
+    public const string SubscriptionManage = "Subscription.Manage";
+    public const string PlatformManage = "Platform.Manage";
 }
 
 public sealed class ManagementUser

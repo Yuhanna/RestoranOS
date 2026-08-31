@@ -321,6 +321,8 @@ public sealed class MenuItem
     public string ImageAlt { get; private set; } = string.Empty;
     /// <summary>Optional kitchen prep duration; null means use the order default ETA.</summary>
     public int? PrepTimeSeconds { get; private set; }
+    /// <summary>Optional unit cost for gross-profit analytics (minor units, same currency as price).</summary>
+    public long? CostAmountMinor { get; private set; }
 
     public void Update(
         string name,
@@ -332,7 +334,9 @@ public sealed class MenuItem
         string? imageUrl = null,
         string? imageAlt = null,
         int? prepTimeSeconds = null,
-        bool updatePrepTime = false)
+        bool updatePrepTime = false,
+        long? costAmountMinor = null,
+        bool updateCost = false)
     {
         Name = string.IsNullOrWhiteSpace(name) ? throw new ArgumentException("Name is required.") : name.Trim();
         Description = description.Trim();
@@ -350,6 +354,27 @@ public sealed class MenuItem
         {
             SetPrepTimeSeconds(prepTimeSeconds);
         }
+
+        if (updateCost)
+        {
+            SetCostAmountMinor(costAmountMinor);
+        }
+    }
+
+    public void SetCostAmountMinor(long? costAmountMinor)
+    {
+        if (costAmountMinor is null)
+        {
+            CostAmountMinor = null;
+            return;
+        }
+
+        if (costAmountMinor is < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(costAmountMinor), "Cost cannot be negative.");
+        }
+
+        CostAmountMinor = costAmountMinor;
     }
 
     public void SetPrepTimeSeconds(int? prepTimeSeconds)
@@ -463,6 +488,7 @@ public sealed class MenuItemTranslation
 
 public sealed class CustomerSession
 {
+    /// <summary>Spec §27 TableSession — masa oturumu; siparişler buna bağlanır.</summary>
     private CustomerSession() { }
     public CustomerSession(
         Guid id,
@@ -499,6 +525,68 @@ public sealed class CustomerSession
     public DateTimeOffset ExpiresAtUtc { get; private set; }
 }
 
+public enum GuestSessionStatus
+{
+    Active,
+    Closed,
+}
+
+/// <summary>Spec §26–§28 guest oturumu; bir TableSession altında cihaz/IP bağlamı taşır.</summary>
+public sealed class GuestSession
+{
+    private GuestSession() { }
+
+    public GuestSession(
+        Guid id,
+        Guid tenantId,
+        Guid branchId,
+        Guid tableSessionId,
+        string? deviceIdentifier,
+        string? ipHash,
+        string locale,
+        DateTimeOffset createdAtUtc,
+        DateTimeOffset lastActivityAtUtc,
+        int riskScore = 0)
+    {
+        Id = id;
+        TenantId = tenantId;
+        BranchId = branchId;
+        TableSessionId = tableSessionId;
+        DeviceIdentifier = NormalizeOptional(deviceIdentifier, 128);
+        IpHash = NormalizeOptional(ipHash, 64);
+        Locale = SupportedLocales.Normalize(locale);
+        CreatedAtUtc = createdAtUtc.ToUniversalTime();
+        LastActivityAtUtc = lastActivityAtUtc.ToUniversalTime();
+        RiskScore = Math.Max(0, riskScore);
+        Status = GuestSessionStatus.Active;
+    }
+
+    public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
+    public Guid BranchId { get; private set; }
+    public Guid TableSessionId { get; private set; }
+    public string? DeviceIdentifier { get; private set; }
+    public string? IpHash { get; private set; }
+    public string Locale { get; private set; } = null!;
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+    public DateTimeOffset LastActivityAtUtc { get; private set; }
+    public int RiskScore { get; private set; }
+    public GuestSessionStatus Status { get; private set; }
+
+    public void Touch(DateTimeOffset atUtc) => LastActivityAtUtc = atUtc.ToUniversalTime();
+
+    private static string? NormalizeOptional(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
+    }
+}
+
 public sealed class CustomerOrder
 {
     private CustomerOrder() { }
@@ -511,6 +599,8 @@ public sealed class CustomerOrder
         string idempotencyKey,
         string requestHash,
         string displayNumber,
+        Money subtotal,
+        Money discount,
         Money total,
         DateTimeOffset createdAtUtc,
         DateTimeOffset estimatedReadyAtUtc)
@@ -523,6 +613,8 @@ public sealed class CustomerOrder
         IdempotencyKey = idempotencyKey;
         RequestHash = requestHash;
         DisplayNumber = displayNumber;
+        SubtotalAmountMinor = subtotal.AmountMinor;
+        DiscountAmountMinor = discount.AmountMinor;
         TotalAmountMinor = total.AmountMinor;
         TotalCurrency = total.Currency;
         Status = OrderStatus.Submitted;
@@ -531,16 +623,51 @@ public sealed class CustomerOrder
         EstimatedReadyAtUtc = estimatedReadyAtUtc.ToUniversalTime();
     }
 
+    /// <summary>Backward-compatible constructor when no discounts apply.</summary>
+    public CustomerOrder(
+        Guid id,
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        Guid customerSessionId,
+        string idempotencyKey,
+        string requestHash,
+        string displayNumber,
+        Money total,
+        DateTimeOffset createdAtUtc,
+        DateTimeOffset estimatedReadyAtUtc)
+        : this(
+            id,
+            tenantId,
+            branchId,
+            tableId,
+            customerSessionId,
+            idempotencyKey,
+            requestHash,
+            displayNumber,
+            total,
+            Money.Try(0),
+            total,
+            createdAtUtc,
+            estimatedReadyAtUtc)
+    {
+    }
+
     public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }
     public Guid BranchId { get; private set; }
     public Guid TableId { get; private set; }
     public Guid CustomerSessionId { get; private set; }
+    public Guid? GuestSessionId { get; private set; }
     public string IdempotencyKey { get; private set; } = null!;
     public string RequestHash { get; private set; } = null!;
     public string DisplayNumber { get; private set; } = null!;
+    public long SubtotalAmountMinor { get; private set; }
+    public long DiscountAmountMinor { get; private set; }
     public long TotalAmountMinor { get; private set; }
     public string TotalCurrency { get; private set; } = null!;
+    public Money Subtotal => new(SubtotalAmountMinor, TotalCurrency);
+    public Money Discount => new(DiscountAmountMinor, TotalCurrency);
     public Money Total => new(TotalAmountMinor, TotalCurrency);
     public OrderStatus Status { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -548,6 +675,8 @@ public sealed class CustomerOrder
     public DateTimeOffset EstimatedReadyAtUtc { get; private set; }
     public byte[] RowVersion { get; private set; } = [];
     public ICollection<CustomerOrderItem> Items { get; private set; } = new List<CustomerOrderItem>();
+
+    public void AttachGuestSession(Guid guestSessionId) => GuestSessionId = guestSessionId;
 
     public void ChangeStatus(OrderStatus nextStatus, DateTimeOffset changedAtUtc)
     {
@@ -602,7 +731,16 @@ public sealed class InvalidOrderStatusTransitionException(OrderStatus current, O
 public sealed class CustomerOrderItem
 {
     private CustomerOrderItem() { }
-    public CustomerOrderItem(Guid id, Guid orderId, Guid menuItemId, string name, Money unitPrice, int quantity, string? note)
+    public CustomerOrderItem(
+        Guid id,
+        Guid orderId,
+        Guid menuItemId,
+        string name,
+        Money listUnitPrice,
+        Money discountUnitAmount,
+        Money finalUnitPrice,
+        int quantity,
+        string? note)
     {
         if (quantity is < 1 or > 50)
         {
@@ -613,18 +751,29 @@ public sealed class CustomerOrderItem
         OrderId = orderId;
         MenuItemId = menuItemId;
         Name = name;
-        UnitPriceAmountMinor = unitPrice.AmountMinor;
-        UnitPriceCurrency = unitPrice.Currency;
+        ListUnitPriceAmountMinor = listUnitPrice.AmountMinor;
+        DiscountUnitAmountMinor = discountUnitAmount.AmountMinor;
+        UnitPriceAmountMinor = finalUnitPrice.AmountMinor;
+        UnitPriceCurrency = finalUnitPrice.Currency;
         Quantity = quantity;
         Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+    }
+
+    public CustomerOrderItem(Guid id, Guid orderId, Guid menuItemId, string name, Money unitPrice, int quantity, string? note)
+        : this(id, orderId, menuItemId, name, unitPrice, Money.Try(0), unitPrice, quantity, note)
+    {
     }
 
     public Guid Id { get; private set; }
     public Guid OrderId { get; private set; }
     public Guid MenuItemId { get; private set; }
     public string Name { get; private set; } = null!;
+    public long ListUnitPriceAmountMinor { get; private set; }
+    public long DiscountUnitAmountMinor { get; private set; }
     public long UnitPriceAmountMinor { get; private set; }
     public string UnitPriceCurrency { get; private set; } = null!;
+    public Money ListUnitPrice => new(ListUnitPriceAmountMinor, UnitPriceCurrency);
+    public Money DiscountUnitAmount => new(DiscountUnitAmountMinor, UnitPriceCurrency);
     public Money UnitPrice => new(UnitPriceAmountMinor, UnitPriceCurrency);
     public int Quantity { get; private set; }
     public string? Note { get; private set; }

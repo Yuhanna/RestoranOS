@@ -7,7 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<ApiOptions>(builder.Configuration.GetSection(ApiOptions.SectionName));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ApiCookieJarStore>();
-builder.Services.AddScoped<IWebApiExecuter, WebApiExecuter>();
+builder.Services.AddScoped<IWebApiExecuter>(sp => ActivatorUtilities.CreateInstance<WebApiExecuter>(
+    sp,
+    ApiSessionScope.Restaurant));
+builder.Services.AddScoped<IPlatformWebApiExecuter, PlatformWebApiExecuter>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -41,6 +44,7 @@ app.UseSession();
 app.UseAuthorization();
 
 app.MapStaticAssets();
+app.MapControllers();
 app.MapControllerRoute(
         name: "default",
         pattern: "{controller=Home}/{action=Index}/{id?}")

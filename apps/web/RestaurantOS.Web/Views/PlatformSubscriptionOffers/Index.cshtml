@@ -1,0 +1,126 @@
+@model RestaurantOS.Web.Models.PlatformSubscriptionOffersPageViewModel
+@{
+    Layout = "_PlatformLayout";
+    ViewData["Title"] = "Üyelik kampanyaları";
+    var audienceLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["all"] = "Tüm üyeler",
+        ["free"] = "Ücretsiz plan",
+        ["pro"] = "Pro üyeler",
+        ["trial"] = "Deneme sürecindekiler",
+        ["non_pro"] = "Pro olmayanlar",
+    };
+}
+
+<div class="page-head">
+    <div>
+        <h1>Üyelik kampanyaları</h1>
+        <p class="muted">Abonelik teklifleri müşteri ve restoran panellerinde hedef kitleye gösterilir.</p>
+    </div>
+</div>
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert success" role="status">@message</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert" role="alert">@error</div>
+}
+
+<div asp-validation-summary="All" class="alert"></div>
+
+<section class="panel">
+    <h2>Yeni kampanya</h2>
+    <form action="/platform/subscription-offers" method="post" class="form-grid-wide">
+        @Html.AntiForgeryToken()
+        <label>
+            Hedef kitle
+            <select asp-for="Create.Audience">
+                @foreach (var entry in audienceLabels)
+                {
+                    <option value="@entry.Key">@entry.Value</option>
+                }
+            </select>
+        </label>
+        <label>
+            Hedef plan
+            <select asp-for="Create.TargetPlanCode">
+                <option value="pro">Pro</option>
+            </select>
+        </label>
+        <label>
+            İndirim (%)
+            <input asp-for="Create.DiscountPercent" type="number" min="1" max="100" />
+        </label>
+        <label>
+            Süre (ay)
+            <input asp-for="Create.DurationMonths" type="number" min="1" max="36" />
+        </label>
+        <label class="span-2">
+            Başlık
+            <input asp-for="Create.Title" required />
+        </label>
+        <label class="span-2">
+            Açıklama
+            <textarea asp-for="Create.Body" rows="3" required></textarea>
+        </label>
+        <label>
+            Bitiş tarihi
+            <input asp-for="Create.EndsAtLocal" type="date" />
+        </label>
+        <div class="form-actions span-2">
+            <button type="submit" class="btn">Kampanya oluştur</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>Kayıtlı kampanyalar</h2>
+    @if (Model.Offers.Count == 0)
+    {
+        <p class="muted">Henüz kampanya yok.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Başlık</th>
+                    <th>Kitle</th>
+                    <th>İndirim</th>
+                    <th>Durum</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var offer in Model.Offers)
+            {
+                <tr>
+                    <td>
+                        <strong>@offer.Title</strong>
+                        <p class="muted">@offer.Body</p>
+                    </td>
+                    <td>@(audienceLabels.GetValueOrDefault(offer.Audience) ?? offer.Audience)</td>
+                    <td>%@offer.DiscountPercent · @offer.DurationMonths ay @offer.TargetPlanCode</td>
+                    <td>
+                        <span class="badge @(offer.IsActive ? "badge-ok" : "badge-muted")">
+                            @(offer.IsActive ? "Aktif" : "Pasif")
+                        </span>
+                    </td>
+                    <td>
+                        <form action="/platform/subscription-offers/toggle" method="post" class="inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@offer.Id" />
+                            <input type="hidden" name="isActive" value="@offer.IsActive.ToString().ToLowerInvariant()" />
+                            <button type="submit" class="linkish">
+                                @(offer.IsActive ? "Durdur" : "Etkinleştir")
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</section>

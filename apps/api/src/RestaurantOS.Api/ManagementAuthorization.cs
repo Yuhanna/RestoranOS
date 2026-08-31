@@ -55,6 +55,26 @@ public sealed class PermissionAuthorizationHandler(RestaurantOsDbContext dbConte
             && Guid.TryParse(principal.FindFirstValue(ManagementClaimTypes.TenantId), out tenantId)
             && Guid.TryParse(principal.FindFirstValue(ManagementClaimTypes.BranchId), out branchId);
     }
+
+    public static Task<bool> HasPermissionAsync(
+        RestaurantOsDbContext dbContext,
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        string permission,
+        CancellationToken cancellationToken) =>
+        dbContext.ManagementMemberships
+            .AsNoTracking()
+            .AnyAsync(
+                membership =>
+                    membership.UserId == userId
+                    && membership.TenantId == tenantId
+                    && membership.BranchId == branchId
+                    && membership.IsActive
+                    && dbContext.ManagementRolePermissions.Any(grant =>
+                        grant.RoleId == membership.RoleId
+                        && grant.Permission == permission),
+                cancellationToken);
 }
 
 public static class ManagementPolicies
@@ -66,6 +86,10 @@ public static class ManagementPolicies
     public const string MenuView = "Management.Menu.View";
     public const string MenuEdit = "Management.Menu.Edit";
     public const string MenuPublish = "Management.Menu.Publish";
+    public const string AnalyticsView = "Management.Analytics.View";
+    public const string AnalyticsFinancialView = "Management.Analytics.FinancialView";
+    public const string SubscriptionManage = "Management.Subscription.Manage";
+    public const string PlatformManage = "Management.Platform.Manage";
 
     public static void AddManagementPolicies(AuthorizationOptions options)
     {
@@ -104,5 +128,25 @@ public static class ManagementPolicies
             policy => policy
                 .RequireAuthenticatedUser()
                 .AddRequirements(new PermissionRequirement(ManagementPermissions.MenuPublish)));
+        options.AddPolicy(
+            AnalyticsView,
+            policy => policy
+                .RequireAuthenticatedUser()
+                .AddRequirements(new PermissionRequirement(ManagementPermissions.AnalyticsView)));
+        options.AddPolicy(
+            AnalyticsFinancialView,
+            policy => policy
+                .RequireAuthenticatedUser()
+                .AddRequirements(new PermissionRequirement(ManagementPermissions.AnalyticsFinancialView)));
+        options.AddPolicy(
+            SubscriptionManage,
+            policy => policy
+                .RequireAuthenticatedUser()
+                .AddRequirements(new PermissionRequirement(ManagementPermissions.SubscriptionManage)));
+        options.AddPolicy(
+            PlatformManage,
+            policy => policy
+                .RequireAuthenticatedUser()
+                .AddRequirements(new PermissionRequirement(ManagementPermissions.PlatformManage)));
     }
 }

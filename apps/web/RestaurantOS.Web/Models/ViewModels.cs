@@ -117,6 +117,63 @@ public sealed class OrderListItemViewModel
     public DateTimeOffset EstimatedReadyAtUtc { get; set; }
     public long AmountMinor { get; set; }
     public string Currency { get; set; } = "TRY";
+    public Guid TableId { get; set; }
+    public string TableLabel { get; set; } = string.Empty;
+}
+
+public sealed class DashboardTodayViewModel
+{
+    public int TodaysOrderCount { get; set; }
+    public long TodaysRevenueMinor { get; set; }
+    public int OpenTablesCount { get; set; }
+    public int PendingOrdersCount { get; set; }
+    public int CompletedOrdersTodayCount { get; set; }
+    public string Currency { get; set; } = "TRY";
+    public DateTimeOffset DayStartUtc { get; set; }
+    public DateTimeOffset DayEndUtc { get; set; }
+}
+
+public sealed class SettingsViewModel
+{
+    public WorkspaceViewModel? Workspace { get; set; }
+}
+
+public sealed class OrderLineViewModel
+{
+    public Guid Id { get; set; }
+    public Guid MenuItemId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public long ListUnitPriceAmountMinor { get; set; }
+    public long DiscountUnitAmountMinor { get; set; }
+    public long UnitPriceAmountMinor { get; set; }
+    public string Currency { get; set; } = "TRY";
+    public string? Note { get; set; }
+
+    public long LineTotalAmountMinor => UnitPriceAmountMinor * Quantity;
+}
+
+public sealed class OrderStatusHistoryViewModel
+{
+    public string Status { get; set; } = string.Empty;
+    public DateTimeOffset ChangedAtUtc { get; set; }
+}
+
+public sealed class OrderDetailViewModel
+{
+    public Guid Id { get; set; }
+    public string DisplayNumber { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string TableLabel { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAtUtc { get; set; }
+    public DateTimeOffset StatusChangedAtUtc { get; set; }
+    public DateTimeOffset EstimatedReadyAtUtc { get; set; }
+    public long SubtotalAmountMinor { get; set; }
+    public long DiscountAmountMinor { get; set; }
+    public long TotalAmountMinor { get; set; }
+    public string Currency { get; set; } = "TRY";
+    public List<OrderLineViewModel> Items { get; set; } = [];
+    public List<OrderStatusHistoryViewModel> StatusHistory { get; set; } = [];
 }
 
 public sealed class ChangeOrderStatusViewModel
@@ -142,6 +199,7 @@ public sealed class TableListItemViewModel
     public string Label { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public int ActiveQrCount { get; set; }
+    public string OperationalStatus { get; set; } = "available";
 }
 
 public sealed class CreateTableViewModel
@@ -346,4 +404,226 @@ public sealed class MenuItemViewModel
     public string ImageAlt { get; set; } = string.Empty;
     public string DisplayImageUrl { get; set; } = string.Empty;
     public int? PrepTimeSeconds { get; set; }
+}
+
+public sealed class AnalyticsDashboardViewModel
+{
+    public int Days { get; set; } = 30;
+    public bool CanViewFinancials { get; set; }
+    public AnalyticsSummaryViewModel? Summary { get; set; }
+    public List<AnalyticsPeriodViewModel> Periods { get; set; } = [];
+    public List<AnalyticsTopItemViewModel> TopItems { get; set; } = [];
+}
+
+public sealed class AnalyticsSummaryViewModel
+{
+    public long GrossSalesMinor { get; set; }
+    public long? EstimatedCostMinor { get; set; }
+    public long? GrossProfitMinor { get; set; }
+    public long CancelledSalesMinor { get; set; }
+    public int CompletedOrderCount { get; set; }
+    public int CancelledOrderCount { get; set; }
+    public int OpenServiceRequestCount { get; set; }
+    public long AverageTicketMinor { get; set; }
+    public string Currency { get; set; } = "TRY";
+    public bool CanViewFinancials { get; set; }
+}
+
+public sealed class AnalyticsPeriodViewModel
+{
+    public DateTimeOffset PeriodStartUtc { get; set; }
+    public long GrossSalesMinor { get; set; }
+    public long? GrossProfitMinor { get; set; }
+    public int OrderCount { get; set; }
+}
+
+public sealed class AnalyticsTopItemViewModel
+{
+    public Guid MenuItemId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int QuantitySold { get; set; }
+    public long RevenueMinor { get; set; }
+    public long? EstimatedCostMinor { get; set; }
+    public long? GrossProfitMinor { get; set; }
+}
+
+public sealed class MenuPromotionListItemViewModel
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Scope { get; set; } = "all_menu";
+    public string DiscountKind { get; set; } = "percent";
+    public int DiscountValue { get; set; }
+    public DateTimeOffset StartsAtUtc { get; set; }
+    public DateTimeOffset? EndsAtUtc { get; set; }
+    public TimeOnly? DailyStartLocal { get; set; }
+    public TimeOnly? DailyEndLocal { get; set; }
+    public Guid? CategoryId { get; set; }
+    public Guid? MenuItemId { get; set; }
+    public bool IsActive { get; set; }
+}
+
+public sealed class PromotionsPageViewModel
+{
+    public IReadOnlyList<MenuPromotionListItemViewModel> Promotions { get; set; } = [];
+    public CreateMenuPromotionViewModel Create { get; set; } = new();
+    public MenuDetailViewModel? PublishedMenu { get; set; }
+}
+
+public sealed class CreateMenuPromotionViewModel
+{
+    [Required(ErrorMessage = "Kampanya adı gerekli.")]
+    [Display(Name = "Kampanya adı")]
+    public string Name { get; set; } = string.Empty;
+
+    [Display(Name = "Kapsam")]
+    public string Scope { get; set; } = "all_menu";
+
+    [Display(Name = "İndirim türü")]
+    public string DiscountKind { get; set; } = "percent";
+
+    [Display(Name = "İndirim değeri")]
+    public string DiscountValue { get; set; } = "20";
+
+    [Display(Name = "Günlük başlangıç")]
+    public string? DailyStartLocal { get; set; }
+
+    [Display(Name = "Günlük bitiş")]
+    public string? DailyEndLocal { get; set; }
+
+    [Display(Name = "Kategori")]
+    public Guid? CategoryId { get; set; }
+
+    [Display(Name = "Ürün")]
+    public Guid? MenuItemId { get; set; }
+
+    [Display(Name = "Bitiş tarihi (isteğe bağlı)")]
+    public DateTime? EndsAtLocal { get; set; }
+}
+
+public sealed class ManagedNotificationListItemViewModel
+{
+    public Guid Id { get; set; }
+    public Guid? TenantId { get; set; }
+    public string Audience { get; set; } = "all";
+    public string Title { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public string? ActionUrl { get; set; }
+    public DateTimeOffset StartsAtUtc { get; set; }
+    public DateTimeOffset? EndsAtUtc { get; set; }
+    public bool IsActive { get; set; }
+    public DateTimeOffset? LastDispatchedAtUtc { get; set; }
+}
+
+public sealed class NotificationsPageViewModel
+{
+    public IReadOnlyList<ManagedNotificationListItemViewModel> Notifications { get; set; } = [];
+    public CreateNotificationViewModel Create { get; set; } = new();
+    public string? LastDispatchSummary { get; set; }
+}
+
+public sealed class CreateNotificationViewModel
+{
+    [Display(Name = "Hedef kitle")]
+    public string Audience { get; set; } = "non_pro";
+
+    [Required(ErrorMessage = "Başlık gerekli.")]
+    [Display(Name = "Başlık")]
+    public string Title { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Mesaj gerekli.")]
+    [Display(Name = "Mesaj")]
+    public string Body { get; set; } = string.Empty;
+
+    [Display(Name = "Bağlantı (isteğe bağlı)")]
+    public string? ActionUrl { get; set; }
+
+    [Display(Name = "Tüm restoranlara yayınla (platform)")]
+    public bool BroadcastToAllTenants { get; set; }
+}
+
+public sealed class NotificationDispatchResultViewModel
+{
+    public int EmailSentCount { get; set; }
+    public int PushSentCount { get; set; }
+    public IReadOnlyList<string> RecipientEmails { get; set; } = [];
+}
+
+public sealed class PlatformLoginViewModel
+{
+    [Required(ErrorMessage = "E-posta gerekli.")]
+    [EmailAddress(ErrorMessage = "Geçerli bir e-posta girin.")]
+    public string Email { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Parola gerekli.")]
+    [DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+
+    public string? ErrorMessage { get; set; }
+}
+
+public sealed class PlatformNotificationsPageViewModel
+{
+    public IReadOnlyList<ManagedNotificationListItemViewModel> Notifications { get; set; } = [];
+    public CreatePlatformNotificationViewModel Create { get; set; } = new();
+    public string? LastDispatchSummary { get; set; }
+}
+
+public sealed class CreatePlatformNotificationViewModel
+{
+    [Display(Name = "Hedef kitle")]
+    public string Audience { get; set; } = "non_pro";
+
+    [Required(ErrorMessage = "Başlık gerekli.")]
+    public string Title { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Mesaj gerekli.")]
+    public string Body { get; set; } = string.Empty;
+
+    public string? ActionUrl { get; set; }
+}
+
+public sealed class PlatformSubscriptionOffersPageViewModel
+{
+    public IReadOnlyList<PlatformSubscriptionOfferListItemViewModel> Offers { get; set; } = [];
+    public CreatePlatformSubscriptionOfferViewModel Create { get; set; } = new();
+}
+
+public sealed class PlatformSubscriptionOfferListItemViewModel
+{
+    public Guid Id { get; set; }
+    public string Audience { get; set; } = string.Empty;
+    public string TargetPlanCode { get; set; } = string.Empty;
+    public int DiscountPercent { get; set; }
+    public int DurationMonths { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Body { get; set; } = string.Empty;
+    public DateTimeOffset StartsAtUtc { get; set; }
+    public DateTimeOffset? EndsAtUtc { get; set; }
+    public bool IsActive { get; set; }
+}
+
+public sealed class CreatePlatformSubscriptionOfferViewModel
+{
+    [Display(Name = "Hedef kitle")]
+    public string Audience { get; set; } = "non_pro";
+
+    [Display(Name = "Hedef plan")]
+    public string TargetPlanCode { get; set; } = "pro";
+
+    [Display(Name = "İndirim (%)")]
+    public int DiscountPercent { get; set; } = 20;
+
+    [Display(Name = "Süre (ay)")]
+    public int DurationMonths { get; set; } = 3;
+
+    [Required(ErrorMessage = "Kampanya başlığı gerekli.")]
+    public string Title { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Açıklama gerekli.")]
+    public string Body { get; set; } = string.Empty;
+
+    [Display(Name = "Bitiş tarihi")]
+    [DataType(DataType.Date)]
+    public DateTime? EndsAtLocal { get; set; }
 }

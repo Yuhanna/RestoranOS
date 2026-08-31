@@ -17,6 +17,11 @@ public sealed record MenuCategoryResponse(string Id, string Name);
 
 public sealed record MoneyResponse(long AmountMinor, string Currency);
 
+public sealed record PriceBreakdownResponse(
+    MoneyResponse List,
+    MoneyResponse Discount,
+    MoneyResponse Final);
+
 public sealed record MenuProductResponse(
     string Id,
     string CategoryId,
@@ -28,7 +33,9 @@ public sealed record MenuProductResponse(
     bool Available,
     string[] DietaryTags,
     string[] Allergens,
-    object[] ModifierGroups);
+    object[] ModifierGroups,
+    PriceBreakdownResponse? Pricing = null,
+    string? PromotionLabel = null);
 
 public sealed record CreateCustomerOrderRequest(
     string SessionToken,
@@ -46,7 +53,9 @@ public sealed record CustomerOrderResponse(
     string Status,
     DateTimeOffset StatusChangedAt,
     DateTimeOffset EstimatedReadyAt,
-    MoneyResponse Total);
+    MoneyResponse Total,
+    MoneyResponse? Subtotal = null,
+    MoneyResponse? Discount = null);
 
 public sealed record CreateServiceRequestRequest(string SessionToken, string Type, string? Note = null);
 

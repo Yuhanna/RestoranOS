@@ -62,19 +62,19 @@
                 <span class="price">₺@((order.AmountMinor / 100m).ToString("N2"))</span>
             </div>
             <p class="item-desc">
+                Masa: <strong class="order-table-label">@(string.IsNullOrWhiteSpace(order.TableLabel) ? "—" : order.TableLabel)</strong><br />
                 Durum: <strong class="order-status-label">@StatusTr(order.Status)</strong><br />
-                Güncelleme: <span class="order-changed">@order.StatusChangedAtUtc.ToLocalTime().ToString("g")</span><br />
-                ETA: <span class="order-eta">@order.EstimatedReadyAtUtc.ToLocalTime().ToString("g")</span>
+                Sipariş: <span class="order-created">@(order.CreatedAtUtc?.ToLocalTime().ToString("g") ?? "—")</span><br />
+                Güncelleme: <span class="order-changed">@order.StatusChangedAtUtc.ToLocalTime().ToString("g")</span>
             </p>
             <div class="item-meta">
                 <span class="badge badge-warn order-status-code">@order.Status</span>
+                <a class="linkish"
+                   asp-action="Detail"
+                   asp-route-id="@order.Id">Detay</a>
                 <a class="linkish order-change-link"
                    asp-action="ChangeStatus"
-                   asp-route-id="@order.Id"
-                   asp-route-displayNumber="@order.DisplayNumber"
-                   asp-route-status="@order.Status"
-                   asp-route-expectedStatusChangedAtUtc="@order.StatusChangedAtUtc.ToString("O")"
-                   asp-route-estimatedReadyAtUtc="@order.EstimatedReadyAtUtc.ToString("O")">Durumu değiştir</a>
+                   asp-route-id="@order.Id">Durumu değiştir</a>
             </div>
         </article>
     }
@@ -285,15 +285,12 @@
                 emptyEl.classList.toggle("hidden", hasCards);
             }
 
+            function detailUrl(order) {
+                return "/Orders/Detail?id=" + encodeURIComponent(order.id);
+            }
+
             function changeStatusUrl(order) {
-                const params = new URLSearchParams({
-                    id: order.id,
-                    displayNumber: order.displayNumber,
-                    status: order.status,
-                    expectedStatusChangedAtUtc: order.statusChangedAtUtc,
-                    estimatedReadyAtUtc: order.estimatedReadyAtUtc
-                });
-                return "/Orders/ChangeStatus?" + params.toString();
+                return "/Orders/ChangeStatus?id=" + encodeURIComponent(order.id);
             }
 
             function upsertOrder(order, options) {
@@ -314,10 +311,12 @@
                     card.dataset.orderId = order.id;
                     card.innerHTML =
                         '<div class="item-card-top"><h3></h3><span class="price"></span></div>' +
-                        '<p class="item-desc">Durum: <strong class="order-status-label"></strong><br />' +
-                        'Güncelleme: <span class="order-changed"></span><br />' +
-                        'ETA: <span class="order-eta"></span></p>' +
+                        '<p class="item-desc">Masa: <strong class="order-table-label"></strong><br />' +
+                        'Durum: <strong class="order-status-label"></strong><br />' +
+                        'Sipariş: <span class="order-created"></span><br />' +
+                        'Güncelleme: <span class="order-changed"></span></p>' +
                         '<div class="item-meta"><span class="badge badge-warn order-status-code"></span>' +
+                        '<a class="linkish order-detail-link">Detay</a>' +
                         '<a class="linkish order-change-link">Durumu değiştir</a></div>';
                     grid.prepend(card);
                 }
@@ -326,10 +325,13 @@
                 card.dataset.statusChanged = order.statusChangedAtUtc;
                 card.querySelector("h3").textContent = order.displayNumber;
                 card.querySelector(".price").textContent = formatMoney(order.amountMinor);
+                card.querySelector(".order-table-label").textContent = order.tableLabel || "—";
                 card.querySelector(".order-status-label").textContent = statusTr[status] || order.status;
+                card.querySelector(".order-created").textContent = formatLocal(order.createdAtUtc);
                 card.querySelector(".order-changed").textContent = formatLocal(order.statusChangedAtUtc);
-                card.querySelector(".order-eta").textContent = formatLocal(order.estimatedReadyAtUtc);
                 card.querySelector(".order-status-code").textContent = order.status;
+                const detailLink = card.querySelector(".order-detail-link");
+                detailLink.href = detailUrl(order);
                 const link = card.querySelector(".order-change-link");
                 link.href = changeStatusUrl(order);
                 syncEmpty();

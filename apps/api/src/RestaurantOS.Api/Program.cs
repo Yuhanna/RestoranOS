@@ -17,6 +17,7 @@ using RestaurantOS.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddEmailSender(builder.Configuration);
 builder.Services.AddProblemDetails();
 builder.Services.AddControllers();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -109,6 +110,7 @@ if (!string.IsNullOrWhiteSpace(redisBackplane))
 }
 builder.Services.AddSingleton<IOrderStatusNotifier, SignalROrderStatusNotifier>();
 builder.Services.AddSingleton<IManagementOrderNotifier, SignalRManagementOrderNotifier>();
+builder.Services.AddSingleton<IManagementNotificationNotifier, SignalRManagementNotificationNotifier>();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 {
     var configured = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -208,6 +210,13 @@ if (app.Environment.IsDevelopment())
         {
             await db.Database.MigrateAsync();
         }
+    }
+
+    await using (var bootstrapScope = app.Services.CreateAsyncScope())
+    {
+        await bootstrapScope.ServiceProvider
+            .GetRequiredService<DevelopmentManagementBootstrapper>()
+            .RunAsync(CancellationToken.None);
     }
 }
 

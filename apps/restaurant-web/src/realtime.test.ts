@@ -21,6 +21,8 @@ it("yeniden bağlantıdan sonra REST ile tam eşitleme yapar", async () => {
       estimatedReadyAtUtc: "2026-08-25T12:20:00Z",
       amountMinor: 1,
       currency: "TRY",
+      tableId: "table-1",
+      tableLabel: "Masa 1",
     },
   ];
   const fetcher = vi
@@ -46,7 +48,11 @@ it("yeniden bağlantıdan sonra REST ile tam eşitleme yapar", async () => {
   const resync = vi.fn();
   const client = new SignalRRealtimeClient("", api, () => fakeConnection);
 
-  await client.start(vi.fn(), resync, vi.fn());
+  await client.start({
+    onOrder: vi.fn(),
+    onResync: resync,
+    onState: vi.fn(),
+  });
   await reconnected?.();
 
   expect(api.getSession()?.accessToken).toBe("access");

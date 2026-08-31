@@ -19,8 +19,13 @@ without a QR context. Use the on-screen demo action or open:
 http://localhost:5173/?qr=demo-marea-table-7
 ```
 
-`mockCustomerGateway` remains the default development adapter. To use the real
-ASP.NET Core API, create an uncommitted `.env.local` file:
+`mockCustomerGateway` remains the default development adapter for the demo QR
+(`demo-marea-table-7`). When you scan a real table QR in development, the app
+automatically uses the ASP.NET Core API through the Vite dev proxy (`/api` →
+`http://127.0.0.1:5183`), including from phones on the same Wi‑Fi/LAN.
+
+To point at a specific API host (for example HTTPS or a remote backend), create
+an uncommitted `.env.local` file:
 
 ```text
 VITE_CUSTOMER_API_BASE_URL=https://localhost:7297

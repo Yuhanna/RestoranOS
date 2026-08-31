@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using QRCoder;
 using RestaurantOS.Application;
@@ -13,6 +14,7 @@ public sealed class ManagementTableService(
     TimeProvider timeProvider,
     IDataProtectionProvider dataProtectionProvider,
     IOptions<CustomerWebOptions> customerWebOptions,
+    IHostEnvironment hostEnvironment,
     IFeatureEntitlementService entitlements) : IManagementTableService
 {
     private const string ProtectorPurpose = "RestaurantOS.TableQrToken.v1";
@@ -28,17 +30,23 @@ public sealed class ManagementTableService(
             .AsNoTracking()
             .Where(table => table.TenantId == tenantId && table.BranchId == branchId)
             .OrderBy(table => table.Label)
-            .Select(table => new ManagementTableResult(
+            .Select(table => new
+            {
                 table.Id,
                 table.Label,
                 table.IsActive,
-                dbContext.TableQrCodes.Count(qr =>
+                ActiveQrCount = dbContext.TableQrCodes.Count(qr =>
                     qr.TableId == table.Id
                     && qr.TenantId == tenantId
                     && qr.BranchId == branchId
-                    && qr.Status == QrCodeStatus.Active)))
+                    && qr.Status == QrCodeStatus.Active),
+            })
             .ToListAsync(cancellationToken);
-        return tables;
+        return await MapTablesWithStatusAsync(
+            tenantId,
+            branchId,
+            tables.Select(table => (table.Id, table.Label, table.IsActive, table.ActiveQrCount)).ToList(),
+            cancellationToken);
     }
 
     public async Task<ManagementTableResult> CreateTableAsync(
@@ -89,7 +97,12 @@ public sealed class ManagementTableService(
             throw new CustomerExperienceException("TABLE_LABEL_CONFLICT", "A table with this label already exists.");
         }
 
-        return new ManagementTableResult(table.Id, table.Label, table.IsActive, 0);
+        var created = await MapTablesWithStatusAsync(
+            tenantId,
+            branchId,
+            [(table.Id, table.Label, table.IsActive, 0)],
+            cancellationToken);
+        return created[0];
     }
 
     public async Task<ManagementTableResult> UpdateTableAsync(
@@ -156,7 +169,12 @@ public sealed class ManagementTableService(
                 && qr.BranchId == branchId
                 && qr.Status == QrCodeStatus.Active,
             cancellationToken);
-        return new ManagementTableResult(table.Id, table.Label, table.IsActive, activeQrCount);
+        var updated = await MapTablesWithStatusAsync(
+            tenantId,
+            branchId,
+            [(table.Id, table.Label, table.IsActive, activeQrCount)],
+            cancellationToken);
+        return updated[0];
     }
 
     public async Task<IReadOnlyList<ManagementQrCodeResult>> ListQrCodesAsync(
@@ -361,6 +379,57 @@ public sealed class ManagementTableService(
             CreateSvg(entryUrl));
     }
 
+    private async Task<IReadOnlyList<ManagementTableResult>> MapTablesWithStatusAsync(
+        Guid tenantId,
+        Guid branchId,
+        List<(Guid Id, string Label, bool IsActive, int ActiveQrCount)> tables,
+        CancellationToken cancellationToken)
+    {
+        if (tables.Count == 0)
+        {
+            return [];
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var pendingTableIds = (await dbContext.CustomerOrders
+            .AsNoTracking()
+            .Where(order =>
+                order.TenantId == tenantId
+                && order.BranchId == branchId
+                && order.Status != OrderStatus.Completed
+                && order.Status != OrderStatus.Cancelled)
+            .Select(order => order.TableId)
+            .Distinct()
+            .ToListAsync(cancellationToken)).ToHashSet();
+
+        var occupiedTableIds = (await dbContext.CustomerSessions
+            .AsNoTracking()
+            .Where(session =>
+                session.TenantId == tenantId
+                && session.BranchId == branchId
+                && session.ExpiresAtUtc > now)
+            .Select(session => session.TableId)
+            .Distinct()
+            .ToListAsync(cancellationToken)).ToHashSet();
+
+        return tables
+            .Select(table =>
+            {
+                var operationalStatus = pendingTableIds.Contains(table.Id)
+                    ? "has_pending_order"
+                    : occupiedTableIds.Contains(table.Id)
+                        ? "occupied"
+                        : "available";
+                return new ManagementTableResult(
+                    table.Id,
+                    table.Label,
+                    table.IsActive,
+                    table.ActiveQrCount,
+                    operationalStatus);
+            })
+            .ToArray();
+    }
+
     private async Task<DiningTable> FindTableAsync(
         Guid tenantId,
         Guid branchId,
@@ -399,7 +468,7 @@ public sealed class ManagementTableService(
 
     private string BuildEntryUrl(string token)
     {
-        var baseUrl = customerWebOptions.Value.PublicBaseUrl.TrimEnd('/');
+        var baseUrl = CustomerWebBaseUrlResolver.Resolve(customerWebOptions.Value, hostEnvironment);
         return $"{baseUrl}/?qr={Uri.EscapeDataString(token)}";
     }
 

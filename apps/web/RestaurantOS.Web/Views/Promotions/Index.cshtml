@@ -1,0 +1,151 @@
+@model RestaurantOS.Web.Models.PromotionsPageViewModel
+@{
+    ViewData["Title"] = "İndirim kampanyaları";
+    string ScopeTr(string scope) => scope switch
+    {
+        "category" => "Kategori",
+        "product" => "Ürün",
+        _ => "Tüm menü"
+    };
+    string DiscountLabel(RestaurantOS.Web.Models.MenuPromotionListItemViewModel promotion) =>
+        promotion.DiscountKind == "percent"
+            ? $"%{promotion.DiscountValue}"
+            : $"₺{(promotion.DiscountValue / 100m):N0}";
+}
+
+<div class="page-head">
+    <div>
+        <h1>İndirim kampanyaları</h1>
+        <p class="muted">QR menüde ve sepette otomatik uygulanır.</p>
+    </div>
+</div>
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert success" role="status">@message</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert" role="alert">@error</div>
+}
+
+<div asp-validation-summary="All" class="alert"></div>
+
+<section class="panel">
+    <h2>Yeni kampanya</h2>
+    <form asp-action="Create" method="post" class="form-grid-wide">
+        @Html.AntiForgeryToken()
+        <label class="span-2">
+            Kampanya adı
+            <input asp-for="Create.Name" placeholder="Öğle menüsü %20" required />
+        </label>
+        <label>
+            Kapsam
+            <select asp-for="Create.Scope">
+                <option value="all_menu">Tüm menü</option>
+                <option value="category">Kategori</option>
+                <option value="product">Tek ürün</option>
+            </select>
+        </label>
+        <label>
+            İndirim türü
+            <select asp-for="Create.DiscountKind">
+                <option value="percent">Yüzde</option>
+                <option value="fixed_minor">Sabit tutar (₺)</option>
+            </select>
+        </label>
+        <label>
+            Değer
+            <input asp-for="Create.DiscountValue" />
+        </label>
+        @if (Model.PublishedMenu is not null)
+        {
+            <label>
+                Kategori
+                <select asp-for="Create.CategoryId">
+                    <option value="">—</option>
+                    @foreach (var category in Model.PublishedMenu.Categories)
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                </select>
+            </label>
+            <label>
+                Ürün
+                <select asp-for="Create.MenuItemId">
+                    <option value="">—</option>
+                    @foreach (var item in Model.PublishedMenu.Items)
+                    {
+                        <option value="@item.Id">@item.Name</option>
+                    }
+                </select>
+            </label>
+        }
+        <label>
+            Günlük başlangıç
+            <input asp-for="Create.DailyStartLocal" type="time" />
+        </label>
+        <label>
+            Günlük bitiş
+            <input asp-for="Create.DailyEndLocal" type="time" />
+        </label>
+        <label>
+            Bitiş tarihi
+            <input asp-for="Create.EndsAtLocal" type="date" />
+        </label>
+        <div class="form-actions span-2">
+            <button type="submit" class="btn">Kampanya oluştur</button>
+        </div>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>Kayıtlı kampanyalar</h2>
+    @if (Model.Promotions.Count == 0)
+    {
+        <p class="muted">Henüz kampanya yok.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Ad</th>
+                    <th>Kapsam</th>
+                    <th>İndirim</th>
+                    <th>Durum</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var promotion in Model.Promotions)
+            {
+                <tr>
+                    <td>@promotion.Name</td>
+                    <td>@ScopeTr(promotion.Scope)</td>
+                    <td>@DiscountLabel(promotion)</td>
+                    <td>
+                        <span class="badge @(promotion.IsActive ? "badge-ok" : "badge-muted")">
+                            @(promotion.IsActive ? "Aktif" : "Pasif")
+                        </span>
+                    </td>
+                    <td>
+                        <form asp-action="Toggle" method="post" class="inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@promotion.Id" />
+                            <input type="hidden" name="isActive" value="@promotion.IsActive.ToString().ToLowerInvariant()" />
+                            <button type="submit" class="linkish">
+                                @(promotion.IsActive ? "Durdur" : "Etkinleştir")
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</section>
+
+<p class="muted">
+    Müşteri deneyimi: telefonunuzdan demo QR açın — indirimli fiyatlar menüde ve sepette görünür.
+</p>

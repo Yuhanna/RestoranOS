@@ -1,5 +1,12 @@
 export type Locale = "tr" | "en";
 export type Money = Readonly<{ amountMinor: number; currency: "TRY" }>;
+
+export interface PriceBreakdown {
+  list: Money;
+  discount: Money;
+  final: Money;
+}
+
 export type DietaryTag = "vegetarian" | "vegan" | "glutenFree";
 export type OrderStatus =
   | "submitted"
@@ -46,6 +53,9 @@ export interface Product {
   name: string;
   description: string;
   price: Money;
+  listPrice?: Money;
+  discount?: Money;
+  promotionLabel?: string;
   imageUrl: string;
   imageAlt: string;
   available: boolean;
@@ -83,6 +93,8 @@ export interface Order {
   statusChangedAt: string;
   estimatedReadyAt: string;
   total: Money;
+  subtotal?: Money;
+  discount?: Money;
 }
 
 export interface SubmitOrderRequest {

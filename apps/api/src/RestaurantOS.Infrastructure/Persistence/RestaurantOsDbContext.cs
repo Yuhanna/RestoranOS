@@ -6,6 +6,8 @@ namespace RestaurantOS.Infrastructure;
 public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext> options)
     : DbContext(options)
 {
+    public const string ManagementAuthSchema = "auth";
+
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Restaurant> Restaurants => Set<Restaurant>();
     public DbSet<Branch> Branches => Set<Branch>();
@@ -17,6 +19,7 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
     public DbSet<MenuCategoryTranslation> MenuCategoryTranslations => Set<MenuCategoryTranslation>();
     public DbSet<MenuItemTranslation> MenuItemTranslations => Set<MenuItemTranslation>();
     public DbSet<CustomerSession> CustomerSessions => Set<CustomerSession>();
+    public DbSet<GuestSession> GuestSessions => Set<GuestSession>();
     public DbSet<CustomerOrder> CustomerOrders => Set<CustomerOrder>();
     public DbSet<CustomerOrderItem> CustomerOrderItems => Set<CustomerOrderItem>();
     public DbSet<ServiceRequest> ServiceRequests => Set<ServiceRequest>();
@@ -27,6 +30,9 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
     public DbSet<ManagementRefreshSession> ManagementRefreshSessions => Set<ManagementRefreshSession>();
     public DbSet<ManagementAuditLog> ManagementAuditLogs => Set<ManagementAuditLog>();
     public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+    public DbSet<MenuPromotion> MenuPromotions => Set<MenuPromotion>();
+    public DbSet<TenantNotification> TenantNotifications => Set<TenantNotification>();
+    public DbSet<SubscriptionOffer> SubscriptionOffers => Set<SubscriptionOffer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -128,6 +134,17 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.HasIndex(x => x.TokenHash).IsUnique();
             entity.HasIndex(x => new { x.TenantId, x.BranchId, x.ExpiresAtUtc });
         });
+        modelBuilder.Entity<GuestSession>(entity =>
+        {
+            entity.ToTable("GuestSessions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.DeviceIdentifier).HasMaxLength(128);
+            entity.Property(x => x.IpHash).HasMaxLength(64);
+            entity.Property(x => x.Locale).HasMaxLength(8);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            entity.HasIndex(x => new { x.TableSessionId, x.Status });
+            entity.HasIndex(x => new { x.TenantId, x.BranchId, x.LastActivityAtUtc });
+        });
         modelBuilder.Entity<CustomerOrder>(entity =>
         {
             entity.ToTable("CustomerOrders");
@@ -137,6 +154,8 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.Property(x => x.DisplayNumber).HasMaxLength(32);
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(24);
             entity.Property(x => x.RowVersion).IsRowVersion();
+            entity.Ignore(x => x.Subtotal);
+            entity.Ignore(x => x.Discount);
             entity.Ignore(x => x.Total);
             entity.Property(x => x.TotalCurrency).HasMaxLength(3);
             entity.HasIndex(x => new { x.CustomerSessionId, x.IdempotencyKey }).IsUnique();
@@ -149,6 +168,8 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(160);
             entity.Property(x => x.Note).HasMaxLength(160);
+            entity.Ignore(x => x.ListUnitPrice);
+            entity.Ignore(x => x.DiscountUnitAmount);
             entity.Ignore(x => x.UnitPrice);
             entity.Property(x => x.UnitPriceCurrency).HasMaxLength(3);
         });
@@ -164,7 +185,7 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
         });
         modelBuilder.Entity<ManagementUser>(entity =>
         {
-            entity.ToTable("Users", "identity");
+            entity.ToTable("Users", ManagementAuthSchema);
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Email).HasMaxLength(320);
             entity.Property(x => x.NormalizedEmail).HasMaxLength(320);
@@ -173,21 +194,21 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
         });
         modelBuilder.Entity<ManagementRole>(entity =>
         {
-            entity.ToTable("Roles", "identity");
+            entity.ToTable("Roles", ManagementAuthSchema);
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(80);
             entity.HasIndex(x => x.Name).IsUnique();
         });
         modelBuilder.Entity<ManagementRolePermissionGrant>(entity =>
         {
-            entity.ToTable("RolePermissions", "identity");
+            entity.ToTable("RolePermissions", ManagementAuthSchema);
             entity.HasKey(x => new { x.RoleId, x.Permission });
             entity.Property(x => x.Permission).HasMaxLength(120);
             entity.HasOne<ManagementRole>().WithMany().HasForeignKey(x => x.RoleId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<ManagementMembership>(entity =>
         {
-            entity.ToTable("Memberships", "identity");
+            entity.ToTable("Memberships", ManagementAuthSchema);
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => new { x.UserId, x.TenantId, x.BranchId, x.RoleId }).IsUnique();
             entity.HasIndex(x => new { x.UserId, x.TenantId, x.IsActive });
@@ -202,7 +223,7 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
         });
         modelBuilder.Entity<ManagementRefreshSession>(entity =>
         {
-            entity.ToTable("RefreshSessions", "identity");
+            entity.ToTable("RefreshSessions", ManagementAuthSchema);
             entity.HasKey(x => x.Id);
             entity.Property(x => x.TokenHash).HasMaxLength(64).IsFixedLength();
             entity.Property(x => x.ReplacedByTokenHash).HasMaxLength(64).IsFixedLength();
@@ -227,6 +248,35 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.Property(x => x.PlanCode).HasMaxLength(32);
             entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
             entity.Ignore(x => x.Entitlements);
+        });
+        modelBuilder.Entity<MenuPromotion>(entity =>
+        {
+            entity.ToTable("MenuPromotions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(120);
+            entity.Property(x => x.Scope).HasMaxLength(16);
+            entity.Property(x => x.DiscountKind).HasMaxLength(16);
+            entity.HasIndex(x => new { x.TenantId, x.BranchId, x.IsActive, x.StartsAtUtc });
+        });
+        modelBuilder.Entity<TenantNotification>(entity =>
+        {
+            entity.ToTable("TenantNotifications", "billing");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Audience).HasMaxLength(16);
+            entity.Property(x => x.Title).HasMaxLength(160);
+            entity.Property(x => x.Body).HasMaxLength(2000);
+            entity.Property(x => x.ActionUrl).HasMaxLength(2048);
+            entity.HasIndex(x => new { x.TenantId, x.Audience, x.IsActive, x.StartsAtUtc });
+        });
+        modelBuilder.Entity<SubscriptionOffer>(entity =>
+        {
+            entity.ToTable("SubscriptionOffers", "billing");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Audience).HasMaxLength(16);
+            entity.Property(x => x.TargetPlanCode).HasMaxLength(32);
+            entity.Property(x => x.Title).HasMaxLength(160);
+            entity.Property(x => x.Body).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.Audience, x.IsActive, x.StartsAtUtc });
         });
     }
 }

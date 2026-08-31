@@ -1,0 +1,10 @@
+{
+  "description": "Streamline restaurant operations with a cloud-based platform for QR ordering, management, payments, and analytics, enhancing guest experiences and efficiency.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

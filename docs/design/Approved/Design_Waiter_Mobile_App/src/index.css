@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+@theme inline {
+  --color-brand: oklch(68% 0.17 52);
+  --color-brand-dim: oklch(68% 0.17 52 / 0.12);
+  --color-ink: #0F0E0C;
+  --color-ink-2: #3A3832;
+  --color-ink-3: #7A7670;
+  --color-ink-4: #B5B0A8;
+  --color-paper: #F9F8F6;
+  --color-paper-2: #F1EFE9;
+  --color-paper-3: #E4E1D9;
+  --color-dark-base: #0A0A0A;
+  --color-dark-raised: #141413;
+  --color-dark-border: #2A2926;
+  --color-status-success: oklch(58% 0.13 145);
+  --color-status-warning: oklch(72% 0.15 72);
+  --color-status-error: oklch(54% 0.17 25);
+  --color-status-info: oklch(58% 0.11 240);
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: var(--color-brand);
+  color: white;
+}
+
+::-webkit-scrollbar { width: 0; height: 0; }
+
+@keyframes slideUp {
+  from { transform: translateY(60px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}

@@ -5,16 +5,20 @@ import {
   type HubConnection,
 } from "@microsoft/signalr";
 import { api, type ManagementApi } from "./api";
-import type { Order } from "./domain";
+import type { Order, ServiceRequest, AudienceNotification } from "./domain";
 
 export type RealtimeState = "connecting" | "connected" | "reconnecting" | "offline";
 
+export type RealtimeCallbacks = {
+  onOrder: (order: Order) => void;
+  onResync: (orders: Order[]) => void;
+  onState: (state: RealtimeState) => void;
+  onServiceRequest?: (request: ServiceRequest) => void;
+  onAudienceNotification?: (notification: AudienceNotification) => void;
+};
+
 export type RealtimeClient = {
-  start(
-    onOrder: (order: Order) => void,
-    onResync: (orders: Order[]) => void,
-    onState: (state: RealtimeState) => void,
-  ): Promise<() => Promise<void>>;
+  start(callbacks: RealtimeCallbacks): Promise<() => Promise<void>>;
 };
 
 export class SignalRRealtimeClient implements RealtimeClient {
@@ -32,45 +36,53 @@ export class SignalRRealtimeClient implements RealtimeClient {
         .build(),
   ) {}
 
-  async start(
-    onOrder: (order: Order) => void,
-    onResync: (orders: Order[]) => void,
-    onState: (state: RealtimeState) => void,
-  ): Promise<() => Promise<void>> {
-    onState("connecting");
+  async start(callbacks: RealtimeCallbacks): Promise<() => Promise<void>> {
+    callbacks.onState("connecting");
     const connection = this.buildConnection(
       `${this.baseUrl.replace(/\/+$/, "")}/hubs/v1/management-orders`,
       () => this.managementApi.getSession()?.accessToken ?? "",
     );
-    connection.on("orderStatusChanged", onOrder);
+    connection.on("orderStatusChanged", callbacks.onOrder);
+    if (callbacks.onServiceRequest) {
+      connection.on("serviceRequestCreated", callbacks.onServiceRequest);
+    }
+    if (callbacks.onAudienceNotification) {
+      connection.on("audienceNotificationPublished", callbacks.onAudienceNotification);
+    }
     connection.onreconnecting(async () => {
-      onState("reconnecting");
+      callbacks.onState("reconnecting");
       try {
         await this.managementApi.restore();
       } catch {
-        onState("offline");
+        callbacks.onState("offline");
       }
     });
     connection.onreconnected(async () => {
-      onState("connected");
+      callbacks.onState("connected");
       try {
-        onResync(await this.managementApi.getActiveOrders());
+        callbacks.onResync(await this.managementApi.getActiveOrders());
       } catch {
-        onState("offline");
+        callbacks.onState("offline");
       }
     });
-    connection.onclose(() => onState("offline"));
+    connection.onclose(() => callbacks.onState("offline"));
     try {
       await connection.start();
-      onState("connected");
+      callbacks.onState("connected");
     } catch (error) {
-      onState("offline");
+      callbacks.onState("offline");
       await connection.stop();
       throw error;
     }
 
     return async () => {
-      connection.off("orderStatusChanged", onOrder);
+      connection.off("orderStatusChanged", callbacks.onOrder);
+      if (callbacks.onServiceRequest) {
+        connection.off("serviceRequestCreated", callbacks.onServiceRequest);
+      }
+      if (callbacks.onAudienceNotification) {
+        connection.off("audienceNotificationPublished", callbacks.onAudienceNotification);
+      }
       if (connection.state !== HubConnectionState.Disconnected) await connection.stop();
     };
   }

@@ -1,0 +1,74 @@
+@model RestaurantOS.Web.Models.SettingsViewModel
+@{
+    ViewData["Title"] = "Ayarlar";
+    var workspace = Model.Workspace;
+    var entitlements = workspace?.Entitlements;
+}
+
+<div class="page-head">
+    <div>
+        <h1>Ayarlar</h1>
+        <p class="muted">Restoran ve şube bilgileri</p>
+    </div>
+</div>
+
+@if (TempData["Error"] is string error)
+{
+    <div class="alert" role="alert">@error</div>
+}
+
+@if (workspace is null)
+{
+    <p class="muted">Çalışma alanı bilgisi yüklenemedi.</p>
+}
+else
+{
+    <section class="panel">
+        <h2 style="margin-top:0">Hesap</h2>
+        <dl class="detail-list">
+            <div>
+                <dt>Restoran</dt>
+                <dd>@workspace.RestaurantName</dd>
+            </div>
+            <div>
+                <dt>Şube</dt>
+                <dd>@workspace.BranchName</dd>
+            </div>
+            @if (entitlements is not null)
+            {
+                <div>
+                    <dt>Plan</dt>
+                    <dd>@entitlements.PlanDisplayName (@entitlements.PlanCode)</dd>
+                </div>
+                <div>
+                    <dt>Masa kotası</dt>
+                    <dd>@entitlements.TableCount / @(entitlements.MaxTablesPerBranch?.ToString() ?? "∞")</dd>
+                </div>
+                @if (entitlements.IsTrial && entitlements.TrialEndsAtUtc is not null)
+                {
+                    <div>
+                        <dt>Deneme süresi</dt>
+                        <dd>@entitlements.TrialEndsAtUtc.Value.ToLocalTime().ToString("g")</dd>
+                    </div>
+                }
+            }
+        </dl>
+    </section>
+
+    @if (entitlements?.Warnings is { Count: > 0 })
+    {
+        <section class="panel" style="margin-top:1rem">
+            <h2 style="margin-top:0">Uyarılar</h2>
+            <ul>
+                @foreach (var warning in entitlements.Warnings)
+                {
+                    <li>@warning</li>
+                }
+            </ul>
+        </section>
+    }
+}
+
+<p class="muted" style="margin-top:1.5rem">
+    Tema seçimi üst menüden yapılır. Çıkış için sağ üstteki bağlantıyı kullanın.
+</p>
