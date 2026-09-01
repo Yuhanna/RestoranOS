@@ -17,9 +17,16 @@ public sealed class HomeController(IWebApiExecuter api) : Controller
         var checklist = new SetupChecklistViewModel();
         try
         {
-            var workspace = await api.InvokeGetAsync<WorkspaceViewModel>(
-                "/api/v1/management/workspace",
+            var workspaceTask = api.GetWorkspaceAsync(cancellationToken);
+            var tablesTask = api.InvokeGetAsync<List<TableListItemViewModel>>(
+                "/api/v1/management/tables",
                 cancellationToken);
+            var menusTask = api.InvokeGetAsync<List<MenuSummaryViewModel>>(
+                "/api/v1/management/menus",
+                cancellationToken);
+            await Task.WhenAll(workspaceTask, tablesTask, menusTask);
+
+            var workspace = await workspaceTask;
             if (workspace is not null)
             {
                 checklist.RestaurantName = workspace.RestaurantName;
@@ -41,12 +48,8 @@ public sealed class HomeController(IWebApiExecuter api) : Controller
                 }
             }
 
-            var tables = await api.InvokeGetAsync<List<TableListItemViewModel>>(
-                "/api/v1/management/tables",
-                cancellationToken) ?? [];
-            var menus = await api.InvokeGetAsync<List<MenuSummaryViewModel>>(
-                "/api/v1/management/menus",
-                cancellationToken) ?? [];
+            var tables = await tablesTask ?? [];
+            var menus = await menusTask ?? [];
             checklist.TableCount = tables.Count;
             checklist.ActiveQrCount = tables.Sum(t => t.ActiveQrCount);
             checklist.MenuCount = menus.Count;

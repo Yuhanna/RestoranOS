@@ -13,7 +13,6 @@ public sealed class CustomerExperienceService(
     IManagementOrderNotifier managementOrderNotifier,
     ICustomerOrderGuard customerOrderGuard) : ICustomerExperienceService
 {
-    private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(4);
     private static readonly TimeSpan DefaultPrepTime = TimeSpan.FromMinutes(18);
 
     public async Task<CustomerSessionResult> ResolveQrAsync(
@@ -94,6 +93,14 @@ public sealed class CustomerExperienceService(
             .ToListAsync(cancellationToken);
         var activePromotions = PromotionPricingService.FilterActivePromotions(promotions, now);
 
+        await TableSessionSettlement.SupersedeActiveTableSessionsAsync(
+            dbContext,
+            qr.TenantId,
+            qr.BranchId,
+            qr.TableId,
+            now,
+            cancellationToken);
+
         var sessionToken = OpaqueToken.Create();
         var tableSessionId = Guid.NewGuid();
         dbContext.CustomerSessions.Add(new CustomerSession(
@@ -104,7 +111,7 @@ public sealed class CustomerExperienceService(
             OpaqueToken.Hash(sessionToken),
             resolvedLocale,
             now,
-            now.Add(SessionLifetime)));
+            now.Add(TableOccupancyPolicy.SessionLifetime)));
         dbContext.GuestSessions.Add(new GuestSession(
             Guid.NewGuid(),
             qr.TenantId,
@@ -174,10 +181,12 @@ public sealed class CustomerExperienceService(
                     string.IsNullOrWhiteSpace(item.ImageAlt) ? (translation?.Name ?? item.Name) : item.ImageAlt,
                     pricing.ListAmountMinor,
                     pricing.DiscountAmountMinor,
-                    promotion?.Name);
+                    promotion?.Name,
+                    MenuCatalogJson.ParseItem(item.CatalogJson));
             }).ToArray(),
             openTypes.Select(ServiceRequest.ToApiCode).ToArray(),
-            activeOrders.Select(MapOrder).ToArray());
+            activeOrders.Select(MapOrder).ToArray(),
+            MenuCatalogJson.ParseSettings(qr.Table.Branch.CustomerMenuSettingsJson));
     }
 
     public async Task<CustomerOrderResult> CreateOrderAsync(
@@ -414,6 +423,15 @@ public sealed class CustomerExperienceService(
         }
 
         dbContext.ServiceRequests.Add(entity);
+
+        var guestSession = await dbContext.GuestSessions
+            .Where(entry =>
+                entry.TableSessionId == session.Id
+                && entry.Status == GuestSessionStatus.Active)
+            .OrderByDescending(entry => entry.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        guestSession?.Touch(now);
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var result = new ServiceRequestResult(
@@ -573,9 +591,10 @@ public sealed class CustomerExperienceService(
                 "Order status changed concurrently. Reload and retry.");
         }
 
+        DateTimeOffset changedAt;
         try
         {
-            var changedAt = timeProvider.GetUtcNow();
+            changedAt = timeProvider.GetUtcNow();
             order.ChangeStatus(nextStatus, changedAt);
             if (estimatedReadyAtUtc is not null)
             {
@@ -611,6 +630,21 @@ public sealed class CustomerExperienceService(
             throw new CustomerExperienceException(
                 "ORDER_CONCURRENCY_CONFLICT",
                 "Order status changed concurrently. Reload and retry.");
+        }
+
+        if (nextStatus == OrderStatus.Completed)
+        {
+            await TableSessionSettlement.CompleteOpenBillRequestsAsync(
+                dbContext,
+                order.CustomerSessionId,
+                changedAt,
+                cancellationToken);
+            await TableSessionSettlement.ShortenSessionAfterSettlementAsync(
+                dbContext,
+                order.CustomerSessionId,
+                changedAt,
+                cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
 
         var result = MapOrder(order);

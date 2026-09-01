@@ -1,9 +1,14 @@
 using Microsoft.AspNetCore.Http;
+using RestaurantOS.Web.Models;
 
 namespace RestaurantOS.Web.Data;
 
 public interface IWebApiExecuter
 {
+    Task<WorkspaceViewModel?> GetWorkspaceAsync(CancellationToken cancellationToken = default);
+
+    void InvalidateWorkspaceCache();
+
     Task<T?> InvokeGetAsync<T>(string relativePath, CancellationToken cancellationToken = default);
 
     Task<T?> InvokePostAsync<T>(string relativePath, object? body, CancellationToken cancellationToken = default);

@@ -2,12 +2,14 @@ import { HubConnectionBuilder, HubConnectionState } from "@microsoft/signalr";
 import {
   CustomerGatewayError,
   type CustomerGateway,
+  type CustomerMenuSettings,
   type CustomerSession,
   type Order,
   type Product,
   type ServiceRequest,
   type SubmitOrderRequest,
 } from "../domain/customer";
+import { resolveProductMediaUrl } from "../lib/resolveProductMediaUrl";
 
 const REQUEST_TIMEOUT_MS = 12_000;
 
@@ -87,6 +89,28 @@ const problemFor = async (response: Response): Promise<CustomerGatewayError> => 
   );
 };
 
+const mapCustomerMenu = (raw: unknown): CustomerMenuSettings | undefined => {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+
+  const settings = raw as Record<string, unknown>;
+  return {
+    showDietaryFilters: settings.showDietaryFilters === true,
+    dietaryFilterOptions: Array.isArray(settings.dietaryFilterOptions)
+      ? (settings.dietaryFilterOptions as CustomerMenuSettings["dietaryFilterOptions"])
+      : [],
+    showAllergenExclusions: settings.showAllergenExclusions === true,
+    allergenExclusionOptions: Array.isArray(settings.allergenExclusionOptions)
+      ? (settings.allergenExclusionOptions as CustomerMenuSettings["allergenExclusionOptions"])
+      : [],
+    allergenDisclaimer:
+      typeof settings.allergenDisclaimer === "string" ? settings.allergenDisclaimer : undefined,
+    allergenMatrixUrl:
+      typeof settings.allergenMatrixUrl === "string" ? settings.allergenMatrixUrl : undefined,
+  };
+};
+
 const mapProduct = (raw: Record<string, unknown>): Product => {
   const price = raw.price as { amountMinor?: number; currency?: string } | undefined;
   const pricing = raw.pricing as
@@ -105,7 +129,7 @@ const mapProduct = (raw: Record<string, unknown>): Product => {
     listPrice: discountMinor > 0 ? { amountMinor: listMinor, currency } : undefined,
     discount: discountMinor > 0 ? { amountMinor: discountMinor, currency } : undefined,
     promotionLabel: typeof raw.promotionLabel === "string" ? raw.promotionLabel : undefined,
-    imageUrl: String(raw.imageUrl ?? ""),
+    imageUrl: resolveProductMediaUrl(String(raw.imageUrl ?? "")),
     imageAlt: String(raw.imageAlt ?? raw.name ?? ""),
     available: raw.available !== false,
     badge:
@@ -115,10 +139,66 @@ const mapProduct = (raw: Record<string, unknown>): Product => {
           ? raw.promotionLabel
           : undefined,
     dietaryTags: Array.isArray(raw.dietaryTags) ? (raw.dietaryTags as Product["dietaryTags"]) : [],
-    allergens: Array.isArray(raw.allergens) ? (raw.allergens as string[]) : [],
+    allergenKeys: Array.isArray(raw.allergenKeys)
+      ? (raw.allergenKeys as Product["allergenKeys"])
+      : [],
+    mayContainAllergenKeys: Array.isArray(raw.mayContainAllergenKeys)
+      ? (raw.mayContainAllergenKeys as Product["mayContainAllergenKeys"])
+      : undefined,
+    ingredients: Array.isArray(raw.ingredients) ? (raw.ingredients as string[]) : undefined,
+    isNew: raw.isNew === true,
+    spiceLevel:
+      typeof raw.spiceLevel === "number" ? (raw.spiceLevel as Product["spiceLevel"]) : undefined,
+    prepTimeMinutes:
+      typeof raw.prepTimeMinutes === "number" ? raw.prepTimeMinutes : undefined,
+    containsAlcohol: raw.containsAlcohol === true,
+    servingNote: typeof raw.servingNote === "string" ? raw.servingNote : undefined,
     modifierGroups: Array.isArray(raw.modifierGroups)
       ? (raw.modifierGroups as Product["modifierGroups"])
       : [],
+    portions: Array.isArray(raw.portions)
+      ? (raw.portions as Product["portions"])
+      : undefined,
+    priceLabel: typeof raw.priceLabel === "string" ? raw.priceLabel : undefined,
+    certificationNotes:
+      typeof raw.certificationNotes === "string" ? raw.certificationNotes : undefined,
+    nutrition:
+      raw.nutrition && typeof raw.nutrition === "object"
+        ? {
+            weightGrams:
+              typeof (raw.nutrition as { weightGrams?: unknown }).weightGrams === "number"
+                ? (raw.nutrition as { weightGrams: number }).weightGrams
+                : undefined,
+            volumeMl:
+              typeof (raw.nutrition as { volumeMl?: unknown }).volumeMl === "number"
+                ? (raw.nutrition as { volumeMl: number }).volumeMl
+                : undefined,
+            caloriesKcal:
+              typeof (raw.nutrition as { caloriesKcal?: unknown }).caloriesKcal === "number"
+                ? (raw.nutrition as { caloriesKcal: number }).caloriesKcal
+                : undefined,
+            proteinGrams:
+              typeof (raw.nutrition as { proteinGrams?: unknown }).proteinGrams === "number"
+                ? (raw.nutrition as { proteinGrams: number }).proteinGrams
+                : undefined,
+            carbsGrams:
+              typeof (raw.nutrition as { carbsGrams?: unknown }).carbsGrams === "number"
+                ? (raw.nutrition as { carbsGrams: number }).carbsGrams
+                : undefined,
+            fatGrams:
+              typeof (raw.nutrition as { fatGrams?: unknown }).fatGrams === "number"
+                ? (raw.nutrition as { fatGrams: number }).fatGrams
+                : undefined,
+            sugarGrams:
+              typeof (raw.nutrition as { sugarGrams?: unknown }).sugarGrams === "number"
+                ? (raw.nutrition as { sugarGrams: number }).sugarGrams
+                : undefined,
+            saltGrams:
+              typeof (raw.nutrition as { saltGrams?: unknown }).saltGrams === "number"
+                ? (raw.nutrition as { saltGrams: number }).saltGrams
+                : undefined,
+          }
+        : undefined,
   };
 };
 
@@ -178,6 +258,7 @@ export const createHttpCustomerGateway = (baseUrl: string): CustomerGateway => {
 
       const session = payload as CustomerSession & {
         activeOrders?: Record<string, unknown>[];
+        customerMenu?: unknown;
       };
       const products = (session.products ?? []).map((item) =>
         mapProduct(item as Record<string, unknown>),
@@ -193,6 +274,7 @@ export const createHttpCustomerGateway = (baseUrl: string): CustomerGateway => {
           ...(session.categories ?? []),
         ],
         products,
+        customerMenu: mapCustomerMenu(session.customerMenu),
         activeOrders: (session.activeOrders ?? []).map((item) =>
           mapOrder(item as Record<string, unknown>),
         ),

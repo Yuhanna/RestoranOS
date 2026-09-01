@@ -29,6 +29,9 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CustomerMenuSettingsJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(160)
@@ -582,6 +585,9 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CatalogJson")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<long?>("CostAmountMinor")
                         .HasColumnType("bigint");

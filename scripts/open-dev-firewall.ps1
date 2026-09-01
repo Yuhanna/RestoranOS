@@ -4,6 +4,19 @@
 
 $ErrorActionPreference = "Stop"
 
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+    [Security.Principal.WindowsBuiltInRole]::Administrator
+)
+if (-not $isAdmin) {
+    Write-Host "Bu script YONETICI PowerShell gerektirir." -ForegroundColor Red
+    Write-Host "Baslat menusunden 'Windows PowerShell' -> Sag tik -> 'Yonetici olarak calistir'" -ForegroundColor Yellow
+    Write-Host "Sonra tekrar:" -ForegroundColor Yellow
+    Write-Host "  cd D:\projcts\RestPROJ" -ForegroundColor Cyan
+    Write-Host "  Set-ExecutionPolicy -Scope Process Bypass -Force" -ForegroundColor Cyan
+    Write-Host "  .\scripts\open-dev-firewall.ps1" -ForegroundColor Cyan
+    exit 1
+}
+
 function Ensure-FirewallRule {
     param(
         [string]$Name,

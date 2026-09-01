@@ -77,6 +77,10 @@ public sealed class Branch
     public Guid RestaurantId { get; private set; }
     public string Name { get; private set; } = null!;
     public Restaurant Restaurant { get; private set; } = null!;
+    public string? CustomerMenuSettingsJson { get; private set; }
+
+    public void SetCustomerMenuSettingsJson(string? json) =>
+        CustomerMenuSettingsJson = string.IsNullOrWhiteSpace(json) ? null : json.Trim();
     private static string Required(string value) =>
         string.IsNullOrWhiteSpace(value) ? throw new ArgumentException("Value is required.") : value.Trim();
 }
@@ -323,6 +327,11 @@ public sealed class MenuItem
     public int? PrepTimeSeconds { get; private set; }
     /// <summary>Optional unit cost for gross-profit analytics (minor units, same currency as price).</summary>
     public long? CostAmountMinor { get; private set; }
+    /// <summary>JSON blob: allergens, dietary tags, modifiers, nutrition, badge, portions, etc.</summary>
+    public string? CatalogJson { get; private set; }
+
+    public void SetCatalogJson(string? catalogJson) =>
+        CatalogJson = string.IsNullOrWhiteSpace(catalogJson) ? null : catalogJson.Trim();
 
     public void Update(
         string name,
@@ -523,6 +532,15 @@ public sealed class CustomerSession
     public string Locale { get; private set; } = null!;
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset ExpiresAtUtc { get; private set; }
+
+    public void ShortenExpiry(DateTimeOffset expiresAtUtc)
+    {
+        var utc = expiresAtUtc.ToUniversalTime();
+        if (utc < ExpiresAtUtc)
+        {
+            ExpiresAtUtc = utc;
+        }
+    }
 }
 
 public enum GuestSessionStatus

@@ -1,6 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEMO_QR_TOKEN } from "./mockCustomerGateway";
-import { resolveCustomerApiBaseUrl } from "./resolveCustomerApiBaseUrl";
+import { readQrFromLocation, resolveCustomerApiBaseUrl } from "./resolveCustomerApiBaseUrl";
+
+describe("readQrFromLocation", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("reads qr from hash URLs used by some mobile scanners", () => {
+    vi.stubGlobal("window", {
+      location: {
+        search: "",
+        hash: "#/?qr=opaque-table-token",
+      },
+    });
+
+    expect(readQrFromLocation()).toBe("opaque-table-token");
+  });
+});
 
 describe("resolveCustomerApiBaseUrl", () => {
   afterEach(() => {

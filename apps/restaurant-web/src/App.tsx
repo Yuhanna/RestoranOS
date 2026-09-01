@@ -898,6 +898,10 @@ function TablesPanel({
                     dangerouslySetInnerHTML={{ __html: print.svgMarkup }}
                   />
                   <p className="qr-print__url">{print.entryUrl}</p>
+                  <p className="security-note">
+                    Bu bağlantıyı bilgisayarda tıklamayın; yalnızca telefon kamerasıyla QR okutun. Tıklamak masayı
+                    DOLU gösterir.
+                  </p>
                   {print.entryUrl.includes("localhost") || print.entryUrl.includes("127.0.0.1") ? (
                     <p className="security-note" role="alert">
                       Bu URL telefonunuzdan açılmaz. API yeniden başlatılıp yeni QR üretin; adres otomatik

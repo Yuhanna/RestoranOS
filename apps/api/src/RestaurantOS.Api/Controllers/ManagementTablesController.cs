@@ -248,6 +248,34 @@ public sealed class ManagementTablesController(IManagementTableService tableServ
         }
     }
 
+    [HttpPost("tables/{tableId:guid}/release")]
+    [Authorize(Policy = ManagementPolicies.TableEdit)]
+    [ProducesResponseType(typeof(ManagementTableResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ReleaseTableAsync(Guid tableId, CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out var tenantId, out var branchId))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            var table = await tableService.ReleaseTableAsync(userId, tenantId, branchId, tableId, cancellationToken);
+            return Ok(ToTableResponse(table));
+        }
+        catch (CustomerExperienceException exception)
+        {
+            return TableProblem(exception);
+        }
+        catch (ManagementAuthException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
+        }
+    }
+
     private async Task<IActionResult> ChangeQrStatusAsync(
         Guid qrCodeId,
         QrCodeStatus nextStatus,

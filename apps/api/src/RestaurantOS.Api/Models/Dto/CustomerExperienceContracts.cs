@@ -2,6 +2,14 @@ namespace RestaurantOS.Api.Models.Dto;
 
 public sealed record ResolveQrRequest(string QrToken, string Locale = "tr");
 
+public sealed record CustomerMenuSettingsResponse(
+    bool ShowDietaryFilters,
+    IReadOnlyList<string> DietaryFilterOptions,
+    bool ShowAllergenExclusions,
+    IReadOnlyList<string> AllergenExclusionOptions,
+    string? AllergenDisclaimer,
+    string? AllergenMatrixUrl);
+
 public sealed record CustomerSessionResponse(
     string SessionToken,
     string RestaurantName,
@@ -11,7 +19,8 @@ public sealed record CustomerSessionResponse(
     IReadOnlyList<MenuCategoryResponse> Categories,
     IReadOnlyList<MenuProductResponse> Products,
     IReadOnlyList<string> OpenServiceRequestTypes,
-    IReadOnlyList<CustomerOrderResponse> ActiveOrders);
+    IReadOnlyList<CustomerOrderResponse> ActiveOrders,
+    CustomerMenuSettingsResponse CustomerMenu);
 
 public sealed record MenuCategoryResponse(string Id, string Name);
 
@@ -21,6 +30,33 @@ public sealed record PriceBreakdownResponse(
     MoneyResponse List,
     MoneyResponse Discount,
     MoneyResponse Final);
+
+public sealed record MenuProductNutritionResponse(
+    int? WeightGrams,
+    int? VolumeMl,
+    int? CaloriesKcal,
+    int? ProteinGrams,
+    int? CarbsGrams,
+    int? FatGrams,
+    int? SugarGrams,
+    int? SaltGrams);
+
+public sealed record MenuProductModifierOptionResponse(
+    string Id,
+    string Name,
+    MoneyResponse PriceDelta);
+
+public sealed record MenuProductModifierGroupResponse(
+    string Id,
+    string Name,
+    bool Required,
+    int MaxSelections,
+    IReadOnlyList<MenuProductModifierOptionResponse> Options);
+
+public sealed record MenuProductPortionResponse(
+    string Id,
+    string Name,
+    decimal PriceMultiplier);
 
 public sealed record MenuProductResponse(
     string Id,
@@ -32,8 +68,19 @@ public sealed record MenuProductResponse(
     string ImageAlt,
     bool Available,
     string[] DietaryTags,
-    string[] Allergens,
-    object[] ModifierGroups,
+    string[] AllergenKeys,
+    string[] MayContainAllergenKeys,
+    string[] Ingredients,
+    MenuProductModifierGroupResponse[] ModifierGroups,
+    MenuProductPortionResponse[] Portions,
+    MenuProductNutritionResponse? Nutrition,
+    string? Badge,
+    bool IsNew,
+    int? SpiceLevel,
+    bool ContainsAlcohol,
+    string? ServingNote,
+    string? PriceLabel,
+    string? CertificationNotes,
     PriceBreakdownResponse? Pricing = null,
     string? PromotionLabel = null);
 

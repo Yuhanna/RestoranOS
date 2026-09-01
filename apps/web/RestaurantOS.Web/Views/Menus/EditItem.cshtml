@@ -13,13 +13,6 @@
 
 <div asp-validation-summary="All" class="alert"></div>
 
-@if (!string.IsNullOrWhiteSpace(Model.PreviewImageUrl))
-{
-    <div class="photo-preview panel">
-        <img src="@Model.PreviewImageUrl" alt="@(Model.ImageAlt ?? Model.Name)" />
-    </div>
-}
-
 <form asp-action="EditItem" method="post" enctype="multipart/form-data" class="form-grid form-grid-wide panel">
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="Id" />
@@ -37,6 +30,20 @@
         Ürün adı
         <input asp-for="Name" />
     </label>
+    @if (ViewData["CanUseProductImages"] as bool? == true)
+    {
+        <partial name="_MenuItemImagePicker" model="@(new MenuItemImageFieldsViewModel
+        {
+            ImageUrl = Model.ImageUrl,
+            ImageAlt = Model.ImageAlt,
+            PreviewImageUrl = Model.PreviewImageUrl,
+            NameInputId = "Name",
+        })" />
+    }
+    else
+    {
+        <p class="muted span-2">Ürün fotoğrafı bu hesap için kapalı. Yöneticinizle veya destek ile plan ayarlarını kontrol edin.</p>
+    }
     <label class="span-2">
         Açıklama
         <input asp-for="Description" />
@@ -58,30 +65,22 @@
         <input asp-for="PrepSeconds" inputmode="numeric" />
     </label>
     <p class="muted span-2">Boş bırakılırsa ürün özel süresi kaldırılır; siparişlerde varsayılan süre kullanılır.</p>
-    @if (ViewData["CanUseProductImages"] as bool? == true)
-    {
-        <label class="span-2">
-            Yeni fotoğraf (JPG/PNG/WebP, max 2 MB)
-            <input asp-for="Photo" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
-        </label>
-        <label>
-            Fotoğraf URL
-            <input asp-for="ImageUrl" placeholder="https://… veya yüklü dosya yolu" />
-        </label>
-        <label>
-            Alt metin
-            <input asp-for="ImageAlt" />
-        </label>
-    }
-    else
-    {
-        <p class="muted span-2">Ürün fotoğrafı @((ViewData["PlanDisplayName"] as string) ?? "Free") planda kapalıdır. Pro ile açılır.</p>
-    }
     <label class="check">
         <input asp-for="IsAvailable" />
         Satışa açık
     </label>
+    @{
+        ViewData.TemplateInfo.HtmlFieldPrefix = "Catalog";
+    }
+    <partial name="_MenuItemCatalogFields" model="Model.Catalog" />
+    @{
+        ViewData.TemplateInfo.HtmlFieldPrefix = string.Empty;
+    }
     <div class="form-actions span-2">
         <button type="submit" class="btn">Kaydet</button>
     </div>
 </form>
+
+@section Scripts {
+    <script src="~/js/stock-photo-picker.js" asp-append-version="true"></script>
+}

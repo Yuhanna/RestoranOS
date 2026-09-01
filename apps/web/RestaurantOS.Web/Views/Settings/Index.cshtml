@@ -16,6 +16,10 @@
 {
     <div class="alert" role="alert">@error</div>
 }
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert--success" role="status">@message</div>
+}
 
 @if (workspace is null)
 {
@@ -68,6 +72,65 @@ else
         </section>
     }
 }
+
+<section class="panel" style="margin-top:1rem">
+    <h2 style="margin-top:0">Müşteri menü ayarları</h2>
+    <p class="muted">Beslenme tercihi ve alerjen dışlama filtreleri müşteri uygulamasında gösterilir. Kapalı bırakırsanız ilgili bölüm gizlenir.</p>
+    <form asp-action="SaveCustomerMenu" method="post" class="form-grid form-grid-wide">
+        @Html.AntiForgeryToken()
+        <label class="check span-2">
+            <input asp-for="CustomerMenu.ShowDietaryFilters" />
+            Beslenme tercihi filtrelerini göster
+        </label>
+        <div class="span-2">
+            <h3>Filtre seçenekleri</h3>
+            <div class="check-grid">
+                <label class="check"><input asp-for="CustomerMenu.FilterVegetarian" /> Vejetaryen</label>
+                <label class="check"><input asp-for="CustomerMenu.FilterVegan" /> Vegan</label>
+                <label class="check"><input asp-for="CustomerMenu.FilterGlutenFree" /> Glütensiz</label>
+                <label class="check"><input asp-for="CustomerMenu.FilterDairyFree" /> Süt içermez</label>
+                <label class="check"><input asp-for="CustomerMenu.FilterNutFree" /> Kuruyemiş içermez</label>
+                <label class="check"><input asp-for="CustomerMenu.FilterHalal" /> Helal</label>
+                <label class="check"><input asp-for="CustomerMenu.FilterKosher" /> Koşer</label>
+                <label class="check"><input asp-for="CustomerMenu.FilterJain" /> Jain</label>
+            </div>
+        </div>
+        <label class="check span-2">
+            <input asp-for="CustomerMenu.ShowAllergenExclusions" />
+            Alerjen dışlama filtrelerini göster
+        </label>
+        <div class="span-2">
+            <h3>Dışlama seçenekleri</h3>
+            <div class="check-grid">
+                <label class="check"><input asp-for="CustomerMenu.ExcludeGluten" /> Gluten</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeCrustaceans" /> Kabuklu deniz</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeEggs" /> Yumurta</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeFish" /> Balık</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludePeanuts" /> Yer fıstığı</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeSoybeans" /> Soya</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeMilk" /> Süt</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeTreeNuts" /> Sert kabuklu yemiş</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeCelery" /> Kereviz</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeMustard" /> Hardal</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeSesame" /> Susam</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeSulphites" /> Sülfit</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeLupin" /> Acı bakla</label>
+                <label class="check"><input asp-for="CustomerMenu.ExcludeMolluscs" /> Yumuşakçalar</label>
+            </div>
+        </div>
+        <label class="span-2">
+            Menü altı uyarı metni
+            <textarea asp-for="CustomerMenu.AllergenDisclaimer" rows="3"></textarea>
+        </label>
+        <label class="span-2">
+            Yazılı alerjen matrisi URL
+            <input asp-for="CustomerMenu.AllergenMatrixUrl" placeholder="https://…" />
+        </label>
+        <div class="form-actions span-2">
+            <button type="submit" class="btn">Menü ayarlarını kaydet</button>
+        </div>
+    </form>
+</section>
 
 <p class="muted" style="margin-top:1.5rem">
     Tema seçimi üst menüden yapılır. Çıkış için sağ üstteki bağlantıyı kullanın.

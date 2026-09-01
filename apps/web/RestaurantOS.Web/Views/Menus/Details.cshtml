@@ -116,6 +116,20 @@
                     Ürün adı
                     <input asp-for="NewItem.Name" placeholder="Örn. Izgara levrek" autocomplete="off" />
                 </label>
+                @if (ViewData["CanUseProductImages"] as bool? == true)
+                {
+                    <partial name="_MenuItemImagePicker" model="@(new MenuItemImageFieldsViewModel
+                    {
+                        FieldPrefix = "NewItem",
+                        ImageUrl = Model.NewItem.ImageUrl,
+                        ImageAlt = Model.NewItem.ImageAlt,
+                        NameInputId = "NewItem_Name",
+                    })" />
+                }
+                else
+                {
+                    <p class="muted span-2">Ürün fotoğrafı bu hesap için kapalı. Yöneticinizle veya destek ile plan ayarlarını kontrol edin.</p>
+                }
                 <label class="span-2">
                     Açıklama
                     <input asp-for="NewItem.Description" placeholder="Kısa açıklama (isteğe bağlı)" />
@@ -137,29 +151,17 @@
                     <input asp-for="NewItem.PrepSeconds" inputmode="numeric" placeholder="0–59" />
                 </label>
                 <p class="muted span-2">Hazırlama süresi isteğe bağlıdır. Boş bırakılırsa siparişlerde varsayılan süre kullanılır.</p>
-                @if (ViewData["CanUseProductImages"] as bool? == true)
-                {
-                    <label class="span-2">
-                        Fotoğraf dosyası
-                        <input asp-for="NewItem.Photo" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
-                    </label>
-                    <label>
-                        Fotoğraf URL (isteğe bağlı)
-                        <input asp-for="NewItem.ImageUrl" placeholder="https://…" />
-                    </label>
-                    <label>
-                        Alt metin
-                        <input asp-for="NewItem.ImageAlt" placeholder="Ürün görseli" />
-                    </label>
-                }
-                else
-                {
-                    <p class="muted span-2">Ürün fotoğrafı @((ViewData["PlanDisplayName"] as string) ?? "Free") planda kapalıdır. Pro ile açılır.</p>
-                }
                 <label class="check">
                     <input asp-for="NewItem.IsAvailable" />
                     Satışa açık
                 </label>
+                @{
+                    ViewData.TemplateInfo.HtmlFieldPrefix = "NewItem.Catalog";
+                }
+                <partial name="_MenuItemCatalogFields" model="Model.NewItem.Catalog" />
+                @{
+                    ViewData.TemplateInfo.HtmlFieldPrefix = string.Empty;
+                }
                 <div class="form-actions span-2">
                     <button type="submit" class="btn">Ürün ekle</button>
                 </div>
@@ -236,3 +238,7 @@
         }
     }
 </section>
+
+@section Scripts {
+    <script src="~/js/stock-photo-picker.js" asp-append-version="true"></script>
+}

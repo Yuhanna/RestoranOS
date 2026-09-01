@@ -34,22 +34,6 @@ public sealed class ManagementWorkspaceController(
                 "Access token is invalid.");
         }
 
-        var membershipOk = await dbContext.ManagementMemberships
-            .AsNoTracking()
-            .AnyAsync(
-                membership => membership.UserId == userId
-                    && membership.TenantId == tenantId
-                    && membership.BranchId == branchId
-                    && membership.IsActive,
-                cancellationToken);
-        if (!membershipOk)
-        {
-            return ApiProblem.Create(
-                StatusCodes.Status403Forbidden,
-                "FORBIDDEN",
-                "Active membership is required for this workspace.");
-        }
-
         var workspace = await dbContext.Branches
             .AsNoTracking()
             .Where(branch => branch.Id == branchId && branch.TenantId == tenantId)

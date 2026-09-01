@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
@@ -65,6 +66,27 @@ describe("customer experience", () => {
     expect(screen.getByRole("heading", { name: "Özenle hazırlandı." })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Siparişi takip et: #1042" }));
     expect(await screen.findByRole("heading", { name: "Siparişiniz alındı" })).toBeInTheDocument();
+  });
+
+  it("does not stay on loading after Strict Mode remount", async () => {
+    let resolveCount = 0;
+    const strictModeGateway: typeof mockCustomerGateway = {
+      ...mockCustomerGateway,
+      resolveQr: async (qrToken, signal, locale) => {
+        resolveCount += 1;
+        await new Promise((r) => setTimeout(r, 30));
+        return mockCustomerGateway.resolveQr(qrToken, signal, locale);
+      },
+    };
+
+    render(
+      <StrictMode>
+        <App gateway={strictModeGateway} qrToken={DEMO_QR_TOKEN} />
+      </StrictMode>,
+    );
+
+    expect(await screen.findByText(/Masa 7/, {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(resolveCount).toBeGreaterThanOrEqual(1);
   });
 
   it("keeps the track-order button after remount (refresh / re-scan)", async () => {

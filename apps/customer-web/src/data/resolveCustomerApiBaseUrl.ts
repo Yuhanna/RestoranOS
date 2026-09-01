@@ -18,12 +18,14 @@ export function readQrFromLocation(): string | null {
     return normalizeQrToken(fromSearch);
   }
 
-  const hash = window.location.hash.replace(/^#/, "");
+  const hash = window.location.hash.replace(/^#/, "").trim();
   if (!hash) {
     return null;
   }
 
-  const fromHash = new URLSearchParams(hash.startsWith("?") ? hash.slice(1) : hash).get("qr");
+  // Some mobile scanners emit #?qr=… or #/?qr=… instead of ?qr=…
+  const hashQuery = hash.replace(/^\/?\??/, "");
+  const fromHash = new URLSearchParams(hashQuery).get("qr");
   return fromHash?.trim() ? normalizeQrToken(fromHash) : null;
 }
 

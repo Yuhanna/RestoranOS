@@ -24,6 +24,7 @@
     <h1>@(string.IsNullOrWhiteSpace(Model.TableLabel) ? "Masa" : Model.TableLabel)</h1>
     <div class="svg">@Html.Raw(Model.SvgMarkup)</div>
     <p class="no-print muted">Durum: @Model.Status</p>
-    <p class="no-print"><a href="@Model.EntryUrl">@Model.EntryUrl</a></p>
+    <p class="no-print muted">Menüyü telefon kamerasıyla açın. Aşağıdaki bağlantıyı bilgisayarda tıklamayın; tıklamak masayı DOLU gösterir.</p>
+    <p class="no-print"><code>@Model.EntryUrl</code></p>
 </body>
 </html>

@@ -136,6 +136,7 @@ public sealed class DashboardTodayViewModel
 public sealed class SettingsViewModel
 {
     public WorkspaceViewModel? Workspace { get; set; }
+    public CustomerMenuSettingsViewModel CustomerMenu { get; set; } = new();
 }
 
 public sealed class OrderLineViewModel
@@ -316,6 +317,8 @@ public sealed class AddMenuItemViewModel
 
     [Display(Name = "Fotoğraf dosyası")]
     public IFormFile? Photo { get; set; }
+
+    public MenuItemCatalogViewModel Catalog { get; set; } = new();
 }
 
 public sealed class EditCategoryViewModel
@@ -381,6 +384,7 @@ public sealed class EditMenuItemViewModel
 
     public IReadOnlyList<MenuCategoryViewModel> Categories { get; set; } = [];
     public string? PreviewImageUrl { get; set; }
+    public MenuItemCatalogViewModel Catalog { get; set; } = new();
 }
 
 public sealed class MenuCategoryViewModel
@@ -404,6 +408,49 @@ public sealed class MenuItemViewModel
     public string ImageAlt { get; set; } = string.Empty;
     public string DisplayImageUrl { get; set; } = string.Empty;
     public int? PrepTimeSeconds { get; set; }
+    public MenuItemCatalogApiModel? Catalog { get; set; }
+}
+
+public sealed class MenuItemImageFieldsViewModel
+{
+    public string FieldPrefix { get; set; } = string.Empty;
+
+    public string? ImageUrl { get; set; }
+
+    public string? ImageAlt { get; set; }
+
+    public string? PreviewImageUrl { get; set; }
+
+    public string NameInputId { get; set; } = "Name";
+}
+
+public sealed class StockPhotoLibraryViewModel
+{
+    public IReadOnlyList<StockPhotoCategoryViewModel> Categories { get; set; } = [];
+
+    public IReadOnlyList<StockPhotoViewModel> Photos { get; set; } = [];
+}
+
+public sealed class StockPhotoCategoryViewModel
+{
+    public string Id { get; set; } = string.Empty;
+
+    public string Label { get; set; } = string.Empty;
+}
+
+public sealed class StockPhotoViewModel
+{
+    public string Id { get; set; } = string.Empty;
+
+    public string Category { get; set; } = string.Empty;
+
+    public string Path { get; set; } = string.Empty;
+
+    public string Title { get; set; } = string.Empty;
+
+    public string Alt { get; set; } = string.Empty;
+
+    public string[] Tags { get; set; } = [];
 }
 
 public sealed class AnalyticsDashboardViewModel

@@ -6,6 +6,7 @@ import {
   type Product,
   type SubmitOrderRequest,
 } from "../domain/customer";
+import { unitPriceMinor } from "../lib/productPricing";
 
 const tryMoney = (amountMinor: number): Money => ({ amountMinor, currency: "TRY" });
 
@@ -22,8 +23,32 @@ const products: Product[] = [
     available: true,
     badge: "Çok sevilen",
     dietaryTags: ["glutenFree"],
-    allergens: ["Balık", "Süt ürünü"],
-    modifierGroups: [],
+    allergenKeys: ["fish", "milk"],
+    mayContainAllergenKeys: ["crustaceans"],
+    ingredients: [
+      "Levrek",
+      "safran velouté",
+      "rezene",
+      "kapari",
+      "tereyağı",
+      "zeytinyağı",
+      "tuz",
+    ],
+    nutrition: { weightGrams: 280, caloriesKcal: 420, proteinGrams: 38, fatGrams: 22 },
+    prepTimeMinutes: 22,
+    servingNote: "Tek kişilik",
+    modifierGroups: [
+      {
+        id: "doneness",
+        name: "Pişirme şekli",
+        required: true,
+        maxSelections: 1,
+        options: [
+          { id: "doneness-pan", name: "Tavada", priceDelta: tryMoney(0) },
+          { id: "doneness-wood", name: "Odun ateşinde", priceDelta: tryMoney(0) },
+        ],
+      },
+    ],
   },
   {
     id: "m2",
@@ -36,8 +61,23 @@ const products: Product[] = [
     imageAlt: "Parmesan ve siyah trüfle tamamlanmış kremalı risotto",
     available: true,
     dietaryTags: ["vegetarian", "glutenFree"],
-    allergens: ["Süt ürünü"],
-    modifierGroups: [],
+    allergenKeys: ["milk"],
+    mayContainAllergenKeys: ["treeNuts"],
+    ingredients: ["Arborio pirinci", "parmesan", "siyah trüf", "tereyağı", "soğan", "beyaz şarap"],
+    nutrition: { weightGrams: 320, caloriesKcal: 610, carbsGrams: 72, fatGrams: 28 },
+    prepTimeMinutes: 18,
+    modifierGroups: [
+      {
+        id: "truffle",
+        name: "Trüf miktarı",
+        required: false,
+        maxSelections: 1,
+        options: [
+          { id: "truffle-standard", name: "Standart", priceDelta: tryMoney(0) },
+          { id: "truffle-extra", name: "Ekstra trüf", priceDelta: tryMoney(8_000) },
+        ],
+      },
+    ],
   },
   {
     id: "s1",
@@ -51,8 +91,11 @@ const products: Product[] = [
     available: true,
     badge: "Şefin seçimi",
     dietaryTags: ["vegan", "glutenFree"],
-    allergens: ["Badem"],
-    modifierGroups: [],
+    allergenKeys: ["treeNuts"],
+    ingredients: ["Mevsim otları", "turunç", "zeytinyağı", "badem", "tuz"],
+    nutrition: { weightGrams: 220, caloriesKcal: 285, fatGrams: 18, sugarGrams: 6 },
+    prepTimeMinutes: 8,
+    servingNote: "Paylaşımlık tabak",
   },
   {
     id: "d1",
@@ -64,9 +107,13 @@ const products: Product[] = [
       "https://images.unsplash.com/photo-1626263468007-a9e0cf83f1ac?w=900&h=700&fit=crop&auto=format",
     imageAlt: "Vanilyalı dondurmayla sunulan akışkan çikolatalı fondan",
     available: true,
+    isNew: true,
     dietaryTags: ["vegetarian"],
-    allergens: ["Gluten", "Süt ürünü", "Yumurta"],
-    modifierGroups: [],
+    allergenKeys: ["gluten", "milk", "eggs"],
+    mayContainAllergenKeys: ["treeNuts", "peanuts"],
+    ingredients: ["Bitter çikolata", "tereyağı", "yumurta", "un", "karamel", "dondurma"],
+    nutrition: { weightGrams: 140, caloriesKcal: 520, sugarGrams: 38, fatGrams: 29 },
+    prepTimeMinutes: 12,
   },
   {
     id: "b1",
@@ -79,8 +126,40 @@ const products: Product[] = [
     imageAlt: "Greyfurt dilimi ve biberiyeyle servis edilen pembe içecek",
     available: false,
     dietaryTags: ["vegan", "glutenFree"],
-    allergens: [],
+    allergenKeys: [],
+    nutrition: { volumeMl: 350, caloriesKcal: 95, sugarGrams: 18 },
+    containsAlcohol: false,
     modifierGroups: [],
+  },
+  {
+    id: "m3",
+    categoryId: "mains",
+    name: "Acı Sichuan Tavuğu",
+    description: "Sichuan biberi, kuru acı biber, susam ve yeşil soğan",
+    price: tryMoney(29_500),
+    imageUrl:
+      "https://images.unsplash.com/photo-1604908176997-125f99464686?w=900&h=700&fit=crop&auto=format",
+    imageAlt: "Acı soslu Sichuan tavuk parçaları",
+    available: true,
+    dietaryTags: ["dairyFree", "halal"],
+    allergenKeys: ["soybeans", "sesame"],
+    mayContainAllergenKeys: ["gluten", "peanuts"],
+    ingredients: ["Tavuk", "Sichuan biberi", "soya sosu", "susam", "sarımsak", "yeşil soğan"],
+    spiceLevel: 3,
+    nutrition: { weightGrams: 260, caloriesKcal: 480, proteinGrams: 34, fatGrams: 26 },
+    prepTimeMinutes: 16,
+    modifierGroups: [
+      {
+        id: "heat",
+        name: "Acı seviyesi",
+        required: false,
+        maxSelections: 1,
+        options: [
+          { id: "heat-mild", name: "Hafif", priceDelta: tryMoney(0) },
+          { id: "heat-hot", name: "Ekstra acı", priceDelta: tryMoney(0) },
+        ],
+      },
+    ],
   },
 ];
 
@@ -98,6 +177,14 @@ const session: CustomerSession = {
     { id: "drinks", name: "İçecekler" },
   ],
   products,
+  customerMenu: {
+    showDietaryFilters: true,
+    dietaryFilterOptions: ["vegan", "vegetarian", "glutenFree", "halal", "dairyFree"],
+    showAllergenExclusions: true,
+    allergenExclusionOptions: ["gluten", "milk", "treeNuts", "eggs", "fish", "crustaceans"],
+    allergenDisclaimer:
+      "Alerjen bilgileri reçeteye göre güncellenir. Ciddi alerjiniz varsa garsona bildirin; paylaşılan mutfakta cross-contact riski olabilir.",
+  },
   openServiceRequestTypes: [],
 };
 
@@ -146,7 +233,16 @@ export const mockCustomerGateway: CustomerGateway = {
       if (!product?.available) {
         throw new CustomerGatewayError("ORDER_REJECTED", "Product is unavailable");
       }
-      return total + product.price.amountMinor * line.quantity;
+      const selections: Record<string, string[]> = {};
+      for (const optionId of line.modifierOptionIds) {
+        const group = product.modifierGroups.find((entry) =>
+          entry.options.some((option) => option.id === optionId),
+        );
+        if (group) {
+          selections[group.id] = [...(selections[group.id] ?? []), optionId];
+        }
+      }
+      return total + unitPriceMinor(product, selections) * line.quantity;
     }, 0);
 
     const order = {

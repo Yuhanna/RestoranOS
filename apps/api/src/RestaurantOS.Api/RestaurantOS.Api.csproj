@@ -22,4 +22,8 @@
     <UserSecretsId>RestaurantOS.Api-LocalDevelopment</UserSecretsId>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Content Update="media\stock\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

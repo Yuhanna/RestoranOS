@@ -16,9 +16,15 @@ public sealed class SettingsController(IWebApiExecuter api) : Controller
         var model = new SettingsViewModel();
         try
         {
-            model.Workspace = await api.InvokeGetAsync<WorkspaceViewModel>(
-                "/api/v1/management/workspace",
+            var workspaceTask = api.GetWorkspaceAsync(cancellationToken);
+            var settingsTask = api.InvokeGetAsync<CustomerMenuSettingsApiModel>(
+                "/api/v1/management/customer-menu/settings",
                 cancellationToken);
+            await Task.WhenAll(workspaceTask, settingsTask);
+
+            model.Workspace = await workspaceTask;
+            var settings = await settingsTask;
+            model.CustomerMenu = MenuCatalogFormHelper.FromApi(settings);
         }
         catch (WebApiException exception)
         {
@@ -26,5 +32,32 @@ public sealed class SettingsController(IWebApiExecuter api) : Controller
         }
 
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveCustomerMenu(
+        CustomerMenuSettingsViewModel customerMenu,
+        CancellationToken cancellationToken)
+    {
+        if (!api.IsAuthenticated)
+        {
+            return RedirectToAction("Login", "Account");
+        }
+
+        try
+        {
+            await api.InvokePutAsync<CustomerMenuSettingsApiModel>(
+                "/api/v1/management/customer-menu/settings",
+                MenuCatalogFormHelper.ToApi(customerMenu),
+                cancellationToken);
+            TempData["Message"] = "Müşteri menü ayarları kaydedildi.";
+        }
+        catch (WebApiException exception)
+        {
+            TempData["Error"] = exception.Message;
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 }

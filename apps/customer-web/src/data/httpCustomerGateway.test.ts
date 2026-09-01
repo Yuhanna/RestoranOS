@@ -100,7 +100,7 @@ describe("http customer gateway", () => {
       categoryId: "cat-1",
       price: { amountMinor: 42000, currency: "TRY" },
       dietaryTags: [],
-      allergens: [],
+      allergenKeys: [],
       modifierGroups: [],
     });
   });

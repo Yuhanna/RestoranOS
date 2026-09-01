@@ -65,6 +65,13 @@ else
                         @Html.AntiForgeryToken()
                         <button type="submit" class="linkish">QR üret</button>
                     </form>
+                    @if (table.OperationalStatus is "occupied" or "has_pending_order")
+                    {
+                        <form asp-action="Release" asp-route-id="@table.Id" method="post" class="inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="linkish">Masayı boşalt</button>
+                        </form>
+                    }
                 </td>
             </tr>
         }

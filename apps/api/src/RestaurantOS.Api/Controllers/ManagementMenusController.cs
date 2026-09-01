@@ -313,7 +313,8 @@ public sealed class ManagementMenusController(IManagementMenuService menus) : Co
                 request.ImageUrl,
                 request.ImageAlt,
                 cancellationToken,
-                request.PrepTimeSeconds);
+                request.PrepTimeSeconds,
+                request.Catalog);
             return Created($"/api/v1/management/menu-items/{item.Id}", ToItem(item));
         }
         catch (CustomerExperienceException exception)
@@ -365,7 +366,9 @@ public sealed class ManagementMenusController(IManagementMenuService menus) : Co
                 request?.ImageAlt,
                 cancellationToken,
                 request?.PrepTimeSeconds,
-                request?.UpdatePrepTime == true);
+                request?.UpdatePrepTime == true,
+                request?.Catalog,
+                request?.UpdateCatalog == true);
             return Ok(ToItem(item));
         }
         catch (CustomerExperienceException exception)
@@ -592,20 +595,7 @@ public sealed class ManagementMenusController(IManagementMenuService menus) : Co
         new(category.Id, category.MenuId, category.Name, category.SortOrder, category.Translations.Select(ToTranslation).ToArray());
 
     private static ManagementMenuItemResponse ToItem(ManagementMenuItemResult item) =>
-        new(
-            item.Id,
-            item.MenuId,
-            item.CategoryId,
-            item.Name,
-            item.Description,
-            item.AmountMinor,
-            item.Currency,
-            item.IsAvailable,
-            item.SortOrder,
-            item.ImageUrl,
-            item.ImageAlt,
-            item.Translations.Select(ToTranslation).ToArray(),
-            item.PrepTimeSeconds);
+        MenuCatalogMapper.ToManagementItem(item);
 
     private static MenuTextTranslationResponse ToTranslation(MenuTextTranslationResult translation) =>
         new(translation.Locale, translation.Name, translation.Description);

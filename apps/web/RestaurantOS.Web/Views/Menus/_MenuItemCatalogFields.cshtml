@@ -1,0 +1,116 @@
+@model RestaurantOS.Web.Models.MenuItemCatalogViewModel
+
+<fieldset class="catalog-fields span-2">
+    <legend>Ürün detayları (müşteri menüsü)</legend>
+    <p class="muted">Beslenme, alerjen ve ek seçenekler müşteri uygulamasında gösterilir.</p>
+
+    <label>
+        Rozet
+        <input asp-for="Badge" placeholder="ör. Çok sevilen, Şefin seçimi" />
+    </label>
+    <label class="check">
+        <input asp-for="IsNew" />
+        Yeni ürün rozeti
+    </label>
+    <label>
+        Fiyat etiketi
+        <input asp-for="PriceLabel" placeholder="ör. Pazar fiyatı, Günlük fiyat" />
+    </label>
+    <label class="check">
+        <input asp-for="ContainsAlcohol" />
+        Alkol içerir
+    </label>
+    <label>
+        Porsiyon notu
+        <input asp-for="ServingNote" placeholder="ör. 2 kişilik" />
+    </label>
+    <label class="span-2">
+        Sertifika / kaynak notu
+        <input asp-for="CertificationNotes" placeholder="ör. MSC sertifikalı balık" />
+    </label>
+    <label class="narrow">
+        Acılık (0–3)
+        <input asp-for="SpiceLevel" type="number" min="0" max="3" />
+    </label>
+    <label class="span-2">
+        İçindekiler
+        <input asp-for="IngredientsText" placeholder="Domates, fesleğen, mozzarella…" />
+    </label>
+
+    <div class="span-2">
+        <h3>Beslenme etiketleri</h3>
+        <div class="check-grid">
+            <label class="check"><input asp-for="DietaryVegetarian" /> Vejetaryen</label>
+            <label class="check"><input asp-for="DietaryVegan" /> Vegan</label>
+            <label class="check"><input asp-for="DietaryGlutenFree" /> Glütensiz</label>
+            <label class="check"><input asp-for="DietaryDairyFree" /> Süt içermez</label>
+            <label class="check"><input asp-for="DietaryNutFree" /> Kuruyemiş içermez</label>
+            <label class="check"><input asp-for="DietaryHalal" /> Helal</label>
+            <label class="check"><input asp-for="DietaryKosher" /> Koşer</label>
+            <label class="check"><input asp-for="DietaryJain" /> Jain</label>
+        </div>
+    </div>
+
+    <div class="span-2">
+        <h3>Alerjenler (içerir)</h3>
+        <div class="check-grid">
+            <label class="check"><input asp-for="AllergenGluten" /> Gluten</label>
+            <label class="check"><input asp-for="AllergenCrustaceans" /> Kabuklu deniz</label>
+            <label class="check"><input asp-for="AllergenEggs" /> Yumurta</label>
+            <label class="check"><input asp-for="AllergenFish" /> Balık</label>
+            <label class="check"><input asp-for="AllergenPeanuts" /> Yer fıstığı</label>
+            <label class="check"><input asp-for="AllergenSoybeans" /> Soya</label>
+            <label class="check"><input asp-for="AllergenMilk" /> Süt</label>
+            <label class="check"><input asp-for="AllergenTreeNuts" /> Sert kabuklu yemiş</label>
+            <label class="check"><input asp-for="AllergenCelery" /> Kereviz</label>
+            <label class="check"><input asp-for="AllergenMustard" /> Hardal</label>
+            <label class="check"><input asp-for="AllergenSesame" /> Susam</label>
+            <label class="check"><input asp-for="AllergenSulphites" /> Sülfit</label>
+            <label class="check"><input asp-for="AllergenLupin" /> Acı bakla</label>
+            <label class="check"><input asp-for="AllergenMolluscs" /> Yumuşakçalar</label>
+        </div>
+    </div>
+
+    <div class="span-2">
+        <h3>İçerebilir (cross-contact)</h3>
+        <div class="check-grid">
+            <label class="check"><input asp-for="MayContainGluten" /> Gluten</label>
+            <label class="check"><input asp-for="MayContainCrustaceans" /> Kabuklu deniz</label>
+            <label class="check"><input asp-for="MayContainEggs" /> Yumurta</label>
+            <label class="check"><input asp-for="MayContainFish" /> Balık</label>
+            <label class="check"><input asp-for="MayContainPeanuts" /> Yer fıstığı</label>
+            <label class="check"><input asp-for="MayContainSoybeans" /> Soya</label>
+            <label class="check"><input asp-for="MayContainMilk" /> Süt</label>
+            <label class="check"><input asp-for="MayContainTreeNuts" /> Sert kabuklu yemiş</label>
+            <label class="check"><input asp-for="MayContainCelery" /> Kereviz</label>
+            <label class="check"><input asp-for="MayContainMustard" /> Hardal</label>
+            <label class="check"><input asp-for="MayContainSesame" /> Susam</label>
+            <label class="check"><input asp-for="MayContainSulphites" /> Sülfit</label>
+            <label class="check"><input asp-for="MayContainLupin" /> Acı bakla</label>
+            <label class="check"><input asp-for="MayContainMolluscs" /> Yumuşakçalar</label>
+        </div>
+    </div>
+
+    <div class="span-2">
+        <h3>Besin bilgisi (isteğe bağlı)</h3>
+        <div class="form-grid form-grid-wide">
+            <label><span>Ağırlık (g)</span><input asp-for="NutritionWeightGrams" type="number" min="0" /></label>
+            <label><span>Hacim (ml)</span><input asp-for="NutritionVolumeMl" type="number" min="0" /></label>
+            <label><span>Kalori (kcal)</span><input asp-for="NutritionCaloriesKcal" type="number" min="0" /></label>
+            <label><span>Protein (g)</span><input asp-for="NutritionProteinGrams" type="number" min="0" /></label>
+            <label><span>Karbonhidrat (g)</span><input asp-for="NutritionCarbsGrams" type="number" min="0" /></label>
+            <label><span>Yağ (g)</span><input asp-for="NutritionFatGrams" type="number" min="0" /></label>
+            <label><span>Şeker (g)</span><input asp-for="NutritionSugarGrams" type="number" min="0" /></label>
+            <label><span>Tuz (g)</span><input asp-for="NutritionSaltGrams" type="number" min="0" /></label>
+        </div>
+    </div>
+
+    <label class="span-2">
+        Modifier grupları (JSON)
+        <textarea asp-for="ModifierGroupsJson" rows="6" placeholder='[{"id":"cook","name":"Pişirme","required":true,"maxSelections":1,"options":[{"id":"rare","name":"Az pişmiş","priceDeltaMinor":0}]}]'></textarea>
+    </label>
+    <label class="span-2">
+        Porsiyonlar (JSON)
+        <textarea asp-for="PortionsJson" rows="4" placeholder='[{"id":"half","name":"Yarım porsiyon","priceMultiplier":0.6}]'></textarea>
+    </label>
+</fieldset>

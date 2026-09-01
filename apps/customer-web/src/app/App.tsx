@@ -5,15 +5,54 @@ import { readQrFromLocation } from "../data/resolveCustomerApiBaseUrl";
 import { DEMO_QR_TOKEN } from "../data/mockCustomerGateway";
 import {
   CustomerGatewayError,
+  type AllergenKey,
   type CartLine,
   type CustomerGateway,
   type CustomerSession,
+  type DietaryFilterKey,
+  type ModifierGroup,
   type Money,
   type Order,
   type Product,
+  type SpiceLevel,
 } from "../domain/customer";
 import { messages as t } from "../i18n/messages";
 import { createClientId } from "../lib/createClientId";
+import {
+  displayBadge,
+  filterProducts,
+  nutritionSummaryParts,
+} from "../lib/productFilters";
+import {
+  cartLineKey,
+  initialPortionId,
+  initialSelections,
+  lineTotalMinor,
+  modifierOptionIds,
+  portionLabel,
+  selectionLabels,
+  unitPriceMinor,
+} from "../lib/productPricing";
+import { resolveProductMediaUrl } from "../lib/resolveProductMediaUrl";
+
+const allergenLabel = (key: AllergenKey) => t.allergenKeys[key];
+
+function SpiceIndicator({ level }: { level: SpiceLevel }) {
+  if (!level) return null;
+  return (
+    <div className="spice-level" aria-label={`${t.spiceLevel}: ${t.spiceLevels[level]}`}>
+      <span className="spice-level__label">{t.spiceLevel}</span>
+      <span className="spice-level__peppers" aria-hidden="true">
+        {Array.from({ length: 3 }, (_, index) => (
+          <span className={index < level ? "is-active" : undefined} key={index}>
+            🌶
+          </span>
+        ))}
+      </span>
+      <span className="spice-level__text">{t.spiceLevels[level]}</span>
+    </div>
+  );
+}
 
 type AppProps = {
   gateway?: CustomerGateway;
@@ -27,16 +66,35 @@ const formatMoney = (money: Money) =>
     maximumFractionDigits: 0,
   }).format(money.amountMinor / 100);
 
-function PriceDisplay({ product, emphasize = false }: { product: Product; emphasize?: boolean }) {
+function PriceDisplay({
+  product,
+  unitMinor,
+  emphasize = false,
+}: {
+  product: Product;
+  unitMinor?: number;
+  emphasize?: boolean;
+}) {
+  if (product.priceLabel) {
+    return <strong className={emphasize ? "price-final" : undefined}>{product.priceLabel}</strong>;
+  }
+
+  const displayMinor = unitMinor ?? product.price.amountMinor;
   const hasDiscount = (product.discount?.amountMinor ?? 0) > 0 && product.listPrice;
   if (!hasDiscount) {
-    return <strong className={emphasize ? "price-final" : undefined}>{formatMoney(product.price)}</strong>;
+    return (
+      <strong className={emphasize ? "price-final" : undefined}>
+        {formatMoney({ amountMinor: displayMinor, currency: product.price.currency })}
+      </strong>
+    );
   }
 
   return (
     <span className="price-stack">
       <span className="price-list">{formatMoney(product.listPrice!)}</span>
-      <strong className="price-final">{formatMoney(product.price)}</strong>
+      <strong className="price-final">
+        {formatMoney({ amountMinor: displayMinor, currency: product.price.currency })}
+      </strong>
     </span>
   );
 }
@@ -53,11 +111,12 @@ const formatClock = (iso: string) => {
 };
 
 const lineTotal = (line: CartLine): Money => ({
-  amountMinor: line.product.price.amountMinor * line.quantity,
+  amountMinor: lineTotalMinor(line),
   currency: "TRY",
 });
 
-const newLineKey = (product: Product, note: string) => `${product.id}:${note.trim()}`;
+const formatModifierDelta = (deltaMinor: number) =>
+  deltaMinor > 0 ? `+${formatMoney({ amountMinor: deltaMinor, currency: "TRY" })}` : null;
 
 function ProductDialog({
   product,
@@ -70,41 +129,183 @@ function ProductDialog({
 }) {
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState("");
+  const [portionId, setPortionId] = useState(() => initialPortionId(product));
+  const [selections, setSelections] = useState(() => initialSelections(product));
+  const unitMinor = unitPriceMinor(product, selections, portionId);
   const previewLine: CartLine = {
-    key: newLineKey(product, note),
+    key: cartLineKey(product, selections, note, portionId),
     product,
     quantity,
-    selections: {},
+    selections,
+    portionId,
     note,
+  };
+  const nutritionParts = nutritionSummaryParts(product.nutrition, {
+    weight: t.nutritionWeight,
+    volume: t.nutritionVolume,
+    calories: t.nutritionCalories,
+    protein: t.nutritionProtein,
+    carbs: t.nutritionCarbs,
+    fat: t.nutritionFat,
+    sugar: t.nutritionSugar,
+    salt: t.nutritionSalt,
+  });
+  const badgeLabel = displayBadge(product);
+
+  const toggleModifierOption = (group: ModifierGroup, optionId: string) => {
+    const maxSelections = group.maxSelections ?? 1;
+    setSelections((current) => {
+      const existing = current[group.id] ?? [];
+      if (maxSelections <= 1) {
+        return { ...current, [group.id]: [optionId] };
+      }
+      if (existing.includes(optionId)) {
+        return { ...current, [group.id]: existing.filter((id) => id !== optionId) };
+      }
+      if (existing.length >= maxSelections) {
+        return current;
+      }
+      return { ...current, [group.id]: [...existing, optionId] };
+    });
   };
 
   return (
     <Dialog labelledBy="product-title" dismissLabel={t.close} onDismiss={onClose}>
       <div className="product-detail">
-        <img src={product.imageUrl} alt={product.imageAlt} className="product-detail__image" />
+        <img
+          src={resolveProductMediaUrl(product.imageUrl)}
+          alt={product.imageAlt}
+          className="product-detail__image"
+        />
         <Button className="dialog-close" variant="ghost" aria-label={t.close} onClick={onClose}>
           ×
         </Button>
         <div className="product-detail__content">
           <div className="product-detail__heading">
             <div>
-              {product.badge ? <span className="badge badge--brand">{product.badge}</span> : null}
+              {badgeLabel ? <span className="badge badge--brand">{badgeLabel}</span> : null}
               <h2 id="product-title">{product.name}</h2>
+              {product.dietaryTags.length ? (
+                <div className="chip-row chip-row--detail">
+                  {product.dietaryTags.map((tag) => (
+                    <span className="badge badge--dietary" key={tag}>
+                      {t.dietary[tag]}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
-            <PriceDisplay product={product} emphasize />
+            <PriceDisplay product={product} unitMinor={unitMinor} emphasize />
+          </div>
+          {product.certificationNotes ? (
+            <p className="certification-note">{product.certificationNotes}</p>
+          ) : null}
+          <div className="product-detail__meta">
+            {product.prepTimeMinutes ? (
+              <span className="meta-pill">{t.prepTime(product.prepTimeMinutes)}</span>
+            ) : null}
+            {product.servingNote ? (
+              <span className="meta-pill">
+                {t.servingNote}: {product.servingNote}
+              </span>
+            ) : null}
+            {product.containsAlcohol ? (
+              <span className="meta-pill meta-pill--warn">{t.containsAlcohol}</span>
+            ) : null}
           </div>
           <p>{product.description}</p>
-          {product.allergens.length ? (
+          {product.ingredients?.length ? (
+            <div className="ingredients">
+              <h3>{t.ingredients}</h3>
+              <p>{product.ingredients.join(", ")}</p>
+            </div>
+          ) : null}
+          {product.spiceLevel ? <SpiceIndicator level={product.spiceLevel} /> : null}
+          {nutritionParts.length ? (
+            <div className="nutrition">
+              <h3>{t.nutrition}</h3>
+              <p>{nutritionParts.join(" · ")}</p>
+            </div>
+          ) : null}
+          {product.allergenKeys.length ? (
             <div className="allergens">
               <h3>{t.allergens}</h3>
               <div className="chip-row">
-                {product.allergens.map((allergen) => (
-                  <span className="chip" key={allergen}>
-                    {allergen}
+                {product.allergenKeys.map((key) => (
+                  <span className="chip chip--allergen" key={key}>
+                    {allergenLabel(key)}
                   </span>
                 ))}
               </div>
             </div>
+          ) : null}
+          {product.mayContainAllergenKeys?.length ? (
+            <div className="allergens allergens--may-contain">
+              <h3>{t.mayContain}</h3>
+              <div className="chip-row">
+                {product.mayContainAllergenKeys.map((key) => (
+                  <span className="chip chip--may-contain" key={key}>
+                    {allergenLabel(key)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {product.modifierGroups.map((group) => {
+            const maxSelections = group.maxSelections ?? 1;
+            const selected = selections[group.id] ?? [];
+            return (
+              <fieldset className="modifier-group" key={group.id}>
+                <legend>
+                  {group.name}{" "}
+                  <small>
+                    {group.required ? t.required : t.optional}
+                    {maxSelections > 1 ? ` · en fazla ${maxSelections}` : ""}
+                  </small>
+                </legend>
+                {group.options.map((option) => {
+                  const inputId = `${group.id}-${option.id}`;
+                  const isChecked = selected.includes(option.id);
+                  return (
+                    <label className="modifier-option" htmlFor={inputId} key={option.id}>
+                      <input
+                        id={inputId}
+                        type={maxSelections > 1 ? "checkbox" : "radio"}
+                        name={maxSelections > 1 ? undefined : group.id}
+                        checked={isChecked}
+                        onChange={() => toggleModifierOption(group, option.id)}
+                      />
+                      <span>{option.name}</span>
+                      {option.priceDelta.amountMinor > 0 ? (
+                        <strong>{formatModifierDelta(option.priceDelta.amountMinor)}</strong>
+                      ) : null}
+                    </label>
+                  );
+                })}
+              </fieldset>
+            );
+          })}
+          {product.portions && product.portions.length > 1 ? (
+            <fieldset className="modifier-group">
+              <legend>
+                {t.portionChoice} <small>{t.required}</small>
+              </legend>
+              {product.portions.map((portion) => {
+                const inputId = `portion-${portion.id}`;
+                return (
+                  <label className="modifier-option" htmlFor={inputId} key={portion.id}>
+                    <input
+                      id={inputId}
+                      type="radio"
+                      name="portion"
+                      checked={portionId === portion.id}
+                      onChange={() => setPortionId(portion.id)}
+                    />
+                    <span>{portion.name}</span>
+                  </label>
+                );
+              })}
+            </fieldset>
           ) : null}
           <label className="note-field">
             <span>{t.productNote}</span>
@@ -142,7 +343,12 @@ function ProductDialog({
               }}
             >
               <span>{t.addToCart}</span>
-              <span>{formatMoney(lineTotal(previewLine))}</span>
+              <span>
+                {formatMoney({
+                  amountMinor: unitMinor * quantity,
+                  currency: "TRY",
+                })}
+              </span>
             </Button>
           </div>
         </div>
@@ -224,9 +430,17 @@ function CartDialog({
             <ul className="cart-lines">
               {lines.map((line) => (
                 <li key={line.key}>
-                  <img src={line.product.imageUrl} alt="" />
+                  <img src={resolveProductMediaUrl(line.product.imageUrl)} alt="" />
                   <div>
                     <h3>{line.product.name}</h3>
+                    {portionLabel(line.product, line.portionId) ? (
+                      <p className="cart-line__modifiers">{portionLabel(line.product, line.portionId)}</p>
+                    ) : null}
+                    {selectionLabels(line.product, line.selections).length ? (
+                      <p className="cart-line__modifiers">
+                        {selectionLabels(line.product, line.selections).join(" · ")}
+                      </p>
+                    ) : null}
                     {line.note ? <p>{line.note}</p> : null}
                     <div className="stepper stepper--small">
                       <Button
@@ -369,6 +583,12 @@ function Menu({
 }) {
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
+  const [dietaryFilters, setDietaryFilters] = useState<ReadonlySet<DietaryFilterKey>>(
+    () => new Set(),
+  );
+  const [excludedAllergens, setExcludedAllergens] = useState<ReadonlySet<AllergenKey>>(
+    () => new Set(),
+  );
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [lines, setLines] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -516,17 +736,52 @@ function Menu({
     };
   }, [gateway, order?.id, orderSessionToken, qrToken]);
 
-  const filteredProducts = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase("tr-TR");
-    return session.products.filter(
-      (product) =>
-        (category === "all" || product.categoryId === category) &&
-        (!normalizedQuery ||
-          `${product.name} ${product.description}`
-            .toLocaleLowerCase("tr-TR")
-            .includes(normalizedQuery)),
-    );
-  }, [category, query, session.products]);
+  const filteredProducts = useMemo(
+    () =>
+      filterProducts(session.products, {
+        categoryId: category,
+        query,
+        dietaryFilters,
+        excludedAllergens,
+      }),
+    [category, dietaryFilters, excludedAllergens, query, session.products],
+  );
+  const dietaryFilterOptions = useMemo(
+    () =>
+      session.customerMenu?.showDietaryFilters
+        ? session.customerMenu.dietaryFilterOptions
+        : [],
+    [session.customerMenu],
+  );
+  const allergenExclusionOptions = useMemo(
+    () =>
+      session.customerMenu?.showAllergenExclusions
+        ? session.customerMenu.allergenExclusionOptions
+        : [],
+    [session.customerMenu],
+  );
+  const showMenuFilters = dietaryFilterOptions.length > 0 || allergenExclusionOptions.length > 0;
+  const menuDisclaimer =
+    session.customerMenu?.allergenDisclaimer?.trim() || t.allergenDisclaimer;
+  const hasActiveFilters = dietaryFilters.size > 0 || excludedAllergens.size > 0;
+
+  const toggleDietaryFilter = (filter: DietaryFilterKey) => {
+    setDietaryFilters((current) => {
+      const next = new Set(current);
+      if (next.has(filter)) next.delete(filter);
+      else next.add(filter);
+      return next;
+    });
+  };
+
+  const toggleAllergenExclusion = (allergen: AllergenKey) => {
+    setExcludedAllergens((current) => {
+      const next = new Set(current);
+      if (next.has(allergen)) next.delete(allergen);
+      else next.add(allergen);
+      return next;
+    });
+  };
   const cartCount = lines.reduce((sum, line) => sum + line.quantity, 0);
   const cartTotal: Money = {
     amountMinor: lines.reduce((sum, line) => sum + lineTotal(line).amountMinor, 0),
@@ -535,9 +790,7 @@ function Menu({
 
   const addLine = (incoming: CartLine) => {
     setLines((current) => {
-      const existing = current.find(
-        (line) => line.key === incoming.key && line.note === incoming.note,
-      );
+      const existing = current.find((line) => line.key === incoming.key);
       return existing
         ? current.map((line) =>
             line === existing ? { ...line, quantity: line.quantity + incoming.quantity } : line,
@@ -556,7 +809,7 @@ function Menu({
         lines: lines.map((line) => ({
           productId: line.product.id,
           quantity: line.quantity,
-          modifierOptionIds: [],
+          modifierOptionIds: modifierOptionIds(line.selections),
           note: line.note || undefined,
         })),
       });
@@ -665,6 +918,55 @@ function Menu({
             </Button>
           ))}
         </nav>
+        {showMenuFilters ? (
+        <section className="menu-filters" aria-label={t.dietaryFilters}>
+          {dietaryFilterOptions.length ? (
+            <div className="menu-filters__group">
+              <span className="menu-filters__label">{t.dietaryFilters}</span>
+              <div className="menu-filters__chips">
+                {dietaryFilterOptions.map((filter) => (
+                  <Button
+                    key={filter}
+                    variant={dietaryFilters.has(filter) ? "primary" : "secondary"}
+                    aria-pressed={dietaryFilters.has(filter)}
+                    onClick={() => toggleDietaryFilter(filter)}
+                  >
+                    {t.dietary[filter]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {allergenExclusionOptions.length ? (
+            <div className="menu-filters__group">
+              <span className="menu-filters__label">{t.allergenFilters}</span>
+              <div className="menu-filters__chips">
+                {allergenExclusionOptions.map((allergen) => (
+                  <Button
+                    key={allergen}
+                    variant={excludedAllergens.has(allergen) ? "primary" : "secondary"}
+                    aria-pressed={excludedAllergens.has(allergen)}
+                    onClick={() => toggleAllergenExclusion(allergen)}
+                  >
+                    {allergenLabel(allergen)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {hasActiveFilters ? (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setDietaryFilters(new Set());
+                setExcludedAllergens(new Set());
+              }}
+            >
+              {t.clearFilters}
+            </Button>
+          ) : null}
+        </section>
+        ) : null}
         {!session.products.length ? (
           <section className="empty-state">
             <h2>{t.menuEmptyTitle}</h2>
@@ -684,11 +986,20 @@ function Menu({
                   onClick={() => setSelectedProduct(product)}
                 >
                   <span className="product-card__media">
-                    <img src={product.imageUrl} alt={product.imageAlt} loading="lazy" />
-                    {product.badge ? (
-                      <span className="badge badge--brand">{product.badge}</span>
+                    <img
+                      src={resolveProductMediaUrl(product.imageUrl)}
+                      alt={product.imageAlt}
+                      loading="lazy"
+                    />
+                    {displayBadge(product) ? (
+                      <span className="badge badge--brand">{displayBadge(product)}</span>
                     ) : null}
                     {!product.available ? <span className="badge">{t.unavailable}</span> : null}
+                    {product.spiceLevel ? (
+                      <span className="product-card__spice" aria-hidden="true">
+                        {"🌶".repeat(product.spiceLevel)}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="product-card__body">
                     <span className="chip-row">
@@ -700,6 +1011,9 @@ function Menu({
                     </span>
                     <strong>{product.name}</strong>
                     <span>{product.description}</span>
+                    {product.prepTimeMinutes ? (
+                      <span className="product-card__prep">{t.prepTime(product.prepTimeMinutes)}</span>
+                    ) : null}
                   </span>
                 </button>
                 <footer>
@@ -721,6 +1035,16 @@ function Menu({
             <p>{t.emptyResultsBody}</p>
           </section>
         )}
+        <footer className="menu-disclaimer">
+          <p>{menuDisclaimer}</p>
+          {session.customerMenu?.allergenMatrixUrl ? (
+            <p>
+              <a href={session.customerMenu.allergenMatrixUrl} rel="noopener noreferrer" target="_blank">
+                {t.allergenMatrixLink}
+              </a>
+            </p>
+          ) : null}
+        </footer>
       </main>
       {order && !cartCount ? (
         <div className="sticky-cart">
@@ -767,19 +1091,27 @@ function Menu({
   );
 }
 
+type AppResolveState =
+  | { status: "required" }
+  | { status: "loading" }
+  | { status: "invalid"; detail?: string }
+  | { status: "menu-unavailable"; detail?: string }
+  | { status: "error"; detail?: string }
+  | { status: "ready"; session: CustomerSession; qrToken: string };
+
 export function App({ gateway, qrToken }: AppProps) {
-  const token = qrToken === undefined ? readQrFromLocation() : qrToken;
+  const token = useMemo(
+    () => (qrToken === undefined ? readQrFromLocation() : qrToken),
+    [qrToken],
+  );
   const activeGateway = useMemo(
     () => gateway ?? getCustomerGateway(token),
     [gateway, token],
   );
-  const [state, setState] = useState<
-    | {
-        status: "required" | "loading" | "invalid" | "menu-unavailable" | "error";
-        detail?: string;
-      }
-    | { status: "ready"; session: CustomerSession }
-  >({ status: token ? "loading" : "required" });
+  const resolveGenerationRef = useRef(0);
+  const [state, setState] = useState<AppResolveState>(() =>
+    token ? { status: "loading" } : { status: "required" },
+  );
   const [online, setOnline] = useState(navigator.onLine);
 
   useEffect(() => {
@@ -797,17 +1129,24 @@ export function App({ gateway, qrToken }: AppProps) {
       setState({ status: "required" });
       return;
     }
-    const controller = new AbortController();
+
+    const generation = ++resolveGenerationRef.current;
+    const locale =
+      new URLSearchParams(window.location.search).get("lang") === "en" ? "en" : "tr";
     setState({ status: "loading" });
-    activeGateway
-      .resolveQr(
-        token,
-        controller.signal,
-        new URLSearchParams(window.location.search).get("lang") === "en" ? "en" : "tr",
-      )
-      .then((session) => setState({ status: "ready", session }))
+
+    void activeGateway
+      .resolveQr(token, undefined, locale)
+      .then((session) => {
+        if (generation !== resolveGenerationRef.current) {
+          return;
+        }
+        setState({ status: "ready", session, qrToken: token });
+      })
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (generation !== resolveGenerationRef.current) {
+          return;
+        }
         if (error instanceof CustomerGatewayError && error.code === "INVALID_QR") {
           setState({ status: "invalid", detail: error.message });
           return;
@@ -826,7 +1165,10 @@ export function App({ gateway, qrToken }: AppProps) {
           detail: error instanceof Error ? error.message : undefined,
         });
       });
-    return () => controller.abort();
+
+    return () => {
+      resolveGenerationRef.current += 1;
+    };
   }, [activeGateway, token]);
 
   return (
@@ -908,8 +1250,8 @@ export function App({ gateway, qrToken }: AppProps) {
           <Button onClick={() => window.location.reload()}>{t.retry}</Button>
         </main>
       ) : null}
-      {state.status === "ready" && token ? (
-        <Menu session={state.session} gateway={activeGateway} qrToken={token} />
+      {state.status === "ready" ? (
+        <Menu session={state.session} gateway={activeGateway} qrToken={state.qrToken} />
       ) : null}
     </div>
   );

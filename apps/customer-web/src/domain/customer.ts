@@ -7,7 +7,22 @@ export interface PriceBreakdown {
   final: Money;
 }
 
-export type DietaryTag = "vegetarian" | "vegan" | "glutenFree";
+export type {
+  AllergenKey,
+  DietaryFilterKey,
+  DietaryTag,
+  ProductBadge,
+  ProductNutrition,
+  SpiceLevel,
+} from "./menuCatalog";
+import type {
+  AllergenKey,
+  DietaryFilterKey,
+  DietaryTag,
+  ProductBadge,
+  ProductNutrition,
+  SpiceLevel,
+} from "./menuCatalog";
 export type OrderStatus =
   | "submitted"
   | "accepted"
@@ -44,7 +59,15 @@ export interface ModifierGroup {
   id: string;
   name: string;
   required: boolean;
+  /** 1 = tek seçim (radio). >1 = çoklu eklenti. */
+  maxSelections?: number;
   options: ModifierOption[];
+}
+
+export interface ProductPortion {
+  id: string;
+  name: string;
+  priceMultiplier: number;
 }
 
 export interface Product {
@@ -59,10 +82,36 @@ export interface Product {
   imageUrl: string;
   imageAlt: string;
   available: boolean;
-  badge?: string;
+  badge?: ProductBadge;
+  /** Yeni ürün rozeti — badge yoksa otomatik "Yeni" gösterilir. */
+  isNew?: boolean;
   dietaryTags: DietaryTag[];
-  allergens: string[];
+  /** Yapılandırılmış alerjen kodları (EU 14). */
+  allergenKeys: AllergenKey[];
+  /** Paylaşılan mutfak / cross-contact uyarısı. */
+  mayContainAllergenKeys?: AllergenKey[];
+  /** Kısa malzeme listesi (FIC / ADDE best practice). */
+  ingredients?: string[];
   modifierGroups: ModifierGroup[];
+  portions?: ProductPortion[];
+  nutrition?: ProductNutrition;
+  spiceLevel?: SpiceLevel;
+  prepTimeMinutes?: number;
+  containsAlcohol?: boolean;
+  /** Örn. "2 kişilik", "Paylaşımlık tabak". */
+  servingNote?: string;
+  /** Pazar fiyatı gibi metin fiyat etiketleri. */
+  priceLabel?: string;
+  certificationNotes?: string;
+}
+
+export interface CustomerMenuSettings {
+  showDietaryFilters: boolean;
+  dietaryFilterOptions: DietaryFilterKey[];
+  showAllergenExclusions: boolean;
+  allergenExclusionOptions: AllergenKey[];
+  allergenDisclaimer?: string;
+  allergenMatrixUrl?: string;
 }
 
 export interface CustomerSession {
@@ -73,6 +122,7 @@ export interface CustomerSession {
   locale: Locale;
   categories: ReadonlyArray<{ id: string; name: string }>;
   products: ReadonlyArray<Product>;
+  customerMenu?: CustomerMenuSettings;
   openServiceRequestTypes?: ReadonlyArray<ServiceRequestType | string>;
   /** Open orders already on this table (survives refresh / QR re-scan). */
   activeOrders?: ReadonlyArray<Order>;
@@ -82,7 +132,8 @@ export interface CartLine {
   key: string;
   product: Product;
   quantity: number;
-  selections: Record<string, string>;
+  selections: Record<string, string[]>;
+  portionId?: string;
   note: string;
 }
 

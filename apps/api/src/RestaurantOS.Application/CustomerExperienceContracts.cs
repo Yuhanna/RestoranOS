@@ -71,7 +71,8 @@ public sealed record CustomerSessionResult(
     IReadOnlyList<MenuCategoryResult> Categories,
     IReadOnlyList<MenuItemResult> Products,
     IReadOnlyList<string> OpenServiceRequestTypes,
-    IReadOnlyList<CustomerOrderResult> ActiveOrders);
+    IReadOnlyList<CustomerOrderResult> ActiveOrders,
+    CustomerMenuSettingsData CustomerMenuSettings);
 
 public sealed record MenuCategoryResult(Guid Id, string Name);
 
@@ -87,9 +88,14 @@ public sealed record MenuItemResult(
     string ImageAlt = "",
     long ListAmountMinor = 0,
     long DiscountAmountMinor = 0,
-    string? PromotionLabel = null);
+    string? PromotionLabel = null,
+    MenuItemCatalogData Catalog = default!);
 
-public sealed record CreateOrderLine(Guid ProductId, int Quantity, string? Note);
+public sealed record CreateOrderLine(
+    Guid ProductId,
+    int Quantity,
+    string? Note,
+    IReadOnlyList<string> ModifierOptionIds);
 
 public sealed record CustomerOrderResult(
     Guid Id,

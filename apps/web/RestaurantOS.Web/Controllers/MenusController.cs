@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 using RestaurantOS.Web.Data;
 using RestaurantOS.Web.Models;
 
@@ -8,6 +9,8 @@ namespace RestaurantOS.Web.Controllers;
 public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> apiOptions) : Controller
 {
     private readonly string _apiBaseUrl = apiOptions.Value.BaseUrl.TrimEnd('/');
+
+    private static readonly JsonSerializerOptions StockPhotoJsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
@@ -93,6 +96,7 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
             }
 
             await ApplyEntitlementFlagsAsync(cancellationToken);
+            await PrepareImagePickerAsync(cancellationToken);
             return View(BuildEditor(detail));
         }
         catch (WebApiException exception) when (exception.StatusCode == StatusCodes.Status404NotFound)
@@ -288,10 +292,19 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
 
         var amountMinor = (long)Math.Round(model.PriceTry * 100m, MidpointRounding.AwayFromZero);
 
+        if (!MenuCatalogFormHelper.TryToApi(model.Catalog, out var catalogModel, out var catalogError))
+        {
+            TempData["Error"] = catalogError;
+            return RedirectToAction(nameof(Details), new { id = model.MenuId });
+        }
+
         try
         {
             await ApplyEntitlementFlagsAsync(cancellationToken);
             var canUseImages = ViewData["CanUseProductImages"] as bool? == true;
+            var catalogPayload = catalogModel is not null && MenuCatalogFormHelper.HasCatalogContent(catalogModel)
+                ? catalogModel
+                : null;
             var created = await api.InvokePostAsync<MenuItemViewModel>(
                 $"/api/v1/management/menus/{model.MenuId}/items",
                 new
@@ -307,6 +320,7 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
                         : null,
                     imageAlt = canUseImages ? model.ImageAlt?.Trim() : null,
                     prepTimeSeconds = ToPrepTimeSeconds(model.PrepMinutes, model.PrepSeconds),
+                    catalog = catalogPayload,
                 },
                 cancellationToken);
 
@@ -337,7 +351,17 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
             return RedirectToAction("Login", "Account");
         }
 
-        var detail = await LoadDetailAsync(menuId, cancellationToken);
+        MenuDetailViewModel? detail;
+        try
+        {
+            detail = await LoadDetailAsync(menuId, cancellationToken);
+        }
+        catch (WebApiException exception)
+        {
+            TempData["Error"] = DescribeMenuLoadFailure(exception);
+            return RedirectToAction(nameof(Details), new { id = menuId });
+        }
+
         var item = detail?.Items.FirstOrDefault(i => i.Id == id);
         if (detail is null || item is null)
         {
@@ -345,6 +369,7 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
         }
 
         await ApplyEntitlementFlagsAsync(cancellationToken);
+        await PrepareImagePickerAsync(cancellationToken);
         return View(new EditMenuItemViewModel
         {
             Id = item.Id,
@@ -361,6 +386,7 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
             PrepSeconds = item.PrepTimeSeconds is int rem && rem > 0 ? rem % 60 : null,
             PreviewImageUrl = ResolveImageUrl(item.ImageUrl),
             Categories = detail.Categories.OrderBy(c => c.SortOrder).ToList(),
+            Catalog = MenuCatalogFormHelper.FromApi(item.Catalog),
         });
     }
 
@@ -374,21 +400,41 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
             return RedirectToAction("Login", "Account");
         }
 
-        var detail = await LoadDetailAsync(model.MenuId, cancellationToken);
-        model.Categories = detail?.Categories.OrderBy(c => c.SortOrder).ToList() ?? [];
+        var detail = await TryLoadDetailAsync(model.MenuId, cancellationToken);
+        if (detail is null)
+        {
+            await ApplyEntitlementFlagsAsync(cancellationToken);
+            await PrepareImagePickerAsync(cancellationToken);
+            return View(model);
+        }
+
+        model.Categories = detail.Categories.OrderBy(c => c.SortOrder).ToList();
         model.PreviewImageUrl = ResolveImageUrl(model.ImageUrl);
 
         if (!ModelState.IsValid)
         {
+            await ApplyEntitlementFlagsAsync(cancellationToken);
+            await PrepareImagePickerAsync(cancellationToken);
             return View(model);
         }
 
         var amountMinor = (long)Math.Round(model.PriceTry * 100m, MidpointRounding.AwayFromZero);
 
+        if (!MenuCatalogFormHelper.TryToApi(model.Catalog, out var catalogModel, out var catalogError))
+        {
+            ModelState.AddModelError(string.Empty, catalogError ?? "Katalog alanları geçersiz.");
+            await ApplyEntitlementFlagsAsync(cancellationToken);
+            await PrepareImagePickerAsync(cancellationToken);
+            return View(model);
+        }
+
         try
         {
             await ApplyEntitlementFlagsAsync(cancellationToken);
             var canUseImages = ViewData["CanUseProductImages"] as bool? == true;
+            var catalogPayload = catalogModel is not null && MenuCatalogFormHelper.HasCatalogContent(catalogModel)
+                ? catalogModel
+                : null;
             await api.InvokePatchAsync<object>(
                 $"/api/v1/management/menu-items/{model.Id}",
                 new
@@ -403,6 +449,8 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
                     imageAlt = canUseImages ? model.ImageAlt?.Trim() ?? string.Empty : null,
                     prepTimeSeconds = ToPrepTimeSeconds(model.PrepMinutes, model.PrepSeconds),
                     updatePrepTime = true,
+                    catalog = catalogPayload,
+                    updateCatalog = true,
                 },
                 cancellationToken);
 
@@ -422,7 +470,30 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
         {
             ModelState.AddModelError(string.Empty, exception.Message);
             await ApplyEntitlementFlagsAsync(cancellationToken);
+            await PrepareImagePickerAsync(cancellationToken);
             return View(model);
+        }
+    }
+
+    private async Task PrepareImagePickerAsync(CancellationToken cancellationToken)
+    {
+        ViewData["MediaBaseUrl"] = _apiBaseUrl;
+        if (ViewData["CanUseProductImages"] as bool? != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var library = await api.InvokeGetAsync<StockPhotoLibraryViewModel>(
+                "/api/v1/management/media/stock",
+                cancellationToken);
+            ViewData["StockPhotoLibraryJson"] = JsonSerializer.Serialize(library, StockPhotoJsonOptions);
+        }
+        catch (WebApiException)
+        {
+            ViewData["StockPhotoLibraryJson"] =
+                "{\"categories\":[{\"id\":\"all\",\"label\":\"Tümü\"}],\"photos\":[]}";
         }
     }
 
@@ -430,9 +501,7 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
     {
         try
         {
-            var workspace = await api.InvokeGetAsync<WorkspaceViewModel>(
-                "/api/v1/management/workspace",
-                cancellationToken);
+            var workspace = await api.GetWorkspaceAsync(cancellationToken);
             ViewData["CanUseProductImages"] = workspace?.Entitlements?.CanUseProductImages ?? false;
             ViewData["PlanDisplayName"] = workspace?.Entitlements?.PlanDisplayName ?? "Free";
         }
@@ -460,6 +529,31 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
 
         return detail;
     }
+
+    private async Task<MenuDetailViewModel?> TryLoadDetailAsync(Guid menuId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await LoadDetailAsync(menuId, cancellationToken);
+        }
+        catch (WebApiException exception)
+        {
+            ModelState.AddModelError(string.Empty, DescribeMenuLoadFailure(exception));
+            return null;
+        }
+    }
+
+    private static string DescribeMenuLoadFailure(WebApiException exception) =>
+        exception.StatusCode switch
+        {
+            StatusCodes.Status401Unauthorized =>
+                "Oturum süreniz doldu. Tekrar giriş yapıp yeniden deneyin.",
+            StatusCodes.Status403Forbidden => "Bu menüyü düzenleme yetkiniz yok.",
+            StatusCodes.Status404NotFound => "Menü bulunamadı. Menü listesinden doğru menüyü açın.",
+            StatusCodes.Status500InternalServerError =>
+                "Menü sunucudan yüklenemedi. RestaurantOS.Api çalışıyor mu? Yeni migration'lar uygulandı mı?",
+            _ => exception.Message,
+        };
 
     private string ResolveImageUrl(string? imageUrl)
     {

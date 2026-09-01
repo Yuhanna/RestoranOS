@@ -23,16 +23,21 @@ public sealed class AnalyticsController(IWebApiExecuter api) : Controller
         try
         {
             var query = $"?fromUtc={Uri.EscapeDataString(from.ToString("O"))}&toUtc={Uri.EscapeDataString(to.ToString("O"))}";
-            model.Summary = await api.InvokeGetAsync<AnalyticsSummaryViewModel>(
+            var summaryTask = api.InvokeGetAsync<AnalyticsSummaryViewModel>(
                 $"/api/v1/management/analytics/summary{query}",
                 cancellationToken);
-            model.CanViewFinancials = model.Summary?.CanViewFinancials ?? false;
-            model.Periods = await api.InvokeGetAsync<List<AnalyticsPeriodViewModel>>(
+            var periodsTask = api.InvokeGetAsync<List<AnalyticsPeriodViewModel>>(
                 $"/api/v1/management/analytics/sales-by-period{query}&granularity={(days <= 2 ? "hour" : "day")}",
-                cancellationToken) ?? [];
-            model.TopItems = await api.InvokeGetAsync<List<AnalyticsTopItemViewModel>>(
+                cancellationToken);
+            var topItemsTask = api.InvokeGetAsync<List<AnalyticsTopItemViewModel>>(
                 $"/api/v1/management/analytics/top-items{query}&limit=10",
-                cancellationToken) ?? [];
+                cancellationToken);
+            await Task.WhenAll(summaryTask, periodsTask, topItemsTask);
+
+            model.Summary = await summaryTask;
+            model.CanViewFinancials = model.Summary?.CanViewFinancials ?? false;
+            model.Periods = await periodsTask ?? [];
+            model.TopItems = await topItemsTask ?? [];
         }
         catch (WebApiException exception)
         {
@@ -57,6 +62,7 @@ public sealed class AnalyticsController(IWebApiExecuter api) : Controller
                 "/api/v1/management/subscription/checkout",
                 new { planCode },
                 cancellationToken);
+            api.InvalidateWorkspaceCache();
             TempData["Message"] = $"{planCode} planına yükseltildi (demo ödeme).";
         }
         catch (WebApiException exception)

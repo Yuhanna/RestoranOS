@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using RestaurantOS.Api.Models.Dto;
+using RestaurantOS.Application;
 using RestaurantOS.Domain;
 using RestaurantOS.Infrastructure;
 
@@ -200,6 +201,52 @@ public sealed class ManagementMenuEndpointsTests
         }
 
         await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task CreateMenuItemWithEmptyCatalogListsSucceeds()
+    {
+        using var factory = new MenuApiFactory();
+        using var client = factory.CreateClient();
+        await SeedAsync(factory, includePublish: false, includeEdit: true);
+        var access = await LoginAsync(client);
+
+        var menuResponse = await client.SendAsync(Authorized(
+            access,
+            HttpMethod.Post,
+            "/api/v1/management/menus",
+            new ManagementCreateMenuRequest("Katalog Test")));
+        var menu = await menuResponse.Content.ReadFromJsonAsync<ManagementMenuSummaryResponse>();
+
+        var categoryResponse = await client.SendAsync(Authorized(
+            access,
+            HttpMethod.Post,
+            $"/api/v1/management/menus/{menu!.Id}/categories",
+            new ManagementCreateCategoryRequest("Ana", 1)));
+        var category = await categoryResponse.Content.ReadFromJsonAsync<ManagementMenuCategoryResponse>();
+
+        var itemResponse = await client.SendAsync(Authorized(
+            access,
+            HttpMethod.Post,
+            $"/api/v1/management/menus/{menu.Id}/items",
+            new ManagementCreateMenuItemRequest(
+                category!.Id,
+                "Köfte",
+                "Izgara",
+                25_000,
+                true,
+                1,
+                Catalog: new MenuItemCatalogData
+                {
+                    DietaryTags = [],
+                    AllergenKeys = [],
+                    MayContainAllergenKeys = [],
+                    Ingredients = [],
+                    ModifierGroups = [],
+                    Portions = [],
+                })));
+
+        Assert.Equal(HttpStatusCode.Created, itemResponse.StatusCode);
     }
 
     public sealed class MenuApiFactory : WebApplicationFactory<Program>

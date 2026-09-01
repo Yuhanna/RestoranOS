@@ -185,7 +185,8 @@ public sealed record ManagementCreateMenuItemRequest(
     int SortOrder,
     string? ImageUrl = null,
     string? ImageAlt = null,
-    int? PrepTimeSeconds = null);
+    int? PrepTimeSeconds = null,
+    MenuItemCatalogData? Catalog = null);
 
 public sealed record ManagementUpdateMenuItemRequest(
     Guid? CategoryId,
@@ -199,7 +200,39 @@ public sealed record ManagementUpdateMenuItemRequest(
     int? PrepTimeSeconds = null,
     bool UpdatePrepTime = false,
     long? CostAmountMinor = null,
-    bool UpdateCost = false);
+    bool UpdateCost = false,
+    MenuItemCatalogData? Catalog = null,
+    bool UpdateCatalog = false);
+
+public sealed record ManagementCustomerMenuSettingsResponse(
+    bool ShowDietaryFilters,
+    IReadOnlyList<string> DietaryFilterOptions,
+    bool ShowAllergenExclusions,
+    IReadOnlyList<string> AllergenExclusionOptions,
+    string? AllergenDisclaimer,
+    string? AllergenMatrixUrl);
+
+public sealed record ManagementUpdateCustomerMenuSettingsRequest(
+    bool ShowDietaryFilters,
+    IReadOnlyList<string> DietaryFilterOptions,
+    bool ShowAllergenExclusions,
+    IReadOnlyList<string> AllergenExclusionOptions,
+    string? AllergenDisclaimer,
+    string? AllergenMatrixUrl);
+
+public sealed record ManagementStockPhotoCategoryResponse(string Id, string Label);
+
+public sealed record ManagementStockPhotoResponse(
+    string Id,
+    string Category,
+    string Path,
+    string Title,
+    string Alt,
+    IReadOnlyList<string> Tags);
+
+public sealed record ManagementStockPhotoLibraryResponse(
+    IReadOnlyList<ManagementStockPhotoCategoryResponse> Categories,
+    IReadOnlyList<ManagementStockPhotoResponse> Photos);
 
 public sealed record ManagementSubscriptionCheckoutRequest(string PlanCode);
 
@@ -269,7 +302,8 @@ public sealed record ManagementMenuItemResponse(
     string ImageUrl,
     string ImageAlt,
     IReadOnlyList<MenuTextTranslationResponse> Translations,
-    int? PrepTimeSeconds = null);
+    int? PrepTimeSeconds = null,
+    MenuItemCatalogData? Catalog = null);
 
 public sealed record ManagementMenuPromotionResponse(
     Guid Id,

@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "license": "Unsplash License (https://unsplash.com/license)",
+  "attribution": "See ATTRIBUTION.md in this folder.",
+  "categories": [
+    { "id": "all", "label": "Tümü" },
+    { "id": "mains", "label": "Ana yemekler" },
+    { "id": "starters", "label": "Başlangıçlar" },
+    { "id": "desserts", "label": "Tatlılar" },
+    { "id": "drinks", "label": "İçecekler" }
+  ],
+  "photos": [
+    {
+      "id": "izgara-levrek",
+      "category": "mains",
+      "file": "mains/izgara-levrek.jpg",
+      "title": "Izgara levrek",
+      "alt": "Izgara levrek tabak sunumu",
+      "tags": ["levrek", "balık", "izgara", "deniz", "ana yemek", "fish", "grill"]
+    },
+    {
+      "id": "truflu-risotto",
+      "category": "mains",
+      "file": "mains/truflu-risotto.jpg",
+      "title": "Trüflü risotto",
+      "alt": "Kremalı trüflü risotto",
+      "tags": ["risotto", "trüf", "pirinç", "makarna", "ana yemek", "vegetarian"]
+    },
+    {
+      "id": "bonfile",
+      "category": "mains",
+      "file": "mains/bonfile.jpg",
+      "title": "Bonfile",
+      "alt": "Orta pişmiş bonfile dilimleri",
+      "tags": ["bonfile", "et", "steak", "dana", "ana yemek"]
+    },
+    {
+      "id": "kebap",
+      "category": "mains",
+      "file": "mains/kebap.jpg",
+      "title": "Kebap",
+      "alt": "Izgara kebap tabağı",
+      "tags": ["kebap", "et", "izgara", "ana yemek", "lamb"]
+    },
+    {
+      "id": "makarna",
+      "category": "mains",
+      "file": "mains/makarna.jpg",
+      "title": "Makarna",
+      "alt": "Domates soslu makarna",
+      "tags": ["makarna", "pasta", "spagetti", "ana yemek"]
+    },
+    {
+      "id": "pizza",
+      "category": "mains",
+      "file": "mains/pizza.jpg",
+      "title": "Pizza",
+      "alt": "Fırın pizza dilimi",
+      "tags": ["pizza", "peynir", "ana yemek", "fırın"]
+    },
+    {
+      "id": "meze-tabagi",
+      "category": "starters",
+      "file": "starters/meze-tabagi.jpg",
+      "title": "Meze tabağı",
+      "alt": "Renkli meze ve salata tabağı",
+      "tags": ["meze", "salata", "başlangıç", "starter", "vegan"]
+    },
+    {
+      "id": "ege-otlari",
+      "category": "starters",
+      "file": "starters/ege-otlari.jpg",
+      "title": "Ege otları salatası",
+      "alt": "Taze yeşillik salatası",
+      "tags": ["salata", "yeşillik", "ege", "başlangıç", "starter", "vegan"]
+    },
+    {
+      "id": "corba",
+      "category": "starters",
+      "file": "starters/corba.jpg",
+      "title": "Çorba",
+      "alt": "Sıcak çorba kasesi",
+      "tags": ["çorba", "corba", "soup", "başlangıç", "starter"]
+    },
+    {
+      "id": "cheesecake",
+      "category": "desserts",
+      "file": "desserts/cheesecake.jpg",
+      "title": "Cheesecake",
+      "alt": "Cheesecake dilimi",
+      "tags": ["cheesecake", "tatlı", "dessert", "peynir"]
+    },
+    {
+      "id": "cikolatali-fondan",
+      "category": "desserts",
+      "file": "desserts/cikolatali-fondan.jpg",
+      "title": "Çikolatalı fondan",
+      "alt": "Akışkan çikolatalı fondan",
+      "tags": ["çikolata", "fondan", "tatlı", "dessert", "chocolate"]
+    },
+    {
+      "id": "kahve",
+      "category": "drinks",
+      "file": "drinks/kahve.jpg",
+      "title": "Kahve",
+      "alt": "Latte art kahve fincanı",
+      "tags": ["kahve", "coffee", "içecek", "drink", "sıcak"]
+    },
+    {
+      "id": "kokteyl",
+      "category": "drinks",
+      "file": "drinks/kokteyl.jpg",
+      "title": "Kokteyl",
+      "alt": "Soğuk kokteyl bardağı",
+      "tags": ["kokteyl", "cocktail", "içecek", "drink", "soğuk"]
+    },
+    {
+      "id": "sarap",
+      "category": "drinks",
+      "file": "drinks/sarap.jpg",
+      "title": "Şarap",
+      "alt": "Kırmızı şarap kadehi",
+      "tags": ["şarap", "sarap", "wine", "içecek", "drink", "alkol"]
+    },
+    {
+      "id": "taze-sikma",
+      "category": "drinks",
+      "file": "drinks/taze-sikma.jpg",
+      "title": "Taze sıkma meyve suyu",
+      "alt": "Portakal meyve suyu",
+      "tags": ["meyve suyu", "portakal", "içecek", "drink", "juice", "taze"]
+    },
+    {
+      "id": "greyfurt",
+      "category": "drinks",
+      "file": "drinks/greyfurt.jpg",
+      "title": "Greyfurt içeceği",
+      "alt": "Soğuk greyfurt içeceği",
+      "tags": ["greyfurt", "içecek", "drink", "soğuk", "juice"]
+    }
+  ]
+}

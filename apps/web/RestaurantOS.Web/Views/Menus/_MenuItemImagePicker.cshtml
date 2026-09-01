@@ -1,0 +1,63 @@
+@model RestaurantOS.Web.Models.MenuItemImageFieldsViewModel
+@{
+    var prefix = string.IsNullOrWhiteSpace(Model.FieldPrefix) ? string.Empty : $"{Model.FieldPrefix}.";
+    var pickerId = $"{Model.FieldPrefix}-stock-picker".Trim('-');
+    var libraryScriptId = $"{pickerId}-library";
+    var imageUrlId = $"{Model.FieldPrefix}-ImageUrl".Trim('-');
+    var imageAltId = $"{Model.FieldPrefix}-ImageAlt".Trim('-');
+    var previewId = $"{Model.FieldPrefix}-photo-preview".Trim('-');
+    var mediaBase = ViewData["MediaBaseUrl"] as string ?? string.Empty;
+    var libraryJson = ViewData["StockPhotoLibraryJson"] as string ?? "{\"categories\":[],\"photos\":[]}";
+}
+
+<script type="application/json" id="@libraryScriptId">@Html.Raw(libraryJson)</script>
+
+<section
+    class="stock-photo-picker span-2"
+    id="@pickerId"
+    data-stock-photo-picker
+    data-media-base="@mediaBase"
+    data-library-id="@libraryScriptId"
+    data-image-url-id="@imageUrlId"
+    data-image-alt-id="@imageAltId"
+    data-preview-id="@previewId"
+    data-name-input-id="@Model.NameInputId">
+    <div class="stock-photo-picker__head">
+        <div>
+            <h2 class="stock-photo-picker__title">Ürün fotoğrafı</h2>
+            <p class="muted">Ürün adını yazın, önerilen görsellerden birini seçin veya kendi dosyanızı yükleyin.</p>
+        </div>
+        <div class="stock-photo-picker__preview" id="@previewId" @(string.IsNullOrWhiteSpace(Model.PreviewImageUrl) ? "hidden" : null)>
+            @if (!string.IsNullOrWhiteSpace(Model.PreviewImageUrl))
+            {
+                <img src="@Model.PreviewImageUrl" alt="@(Model.ImageAlt ?? "Seçili ürün fotoğrafı")" />
+            }
+        </div>
+    </div>
+
+    <input type="hidden" name="@(prefix)ImageUrl" id="@imageUrlId" value="@Model.ImageUrl" />
+
+    <label class="stock-photo-picker__search">
+        Fotoğraf ara
+        <input type="search" data-stock-search placeholder="Ürün adına göre otomatik önerilir…" autocomplete="off" />
+    </label>
+
+    <div class="stock-photo-picker__filters" data-stock-categories role="tablist" aria-label="Fotoğraf kategorisi"></div>
+
+    <div class="stock-photo-picker__grid" data-stock-grid role="listbox" aria-label="Stok fotoğrafları"></div>
+    <p class="muted" data-stock-empty hidden>Eşleşen fotoğraf bulunamadı. Aramayı değiştirin veya kendi dosyanızı yükleyin.</p>
+
+    <div class="stock-photo-picker__upload">
+        <p class="stock-photo-picker__upload-title">Kendi fotoğrafını yükle</p>
+        <label class="span-2">
+            Dosya (JPG/PNG/WebP, max 2 MB)
+            <input name="@(prefix)Photo" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
+        </label>
+        <p class="muted">Dosya yüklerseniz kayıt sırasında stok seçiminizin üzerine yazılır.</p>
+    </div>
+
+    <label>
+        Alt metin (erişilebilirlik)
+        <input name="@(prefix)ImageAlt" id="@imageAltId" value="@Model.ImageAlt" placeholder="Ürün görseli" />
+    </label>
+</section>

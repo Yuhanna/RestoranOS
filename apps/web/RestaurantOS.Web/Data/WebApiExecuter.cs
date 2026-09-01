@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
+using RestaurantOS.Web.Models;
 
 namespace RestaurantOS.Web.Data;
 
@@ -23,13 +24,16 @@ public class WebApiExecuter(
     IHostEnvironment hostEnvironment,
     IOptions<ApiOptions> apiOptions,
     ApiCookieJarStore cookieJarStore,
-    ApiSessionScope sessionScope) : IWebApiExecuter
+    ApiSessionScope sessionScope) : IWebApiExecuter, IDisposable
 {
     private readonly ApiSessionScope _sessionScope = sessionScope;
     private readonly ApiCookieJarStore _cookieJarStore = cookieJarStore;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly TimeSpan WorkspaceCacheTtl = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan TokenRefreshSkew = TimeSpan.FromMinutes(1);
 
     private readonly ApiOptions _apiOptions = apiOptions.Value;
+    private HttpClient? _client;
 
     public bool IsAuthenticated => CurrentToken is not null;
 
@@ -58,6 +62,45 @@ public class WebApiExecuter(
 
     public Task<T?> InvokeGetAsync<T>(string relativePath, CancellationToken cancellationToken = default) =>
         SendAsync<T>(HttpMethod.Get, relativePath, null, allowRetry: true, cancellationToken);
+
+    public async Task<WorkspaceViewModel?> GetWorkspaceAsync(CancellationToken cancellationToken = default)
+    {
+        var session = httpContextAccessor.HttpContext?.Session;
+        if (session is not null
+            && DateTimeOffset.TryParse(
+                session.GetString(_sessionScope.WorkspaceCacheExpiresSessionKey),
+                out var expiresAt)
+            && expiresAt > DateTimeOffset.UtcNow)
+        {
+            var cachedJson = session.GetString(_sessionScope.WorkspaceCacheSessionKey);
+            if (!string.IsNullOrEmpty(cachedJson))
+            {
+                return JsonSerializer.Deserialize<WorkspaceViewModel>(cachedJson, JsonOptions);
+            }
+        }
+
+        var workspace = await InvokeGetAsync<WorkspaceViewModel>(
+            "/api/v1/management/workspace",
+            cancellationToken);
+        if (workspace is not null && session is not null)
+        {
+            CacheWorkspace(session, workspace);
+        }
+
+        return workspace;
+    }
+
+    public void InvalidateWorkspaceCache()
+    {
+        var session = httpContextAccessor.HttpContext?.Session;
+        if (session is null)
+        {
+            return;
+        }
+
+        session.Remove(_sessionScope.WorkspaceCacheSessionKey);
+        session.Remove(_sessionScope.WorkspaceCacheExpiresSessionKey);
+    }
 
     public Task<T?> InvokePostAsync<T>(string relativePath, object? body, CancellationToken cancellationToken = default) =>
         SendAsync<T>(HttpMethod.Post, relativePath, body, allowRetry: true, cancellationToken);
@@ -88,7 +131,7 @@ public class WebApiExecuter(
             content.Add(new StringContent(imageAlt), "imageAlt");
         }
 
-        using var client = CreateClient();
+        using var client = GetClient();
         using var request = new HttpRequestMessage(HttpMethod.Post, relativePath.TrimStart('/'))
         {
             Content = content,
@@ -114,7 +157,6 @@ public class WebApiExecuter(
             "/api/v1/management/auth/login",
             new { email, password, tenantId, branchId },
             cancellationToken);
-        await RefreshWorkspaceIdentityAsync(cancellationToken);
     }
 
     protected async Task LoginCoreAsync(
@@ -181,7 +223,6 @@ public class WebApiExecuter(
         }
 
         StoreAccessToken(token);
-        await RefreshWorkspaceIdentityAsync(cancellationToken);
     }
 
     public virtual async Task LogoutAsync(CancellationToken cancellationToken = default)
@@ -237,7 +278,12 @@ public class WebApiExecuter(
         bool attachBearer,
         CancellationToken cancellationToken)
     {
-        using var client = CreateClient();
+        if (attachBearer)
+        {
+            await EnsureFreshTokenAsync(cancellationToken);
+        }
+
+        var client = GetClient();
         using var request = new HttpRequestMessage(method, relativePath.TrimStart('/'));
         if (attachBearer)
         {
@@ -254,6 +300,17 @@ public class WebApiExecuter(
         }
 
         return await client.SendAsync(request, cancellationToken);
+    }
+
+    private async Task EnsureFreshTokenAsync(CancellationToken cancellationToken)
+    {
+        var token = CurrentToken;
+        if (token is null || token.ExpiresAtUtc > DateTimeOffset.UtcNow.Add(TokenRefreshSkew))
+        {
+            return;
+        }
+
+        await TryRefreshAsync(cancellationToken);
     }
 
     private async Task<bool> TryRefreshAsync(CancellationToken cancellationToken)
@@ -303,7 +360,7 @@ public class WebApiExecuter(
                     error = new ErrorResponse
                     {
                         Title = root.TryGetProperty("title", out var title) ? title.GetString() : null,
-                        Detail = root.TryGetProperty("detail", out var detail) ? detail.GetString() : null,
+                        Detail = BuildProblemDetail(root),
                         Status = root.TryGetProperty("status", out var status) ? status.GetInt32() : (int)response.StatusCode,
                         Code = root.TryGetProperty("code", out var code)
                             ? code.GetString()
@@ -327,8 +384,39 @@ public class WebApiExecuter(
         return JsonSerializer.Deserialize<T>(body, JsonOptions);
     }
 
-    private HttpClient CreateClient()
+    private static string? BuildProblemDetail(JsonElement root)
     {
+        if (root.TryGetProperty("detail", out var detail) && detail.ValueKind == JsonValueKind.String)
+        {
+            var detailText = detail.GetString();
+            if (!string.IsNullOrWhiteSpace(detailText))
+            {
+                return detailText;
+            }
+        }
+
+        if (!root.TryGetProperty("errors", out var errors) || errors.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var messages = errors.EnumerateObject()
+            .SelectMany(property => property.Value.ValueKind == JsonValueKind.Array
+                ? property.Value.EnumerateArray().Select(item => item.GetString())
+                : [])
+            .Where(message => !string.IsNullOrWhiteSpace(message))
+            .ToArray();
+
+        return messages.Length > 0 ? string.Join(" ", messages) : null;
+    }
+
+    private HttpClient GetClient()
+    {
+        if (_client is not null)
+        {
+            return _client;
+        }
+
         var sessionId = GetSessionId();
         var handler = new HttpClientHandler
         {
@@ -342,10 +430,17 @@ public class WebApiExecuter(
                 HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
         }
 
-        return new HttpClient(handler)
+        _client = new HttpClient(handler, disposeHandler: true)
         {
             BaseAddress = new Uri(_apiOptions.BaseUrl.TrimEnd('/') + "/"),
         };
+        return _client;
+    }
+
+    public void Dispose()
+    {
+        _client?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     protected void StoreAccessToken(JwtToken token)
@@ -359,37 +454,22 @@ public class WebApiExecuter(
         session.Remove(_sessionScope.AccessTokenSessionKey);
         session.Remove(_sessionScope.RestaurantNameSessionKey);
         session.Remove(_sessionScope.BranchNameSessionKey);
+        session.Remove(_sessionScope.WorkspaceCacheSessionKey);
+        session.Remove(_sessionScope.WorkspaceCacheExpiresSessionKey);
     }
 
-    private async Task RefreshWorkspaceIdentityAsync(CancellationToken cancellationToken)
+    private static void CacheWorkspace(ISession session, WorkspaceViewModel workspace, ApiSessionScope sessionScope)
     {
-        try
-        {
-            var workspace = await InvokeGetAsync<WorkspaceIdentity>(
-                "/api/v1/management/workspace",
-                cancellationToken);
-            var session = EnsureSession();
-            if (workspace is null)
-            {
-                session.Remove(_sessionScope.RestaurantNameSessionKey);
-                session.Remove(_sessionScope.BranchNameSessionKey);
-                return;
-            }
-
-            session.SetString(_sessionScope.RestaurantNameSessionKey, workspace.RestaurantName);
-            session.SetString(_sessionScope.BranchNameSessionKey, workspace.BranchName);
-        }
-        catch (WebApiException)
-        {
-            // Workspace label is UX-only; auth still works without it.
-        }
+        session.SetString(sessionScope.WorkspaceCacheSessionKey, JsonSerializer.Serialize(workspace, JsonOptions));
+        session.SetString(
+            sessionScope.WorkspaceCacheExpiresSessionKey,
+            (DateTimeOffset.UtcNow + WorkspaceCacheTtl).ToString("O"));
+        session.SetString(sessionScope.RestaurantNameSessionKey, workspace.RestaurantName);
+        session.SetString(sessionScope.BranchNameSessionKey, workspace.BranchName);
     }
 
-    private sealed class WorkspaceIdentity
-    {
-        public string RestaurantName { get; set; } = string.Empty;
-        public string BranchName { get; set; } = string.Empty;
-    }
+    private void CacheWorkspace(ISession session, WorkspaceViewModel workspace) =>
+        CacheWorkspace(session, workspace, _sessionScope);
 
     protected ISession EnsureSession()
     {

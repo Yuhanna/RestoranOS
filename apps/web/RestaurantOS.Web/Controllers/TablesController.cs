@@ -15,10 +15,14 @@ public sealed class TablesController(IWebApiExecuter api) : Controller
 
         try
         {
-            var tables = await api.InvokeGetAsync<List<TableListItemViewModel>>(
+            var tablesTask = api.InvokeGetAsync<List<TableListItemViewModel>>(
                 "/api/v1/management/tables",
-                cancellationToken) ?? [];
-            await ApplyTableQuotaHintsAsync(cancellationToken);
+                cancellationToken);
+            var workspaceTask = api.GetWorkspaceAsync(cancellationToken);
+            await Task.WhenAll(tablesTask, workspaceTask);
+
+            var tables = await tablesTask ?? [];
+            ApplyTableQuotaHints(await workspaceTask);
             return View(tables);
         }
         catch (WebApiException exception)
@@ -135,23 +139,39 @@ public sealed class TablesController(IWebApiExecuter api) : Controller
         }
     }
 
-    private async Task ApplyTableQuotaHintsAsync(CancellationToken cancellationToken)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Release(Guid id, CancellationToken cancellationToken)
     {
+        if (!api.IsAuthenticated)
+        {
+            return RedirectToAction("Login", "Account");
+        }
+
         try
         {
-            var workspace = await api.InvokeGetAsync<WorkspaceViewModel>(
-                "/api/v1/management/workspace",
+            await api.InvokePostAsync<TableListItemViewModel>(
+                $"/api/v1/management/tables/{id}/release",
+                null,
                 cancellationToken);
-            var usage = workspace?.Entitlements;
-            if (usage?.MaxTablesPerBranch is int max)
-            {
-                ViewData["TableQuota"] = $"{usage.TableCount}/{max}";
-                ViewData["TableQuotaReached"] = usage.TableCount >= max;
-            }
+            api.InvalidateWorkspaceCache();
+            TempData["Message"] = "Masa operasyon olarak boşaltıldı.";
         }
-        catch (WebApiException)
+        catch (WebApiException exception)
         {
-            // Quota hint is optional.
+            TempData["Error"] = exception.Message;
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    private void ApplyTableQuotaHints(WorkspaceViewModel? workspace)
+    {
+        var usage = workspace?.Entitlements;
+        if (usage?.MaxTablesPerBranch is int max)
+        {
+            ViewData["TableQuota"] = $"{usage.TableCount}/{max}";
+            ViewData["TableQuotaReached"] = usage.TableCount >= max;
         }
     }
 
@@ -160,9 +180,7 @@ public sealed class TablesController(IWebApiExecuter api) : Controller
         var model = new CreateTableViewModel();
         try
         {
-            var workspace = await api.InvokeGetAsync<WorkspaceViewModel>(
-                "/api/v1/management/workspace",
-                cancellationToken);
+            var workspace = await api.GetWorkspaceAsync(cancellationToken);
             var usage = workspace?.Entitlements;
             if (usage?.MaxTablesPerBranch is int max && usage.TableCount >= max)
             {

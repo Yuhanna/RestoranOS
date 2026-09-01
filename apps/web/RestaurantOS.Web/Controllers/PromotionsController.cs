@@ -101,14 +101,17 @@ public sealed class PromotionsController(IWebApiExecuter api) : Controller
         CreateMenuPromotionViewModel create,
         CancellationToken cancellationToken)
     {
-        var promotions = await api.InvokeGetAsync<List<MenuPromotionListItemViewModel>>(
+        var promotionsTask = api.InvokeGetAsync<List<MenuPromotionListItemViewModel>>(
             "/api/v1/management/promotions/menu",
-            cancellationToken) ?? [];
-
-        MenuDetailViewModel? publishedMenu = null;
-        var menus = await api.InvokeGetAsync<List<MenuSummaryViewModel>>(
+            cancellationToken);
+        var menusTask = api.InvokeGetAsync<List<MenuSummaryViewModel>>(
             "/api/v1/management/menus",
-            cancellationToken) ?? [];
+            cancellationToken);
+        await Task.WhenAll(promotionsTask, menusTask);
+
+        var promotions = await promotionsTask ?? [];
+        MenuDetailViewModel? publishedMenu = null;
+        var menus = await menusTask ?? [];
         var published = menus.FirstOrDefault(menu => menu.Lifecycle == "published") ?? menus.FirstOrDefault();
         if (published is not null)
         {

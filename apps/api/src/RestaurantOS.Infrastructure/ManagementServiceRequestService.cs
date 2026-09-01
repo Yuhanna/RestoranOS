@@ -55,6 +55,15 @@ public sealed class ManagementServiceRequestService(
         try
         {
             request.Complete(timeProvider.GetUtcNow());
+            if (request.Type == ServiceRequestType.Bill)
+            {
+                await TableSessionSettlement.ShortenSessionAfterSettlementAsync(
+                    dbContext,
+                    request.CustomerSessionId,
+                    timeProvider.GetUtcNow(),
+                    cancellationToken);
+            }
+
             await dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (InvalidOperationException exception)

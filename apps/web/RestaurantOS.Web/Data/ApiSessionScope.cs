@@ -12,6 +12,8 @@ public sealed class ApiSessionScope
     public string RestaurantNameSessionKey => $"{Prefix}.RestaurantName";
     public string BranchNameSessionKey => $"{Prefix}.BranchName";
     public string ApiJarIdSessionKey => $"{Prefix}.ApiJarId";
+    public string WorkspaceCacheSessionKey => $"{Prefix}.WorkspaceCache";
+    public string WorkspaceCacheExpiresSessionKey => $"{Prefix}.WorkspaceCacheExpires";
 }
 
 public interface IPlatformWebApiExecuter : IWebApiExecuter

@@ -311,7 +311,8 @@ public sealed class ManagementMenuService(
         string? imageUrl,
         string? imageAlt,
         CancellationToken cancellationToken,
-        int? prepTimeSeconds = null)
+        int? prepTimeSeconds = null,
+        MenuItemCatalogData? catalog = null)
     {
         await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.MenuEdit, cancellationToken);
         if (!string.IsNullOrWhiteSpace(imageUrl))
@@ -357,6 +358,11 @@ public sealed class ManagementMenuService(
             throw new CustomerExperienceException("VALIDATION_ERROR", "Product name, price, and image fields are invalid.");
         }
 
+        if (catalog is not null)
+        {
+            item.SetCatalogJson(MenuCatalogJson.SerializeItem(catalog));
+        }
+
         dbContext.MenuItems.Add(item);
         var itemTranslation = new MenuItemTranslation(
             item.Id,
@@ -385,7 +391,9 @@ public sealed class ManagementMenuService(
         string? imageAlt,
         CancellationToken cancellationToken,
         int? prepTimeSeconds = null,
-        bool updatePrepTime = false)
+        bool updatePrepTime = false,
+        MenuItemCatalogData? catalog = null,
+        bool updateCatalog = false)
     {
         await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.MenuEdit, cancellationToken);
         if (imageUrl is not null && !string.IsNullOrWhiteSpace(imageUrl))
@@ -426,6 +434,11 @@ public sealed class ManagementMenuService(
         catch (InvalidMenuStateException exception)
         {
             throw new CustomerExperienceException("MENU_ARCHIVED", exception.Message);
+        }
+
+        if (updateCatalog)
+        {
+            item.SetCatalogJson(catalog is null ? null : MenuCatalogJson.SerializeItem(catalog));
         }
 
         await AuditAsync(userId, tenantId, branchId, "MenuItemUpdated", item.Id, item.Name, cancellationToken);
@@ -726,5 +739,6 @@ public sealed class ManagementMenuService(
                 translation.Locale,
                 translation.Name,
                 translation.Description)).ToArray(),
-            item.PrepTimeSeconds);
+            item.PrepTimeSeconds,
+            MenuCatalogJson.ParseItem(item.CatalogJson));
 }

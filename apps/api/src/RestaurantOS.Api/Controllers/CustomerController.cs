@@ -6,7 +6,7 @@ namespace RestaurantOS.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/customer")]
-public sealed class CustomerController(ICustomerExperienceService service) : ControllerBase
+public sealed partial class CustomerController(ICustomerExperienceService service) : ControllerBase
 {
     private CustomerClientContext ClientContext()
     {
@@ -41,7 +41,8 @@ public sealed class CustomerController(ICustomerExperienceService service) : Con
                 result.Categories.Select(x => new MenuCategoryResponse(x.Id.ToString(), x.Name)).ToArray(),
                 result.Products.Select(ToProductResponse).ToArray(),
                 result.OpenServiceRequestTypes,
-                result.ActiveOrders.Select(ToOrderResponse).ToArray()));
+                result.ActiveOrders.Select(ToOrderResponse).ToArray(),
+                ToSettingsResponse(result.CustomerMenuSettings)));
         }
         catch (CustomerExperienceException exception)
         {
@@ -67,9 +68,7 @@ public sealed class CustomerController(ICustomerExperienceService service) : Con
             || string.IsNullOrWhiteSpace(request.SessionToken)
             || request.Lines is null
             || request.Lines.Count == 0
-            || request.Lines.Any(x =>
-                !Guid.TryParse(x.ProductId, out _)
-                || x.ModifierOptionIds is { Count: > 0 }))
+            || request.Lines.Any(x => !Guid.TryParse(x.ProductId, out _)))
         {
             return ApiProblem.Create(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "Order request is invalid.");
         }
@@ -79,7 +78,11 @@ public sealed class CustomerController(ICustomerExperienceService service) : Con
             var result = await service.CreateOrderAsync(
                 request.SessionToken,
                 idempotencyKey,
-                request.Lines.Select(x => new CreateOrderLine(Guid.Parse(x.ProductId), x.Quantity, x.Note)).ToArray(),
+                request.Lines.Select(x => new CreateOrderLine(
+                    Guid.Parse(x.ProductId),
+                    x.Quantity,
+                    x.Note,
+                    x.ModifierOptionIds ?? [])).ToArray(),
                 cancellationToken,
                 ClientContext());
             var response = ToOrderResponse(result);
@@ -170,32 +173,6 @@ public sealed class CustomerController(ICustomerExperienceService service) : Con
         }
     }
 
-    private MenuProductResponse ToProductResponse(MenuItemResult item)
-    {
-        var listMinor = item.ListAmountMinor > 0 ? item.ListAmountMinor : item.AmountMinor;
-        var discountMinor = item.DiscountAmountMinor;
-        var pricing = discountMinor > 0
-            ? new PriceBreakdownResponse(
-                new MoneyResponse(listMinor, item.Currency),
-                new MoneyResponse(discountMinor, item.Currency),
-                new MoneyResponse(item.AmountMinor, item.Currency))
-            : null;
-        return new MenuProductResponse(
-            item.Id.ToString(),
-            item.CategoryId.ToString(),
-            item.Name,
-            item.Description,
-            new MoneyResponse(item.AmountMinor, item.Currency),
-            AbsolutizeMediaUrl(item.ImageUrl),
-            string.IsNullOrWhiteSpace(item.ImageAlt) ? item.Name : item.ImageAlt,
-            item.Available,
-            [],
-            [],
-            [],
-            pricing,
-            item.PromotionLabel);
-    }
-
     private static CustomerOrderResponse ToOrderResponse(CustomerOrderResult order)
     {
         var total = new MoneyResponse(order.AmountMinor, order.Currency);
@@ -210,25 +187,5 @@ public sealed class CustomerController(ICustomerExperienceService service) : Con
             total,
             new MoneyResponse(subtotalMinor, order.Currency),
             discountMinor > 0 ? new MoneyResponse(discountMinor, order.Currency) : null);
-    }
-
-    private string AbsolutizeMediaUrl(string imageUrl)
-    {
-        if (string.IsNullOrWhiteSpace(imageUrl))
-        {
-            return string.Empty;
-        }
-
-        if (Uri.TryCreate(imageUrl, UriKind.Absolute, out _))
-        {
-            return imageUrl;
-        }
-
-        if (!imageUrl.StartsWith('/'))
-        {
-            return imageUrl;
-        }
-
-        return $"{Request.Scheme}://{Request.Host}{imageUrl}";
     }
 }

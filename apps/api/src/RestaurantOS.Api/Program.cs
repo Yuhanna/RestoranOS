@@ -208,7 +208,7 @@ if (app.Environment.IsDevelopment())
         var db = migrateScope.ServiceProvider.GetRequiredService<RestaurantOsDbContext>();
         if (db.Database.IsRelational())
         {
-            await db.Database.MigrateAsync();
+                await db.Database.MigrateAsync();
         }
     }
 

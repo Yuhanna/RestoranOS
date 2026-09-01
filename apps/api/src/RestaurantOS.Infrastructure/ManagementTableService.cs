@@ -379,6 +379,48 @@ public sealed class ManagementTableService(
             CreateSvg(entryUrl));
     }
 
+    public async Task<ManagementTableResult> ReleaseTableAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.TableEdit, cancellationToken);
+        var table = await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        await TableSessionSettlement.ReleaseTableOperationalStateAsync(
+            dbContext,
+            tenantId,
+            branchId,
+            tableId,
+            now,
+            cancellationToken);
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "TableReleased",
+            true,
+            now,
+            userId,
+            tenantId,
+            branchId,
+            table.Id,
+            table.Label));
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var refreshed = await MapTablesWithStatusAsync(
+            tenantId,
+            branchId,
+            [(table.Id, table.Label, table.IsActive, await dbContext.TableQrCodes.CountAsync(
+                qr => qr.TableId == table.Id
+                    && qr.TenantId == tenantId
+                    && qr.BranchId == branchId
+                    && qr.Status == QrCodeStatus.Active,
+                cancellationToken))],
+            cancellationToken);
+        return refreshed[0];
+    }
+
     private async Task<IReadOnlyList<ManagementTableResult>> MapTablesWithStatusAsync(
         Guid tenantId,
         Guid branchId,
@@ -402,15 +444,11 @@ public sealed class ManagementTableService(
             .Distinct()
             .ToListAsync(cancellationToken)).ToHashSet();
 
-        var occupiedTableIds = (await dbContext.CustomerSessions
-            .AsNoTracking()
-            .Where(session =>
-                session.TenantId == tenantId
-                && session.BranchId == branchId
-                && session.ExpiresAtUtc > now)
-            .Select(session => session.TableId)
-            .Distinct()
-            .ToListAsync(cancellationToken)).ToHashSet();
+        var occupiedTableIds = await BuildOccupiedTableIdsAsync(
+            tenantId,
+            branchId,
+            now,
+            cancellationToken);
 
         return tables
             .Select(table =>
@@ -429,6 +467,118 @@ public sealed class ManagementTableService(
             })
             .ToArray();
     }
+
+    private async Task<HashSet<Guid>> BuildOccupiedTableIdsAsync(
+        Guid tenantId,
+        Guid branchId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var activeSessions = await dbContext.CustomerSessions
+            .AsNoTracking()
+            .Where(session =>
+                session.TenantId == tenantId
+                && session.BranchId == branchId
+                && session.ExpiresAtUtc > now)
+            .Select(session => new
+            {
+                session.Id,
+                session.TableId,
+                session.CreatedAtUtc,
+                session.ExpiresAtUtc,
+            })
+            .ToListAsync(cancellationToken);
+
+        if (activeSessions.Count == 0)
+        {
+            return [];
+        }
+
+        var sessionIds = activeSessions.Select(session => session.Id).ToArray();
+
+        var guestActivity = await dbContext.GuestSessions
+            .AsNoTracking()
+            .Where(guest => sessionIds.Contains(guest.TableSessionId))
+            .GroupBy(guest => guest.TableSessionId)
+            .Select(group => new { SessionId = group.Key, LastActivity = group.Max(x => x.LastActivityAtUtc) })
+            .ToDictionaryAsync(x => x.SessionId, x => x.LastActivity, cancellationToken);
+
+        var orderActivity = await dbContext.CustomerOrders
+            .AsNoTracking()
+            .Where(order => sessionIds.Contains(order.CustomerSessionId))
+            .GroupBy(order => order.CustomerSessionId)
+            .Select(group => new
+            {
+                SessionId = group.Key,
+                LastActivity = group.Max(x =>
+                    x.StatusChangedAtUtc >= x.CreatedAtUtc ? x.StatusChangedAtUtc : x.CreatedAtUtc),
+            })
+            .ToDictionaryAsync(x => x.SessionId, x => x.LastActivity, cancellationToken);
+
+        var serviceActivity = await dbContext.ServiceRequests
+            .AsNoTracking()
+            .Where(request => sessionIds.Contains(request.CustomerSessionId))
+            .GroupBy(request => request.CustomerSessionId)
+            .Select(group => new
+            {
+                SessionId = group.Key,
+                LastActivity = group.Max(x =>
+                    x.CompletedAtUtc ?? x.CreatedAtUtc),
+            })
+            .ToDictionaryAsync(x => x.SessionId, x => x.LastActivity, cancellationToken);
+
+        var billCompletedAt = await dbContext.ServiceRequests
+            .AsNoTracking()
+            .Where(request =>
+                sessionIds.Contains(request.CustomerSessionId)
+                && request.Type == ServiceRequestType.Bill
+                && request.Status == ServiceRequestStatus.Completed
+                && request.CompletedAtUtc != null)
+            .GroupBy(request => request.CustomerSessionId)
+            .Select(group => new
+            {
+                SessionId = group.Key,
+                CompletedAt = group.Max(x => x.CompletedAtUtc!.Value),
+            })
+            .ToDictionaryAsync(x => x.SessionId, x => x.CompletedAt, cancellationToken);
+
+        var occupied = new HashSet<Guid>();
+        foreach (var session in activeSessions)
+        {
+            var lastActivity = session.CreatedAtUtc;
+            if (guestActivity.TryGetValue(session.Id, out var guestLast))
+            {
+                lastActivity = Max(lastActivity, guestLast);
+            }
+
+            if (orderActivity.TryGetValue(session.Id, out var orderLast))
+            {
+                lastActivity = Max(lastActivity, orderLast);
+            }
+
+            if (serviceActivity.TryGetValue(session.Id, out var serviceLast))
+            {
+                lastActivity = Max(lastActivity, serviceLast);
+            }
+
+            DateTimeOffset? billCompletedUtc = billCompletedAt.TryGetValue(session.Id, out var completed)
+                ? completed
+                : null;
+            if (TableOccupancyPolicy.CountsAsOccupied(
+                    now,
+                    session.ExpiresAtUtc,
+                    lastActivity,
+                    billCompletedUtc))
+            {
+                occupied.Add(session.TableId);
+            }
+        }
+
+        return occupied;
+    }
+
+    private static DateTimeOffset Max(DateTimeOffset left, DateTimeOffset right) =>
+        left >= right ? left : right;
 
     private async Task<DiningTable> FindTableAsync(
         Guid tenantId,

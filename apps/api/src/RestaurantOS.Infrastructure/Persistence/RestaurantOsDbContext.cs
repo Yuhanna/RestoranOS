@@ -57,6 +57,7 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.ToTable("Branches");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(160);
+            entity.Property(x => x.CustomerMenuSettingsJson).HasColumnType("nvarchar(max)");
             entity.HasIndex(x => new { x.TenantId, x.Id }).IsUnique();
             entity.HasOne(x => x.Restaurant).WithMany().HasForeignKey(x => x.RestaurantId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -104,6 +105,7 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.Property(x => x.Description).HasMaxLength(1000);
             entity.Property(x => x.ImageUrl).HasMaxLength(2048);
             entity.Property(x => x.ImageAlt).HasMaxLength(200);
+            entity.Property(x => x.CatalogJson).HasColumnType("nvarchar(max)");
             entity.Ignore(x => x.Price);
             entity.Property(x => x.PriceCurrency).HasMaxLength(3);
             entity.HasIndex(x => new { x.TenantId, x.BranchId, x.MenuId, x.CategoryId });

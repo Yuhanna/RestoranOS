@@ -108,6 +108,13 @@ public interface IManagementTableService
         Guid branchId,
         Guid qrCodeId,
         CancellationToken cancellationToken);
+
+    Task<ManagementTableResult> ReleaseTableAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        CancellationToken cancellationToken);
 }
 
 public sealed record ManagementTableResult(
@@ -225,7 +232,8 @@ public interface IManagementMenuService
         string? imageUrl,
         string? imageAlt,
         CancellationToken cancellationToken,
-        int? prepTimeSeconds = null);
+        int? prepTimeSeconds = null,
+        MenuItemCatalogData? catalog = null);
 
     Task<ManagementMenuItemResult> UpdateItemAsync(
         Guid userId,
@@ -242,7 +250,9 @@ public interface IManagementMenuService
         string? imageAlt,
         CancellationToken cancellationToken,
         int? prepTimeSeconds = null,
-        bool updatePrepTime = false);
+        bool updatePrepTime = false,
+        MenuItemCatalogData? catalog = null,
+        bool updateCatalog = false);
 
     Task<ManagementMenuItemResult> SetItemImageAsync(
         Guid userId,
@@ -311,7 +321,8 @@ public sealed record ManagementMenuItemResult(
     string ImageUrl,
     string ImageAlt,
     IReadOnlyList<MenuTextTranslationResult> Translations,
-    int? PrepTimeSeconds = null);
+    int? PrepTimeSeconds = null,
+    MenuItemCatalogData Catalog = default!);
 
 public sealed class CustomerWebOptions
 {
