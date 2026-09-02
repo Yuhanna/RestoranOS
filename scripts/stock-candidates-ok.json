@@ -1,0 +1,302 @@
+﻿[
+    {
+        "Id":  "ezogelin-corbasi",
+        "PhotoId":  "photo-1712334619829-831fa0625a0f",
+        "Hash":  "6430A1ED",
+        "Category":  "starters",
+        "File":  "starters/ezogelin-corbasi.jpg",
+        "Title":  "Ezogelin corbasi",
+        "Alt":  "Ezogelin corbasi",
+        "Tags":  "ezogelin, corba, corbasi, turk, lokanta, sicak"
+    },
+    {
+        "Id":  "yayla-corbasi",
+        "PhotoId":  "photo-1733197012835-e99ebf3c914d",
+        "Hash":  "0CD9AA41",
+        "Category":  "starters",
+        "File":  "starters/yayla-corbasi.jpg",
+        "Title":  "Yayla corbasi",
+        "Alt":  "Yayla corbasi",
+        "Tags":  "yayla, corba, corbasi, turk, lokanta, sicak"
+    },
+    {
+        "Id":  "domates-corbasi",
+        "PhotoId":  "photo-1752058238517-81cd22ef6087",
+        "Hash":  "85691654",
+        "Category":  "starters",
+        "File":  "starters/domates-corbasi.jpg",
+        "Title":  "Domates corbasi",
+        "Alt":  "Domates corbasi",
+        "Tags":  "domates, corba, corbasi, turk, lokanta, sicak"
+    },
+    {
+        "Id":  "kelle-paca-corbasi",
+        "PhotoId":  "photo-1730312382513-62e9454f4797",
+        "Hash":  "CBE609F1",
+        "Category":  "starters",
+        "File":  "starters/kelle-paca-corbasi.jpg",
+        "Title":  "Kelle paca corbasi",
+        "Alt":  "Kelle paca corbasi",
+        "Tags":  "kelle paca, corba, corbasi, turk, lokanta, sicak"
+    },
+    {
+        "Id":  "iskembe-corbasi",
+        "PhotoId":  "photo-1704735436097-a24b0f2d22cf",
+        "Hash":  "B0021C9A",
+        "Category":  "starters",
+        "File":  "starters/iskembe-corbasi.jpg",
+        "Title":  "Iskembe corbasi",
+        "Alt":  "Iskembe corbasi",
+        "Tags":  "iskembe, corba, corbasi, turk, lokanta, sicak"
+    },
+    {
+        "Id":  "haydari",
+        "PhotoId":  "photo-1571212515416-fef01fc43637",
+        "Hash":  "00A9A988",
+        "Category":  "starters",
+        "File":  "starters/haydari.jpg",
+        "Title":  "Haydari",
+        "Alt":  "Haydari meze",
+        "Tags":  "haydari, meze, meyhane, turk, baslangic, yoğurt"
+    },
+    {
+        "Id":  "haydari-2",
+        "PhotoId":  "photo-1627308594190-a057cd4bfac8",
+        "Hash":  "E326955E",
+        "Category":  "starters",
+        "File":  "starters/haydari-2.jpg",
+        "Title":  "Haydari (2)",
+        "Alt":  "Sarimsakli haydari",
+        "Tags":  "haydari, meze, yoğurt, meyhane"
+    },
+    {
+        "Id":  "saksuka",
+        "PhotoId":  "photo-1635774855717-0aec182f92cc",
+        "Hash":  "26869E40",
+        "Category":  "starters",
+        "File":  "starters/saksuka.jpg",
+        "Title":  "Saksuka",
+        "Alt":  "Patlican saksuka",
+        "Tags":  "saksuka, sakşuka, meze, meyhane, turk"
+    },
+    {
+        "Id":  "muhammara",
+        "PhotoId":  "photo-1562114808-b4b33cf60f4f",
+        "Hash":  "217018EC",
+        "Category":  "starters",
+        "File":  "starters/muhammara.jpg",
+        "Title":  "Muhammara",
+        "Alt":  "Muhammara meze",
+        "Tags":  "muhammara, meze, meyhane, turk, baslangic"
+    },
+    {
+        "Id":  "acili-ezme",
+        "PhotoId":  "photo-1535227798054-e4373ef3795a",
+        "Hash":  "088625B5",
+        "Category":  "starters",
+        "File":  "starters/acili-ezme.jpg",
+        "Title":  "Acili ezme",
+        "Alt":  "Acili ezme",
+        "Tags":  "ezme, acili ezme, meze, meyhane, turk"
+    },
+    {
+        "Id":  "sigara-boregi",
+        "PhotoId":  "photo-1658431618300-a69b07fb5782",
+        "Hash":  "DC78535C",
+        "Category":  "starters",
+        "File":  "starters/sigara-boregi.jpg",
+        "Title":  "Sigara boregi",
+        "Alt":  "Sigara boregi",
+        "Tags":  "sigara boregi, borek, meze, turk"
+    },
+    {
+        "Id":  "coban-salata",
+        "PhotoId":  "photo-1641642399576-487909d0ddbc",
+        "Hash":  "2404C5B0",
+        "Category":  "starters",
+        "File":  "starters/coban-salata.jpg",
+        "Title":  "Coban salata",
+        "Alt":  "Coban salata",
+        "Tags":  "coban salata, çoban, salata, turk, meze"
+    },
+    {
+        "Id":  "coban-salata-2",
+        "PhotoId":  "photo-1517260739337-6799d239ce83",
+        "Hash":  "7047CF02",
+        "Category":  "starters",
+        "File":  "starters/coban-salata-2.jpg",
+        "Title":  "Coban salata (2)",
+        "Alt":  "Domates salatalik salata",
+        "Tags":  "coban salata, salata, meze, turk"
+    },
+    {
+        "Id":  "gavurdagi-salata",
+        "PhotoId":  "photo-1560761098-21f5722ecb14",
+        "Hash":  "F3A49FE0",
+        "Category":  "starters",
+        "File":  "starters/gavurdagi-salata.jpg",
+        "Title":  "Gavurdagi salatasi",
+        "Alt":  "Gavurdagi salatasi",
+        "Tags":  "gavurdagi, salata, turk, meze, lokanta"
+    },
+    {
+        "Id":  "akdeniz-salata",
+        "PhotoId":  "photo-1498579397066-22750a3cb424",
+        "Hash":  "89BA0200",
+        "Category":  "starters",
+        "File":  "starters/akdeniz-salata.jpg",
+        "Title":  "Akdeniz salata",
+        "Alt":  "Akdeniz salata",
+        "Tags":  "akdeniz, salata, meze, restoran"
+    },
+    {
+        "Id":  "kanat-izgara",
+        "PhotoId":  "photo-1578875858391-50798bc2ffee",
+        "Hash":  "C184B023",
+        "Category":  "mains",
+        "File":  "mains/kanat-izgara.jpg",
+        "Title":  "Kanat izgara",
+        "Alt":  "Izgara tavuk kanat",
+        "Tags":  "kanat, tavuk kanat, izgara, bar, lokanta"
+    },
+    {
+        "Id":  "kusbasili-pide",
+        "PhotoId":  "photo-1627662168781-4345690f0bb3",
+        "Hash":  "3C4CD878",
+        "Category":  "mains",
+        "File":  "mains/kusbasili-pide.jpg",
+        "Title":  "Kusbasili pide",
+        "Alt":  "Kusbasili pide",
+        "Tags":  "pide, kusbasili, turk, lokanta"
+    },
+    {
+        "Id":  "cheeseburger",
+        "PhotoId":  "photo-1571091718767-18b5b1457add",
+        "Hash":  "06EA08DC",
+        "Category":  "mains",
+        "File":  "mains/cheeseburger.jpg",
+        "Title":  "Cheeseburger",
+        "Alt":  "Cheeseburger",
+        "Tags":  "cheeseburger, burger, fast food, bufe"
+    },
+    {
+        "Id":  "kazandibi",
+        "PhotoId":  "photo-1593999419634-455e51714dca",
+        "Hash":  "C5816A98",
+        "Category":  "desserts",
+        "File":  "desserts/kazandibi.jpg",
+        "Title":  "Kazandibi",
+        "Alt":  "Kazandibi",
+        "Tags":  "kazandibi, tatli, turk, lokanta"
+    },
+    {
+        "Id":  "trilece",
+        "PhotoId":  "photo-1728994062543-74a1dc2c9392",
+        "Hash":  "20455748",
+        "Category":  "desserts",
+        "File":  "desserts/trilece.jpg",
+        "Title":  "Trilece",
+        "Alt":  "Trilece",
+        "Tags":  "trilece, trileçe, tatli, turk"
+    },
+    {
+        "Id":  "kavun",
+        "PhotoId":  "photo-1610832958506-aa56368176cf",
+        "Hash":  "015D38F8",
+        "Category":  "desserts",
+        "File":  "desserts/kavun.jpg",
+        "Title":  "Kavun",
+        "Alt":  "Taze kavun",
+        "Tags":  "kavun, meyve, meyhane, tatli"
+    },
+    {
+        "Id":  "meyve-tabagi",
+        "PhotoId":  "photo-1628689469838-524a4a973b8e",
+        "Hash":  "54872FFE",
+        "Category":  "desserts",
+        "File":  "desserts/meyve-tabagi.jpg",
+        "Title":  "Meyve tabagi",
+        "Alt":  "Meyve tabagi",
+        "Tags":  "meyve tabagi, meyve, meyhane, tatli"
+    },
+    {
+        "Id":  "salgam",
+        "PhotoId":  "photo-1487376480913-24046456a727",
+        "Hash":  "B4CBFEC7",
+        "Category":  "drinks",
+        "File":  "drinks/salgam.jpg",
+        "Title":  "Salgam suyu",
+        "Alt":  "Salgam suyu",
+        "Tags":  "salgam, salgam suyu, turk, meyhane, soguk"
+    },
+    {
+        "Id":  "soda-maden-suyu",
+        "PhotoId":  "photo-1567769541495-338ee7203e3c",
+        "Hash":  "C01479DF",
+        "Category":  "drinks",
+        "File":  "drinks/soda-maden-suyu.jpg",
+        "Title":  "Soda",
+        "Alt":  "Maden sodasi",
+        "Tags":  "soda, maden suyu, icecek, soguk"
+    },
+    {
+        "Id":  "bitki-cayi",
+        "PhotoId":  "photo-1571230389215-b34a89739ef1",
+        "Hash":  "466A50F7",
+        "Category":  "drinks",
+        "File":  "drinks/bitki-cayi.jpg",
+        "Title":  "Bitki cayi",
+        "Alt":  "Bitki cayi",
+        "Tags":  "bitki cayi, cay, sicak, kafe"
+    },
+    {
+        "Id":  "filtre-kahve",
+        "PhotoId":  "photo-1509042239860-f550ce710b93",
+        "Hash":  "E7E78B49",
+        "Category":  "drinks",
+        "File":  "drinks/filtre-kahve.jpg",
+        "Title":  "Filtre kahve",
+        "Alt":  "Filtre kahve",
+        "Tags":  "filtre kahve, kahve, kafe, sicak"
+    },
+    {
+        "Id":  "cay-bardak",
+        "PhotoId":  "photo-1552320764-9fc870798a3f",
+        "Hash":  "CF733A1C",
+        "Category":  "drinks",
+        "File":  "drinks/cay-bardak.jpg",
+        "Title":  "Cay bardak",
+        "Alt":  "Ince belli cay",
+        "Tags":  "cay, çay, bardak, turk, meyhane, sicak"
+    },
+    {
+        "Id":  "patates-kizartmasi-menu",
+        "PhotoId":  "photo-1611456338118-5b6bdc430072",
+        "Hash":  "FCFCC502",
+        "Category":  "starters",
+        "File":  "starters/patates-kizartmasi-menu.jpg",
+        "Title":  "Patates kizartmasi",
+        "Alt":  "Patates kizartmasi",
+        "Tags":  "patates, kizartma, meze, bar, bufe"
+    },
+    {
+        "Id":  "kuru-fasulye",
+        "PhotoId":  "photo-1585937421612-70a008356fbe",
+        "Hash":  "BAA28EBD",
+        "Category":  "mains",
+        "File":  "mains/kuru-fasulye.jpg",
+        "Title":  "Kuru fasulye",
+        "Alt":  "Kuru fasulye tabagi",
+        "Tags":  "kuru fasulye, fasulye, turk, lokanta, ev yemegi"
+    },
+    {
+        "Id":  "margherita-pizza",
+        "PhotoId":  "photo-1571997478779-2adcbbe9ab2f",
+        "Hash":  "85D5683F",
+        "Category":  "mains",
+        "File":  "mains/margherita-pizza.jpg",
+        "Title":  "Margherita pizza",
+        "Alt":  "Margherita pizza",
+        "Tags":  "margherita, pizza, restoran, fast food"
+    }
+]

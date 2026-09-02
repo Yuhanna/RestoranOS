@@ -149,6 +149,11 @@
       if (emptyState) {
         emptyState.hidden = photos.length > 0;
       }
+
+      const scrollHint = root.querySelector("[data-stock-scroll-hint]");
+      if (scrollHint) {
+        scrollHint.hidden = photos.length === 0;
+      }
     };
 
     searchInput.addEventListener("input", renderPhotos);
