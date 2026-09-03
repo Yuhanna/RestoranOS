@@ -60,7 +60,7 @@ else
                 <td><span class="badge">@statusLabel</span></td>
                 <td>@(table.IsActive ? "Aktif" : "Kapalı")</td>
                 <td>@table.ActiveQrCount</td>
-                <td>
+                <td class="table-actions">
                     <form asp-action="GenerateQr" asp-route-id="@table.Id" method="post" class="inline">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="linkish">QR üret</button>

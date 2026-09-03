@@ -10,10 +10,10 @@ export const messages = {
     "Lütfen masanızdaki güncel QR kodunu yeniden okutun. Eski veya iptal edilmiş QR kodları çalışmaz; yönetim panelinden yeni QR üretin.",
   qrLoadErrorTitle: "Masa bilgileri alınamadı",
   qrLoadErrorBody:
-    "Bağlantınızı kontrol edip yeniden deneyin. Geliştirme ortamında bilgisayarda customer-web (5173) ve API (5183) çalışıyor olmalı; telefon aynı Wi‑Fi ağında olmalı.",
+    "Bağlantınızı kontrol edip yeniden deneyin. Geliştirme ortamında bilgisayarda API (5183) ve customer-web (5173, pnpm web:dev) çalışıyor olmalı; telefon aynı Wi‑Fi ağında olmalı. QR kodunu yönetim panelinden yeniden üretin.",
   qrMenuUnavailableTitle: "Menü henüz yayınlanmamış",
   qrMenuUnavailableBody:
-    "Restoran bu masa için menüyü henüz yayınlamamış. Lütfen bir süre sonra tekrar deneyin.",
+    "Restoran bu masa için menüyü henüz yayınlamamış. Yönetim panelinde Menüler → menünüzü açın → Yayınla adımını tamamlayın, ardından masadan yeni QR okutun.",
   retry: "Tekrar dene",
   offline: "İnternet bağlantısı gerekli.",
   menuEyebrow: "Bu akşamın menüsü",
@@ -100,6 +100,9 @@ export const messages = {
   submitOrder: "Siparişi mutfağa gönder",
   submitting: "Sipariş gönderiliyor…",
   submitError: "Sipariş gönderilemedi. Bağlantınızı kontrol edip yeniden deneyin.",
+  submitSessionExpired:
+    "Oturumunuz sona erdi. Masadaki güncel QR kodunu yeniden okutun ve siparişi tekrar gönderin.",
+  submitOrderRejected: "Sipariş kabul edilmedi. Ürünleri kontrol edip yeniden deneyin.",
   orderReceived: "Siparişiniz alındı",
   orderReceivedBody: "Mutfak hazırlığa başlayacak. Durumu bu ekrandan takip edebilirsiniz.",
   estimatedReady: "Tahmini hazır olma",

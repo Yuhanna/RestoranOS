@@ -34,6 +34,21 @@ public sealed class CustomerWebBaseUrlResolverTests
         Assert.Equal("https://menu.example.com", resolved);
     }
 
+    [Fact]
+    public void PreferredLanPrefersWifiOverHostOnlyEthernet()
+    {
+        var lan = CustomerWebBaseUrlResolver.TryGetPreferredLanIPv4();
+        if (lan is null)
+        {
+            return;
+        }
+
+        // On this Windows host, Wi-Fi is 10.x DHCP; Hyper-V/host-only often ends with .1.
+        Assert.False(
+            lan.EndsWith(".1", StringComparison.Ordinal),
+            $"Preferred LAN should not be a host-only/gateway IP (.1). Got {lan}");
+    }
+
     private sealed class TestHostEnvironment(bool isDevelopment) : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = isDevelopment ? Environments.Development : Environments.Production;

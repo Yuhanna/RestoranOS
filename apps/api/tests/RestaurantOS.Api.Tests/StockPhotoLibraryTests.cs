@@ -5,7 +5,7 @@ namespace RestaurantOS.Api.Tests;
 public sealed class StockPhotoLibraryTests
 {
     [Fact]
-    public void List_filters_by_product_name_tokens()
+    public void ListFiltersByProductNameTokens()
     {
         var contentRoot = ResolveApiContentRoot();
         var library = new StockPhotoLibrary(new TestHostEnvironment(contentRoot));
@@ -16,7 +16,7 @@ public sealed class StockPhotoLibraryTests
     }
 
     [Fact]
-    public void List_returns_empty_for_unknown_category()
+    public void ListReturnsEmptyForUnknownCategory()
     {
         var contentRoot = ResolveApiContentRoot();
         var library = new StockPhotoLibrary(new TestHostEnvironment(contentRoot));
@@ -24,6 +24,17 @@ public sealed class StockPhotoLibraryTests
         var result = library.List(null, "unknown");
 
         Assert.Empty(result.Photos);
+    }
+
+    [Fact]
+    public void ListMatchesTurkishCharactersWithoutDiacritics()
+    {
+        var contentRoot = ResolveApiContentRoot();
+        var library = new StockPhotoLibrary(new TestHostEnvironment(contentRoot));
+
+        var result = library.List("kofte", null);
+
+        Assert.Contains(result.Photos, photo => photo.Id == "kofte");
     }
 
     private static string ResolveApiContentRoot()

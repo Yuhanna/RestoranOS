@@ -370,7 +370,7 @@ function CartDialog({
   session: CustomerSession;
   lines: CartLine[];
   submitting: boolean;
-  submitError: boolean;
+  submitError: string | null;
   onClose: () => void;
   onChangeQuantity: (key: string, quantity: number) => void;
   onRemove: (key: string) => void;
@@ -403,7 +403,7 @@ function CartDialog({
           <>
             {submitError ? (
               <p className="form-error" role="alert">
-                {t.submitError}
+                {submitError}
               </p>
             ) : null}
             <Button fullWidth disabled={submitting || !navigator.onLine} onClick={onSubmit}>
@@ -593,7 +593,7 @@ function Menu({
   const [lines, setLines] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
   const [orderSessionToken, setOrderSessionToken] = useState(session.sessionToken);
   const [trackingOpen, setTrackingOpen] = useState(false);
@@ -801,7 +801,7 @@ function Menu({
 
   const submitOrder = async () => {
     setSubmitting(true);
-    setSubmitError(false);
+    setSubmitError(null);
     try {
       const submitted = await gateway.submitOrder({
         sessionToken: session.sessionToken,
@@ -820,8 +820,16 @@ function Menu({
       setCartOpen(false);
       setLines([]);
       idempotencyKey.current = createClientId();
-    } catch {
-      setSubmitError(true);
+    } catch (error) {
+      if (error instanceof CustomerGatewayError && error.code === "INVALID_SESSION") {
+        setSubmitError(t.submitSessionExpired);
+      } else if (error instanceof CustomerGatewayError && error.code === "ORDER_REJECTED") {
+        setSubmitError(t.submitOrderRejected);
+      } else if (error instanceof CustomerGatewayError && error.message.trim()) {
+        setSubmitError(error.message);
+      } else {
+        setSubmitError(t.submitError);
+      }
     } finally {
       setSubmitting(false);
     }

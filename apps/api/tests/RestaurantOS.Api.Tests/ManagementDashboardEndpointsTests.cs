@@ -105,7 +105,7 @@ public sealed class ManagementDashboardEndpointsTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<RestaurantOsDbContext>();
         await db.Database.EnsureCreatedAsync();
-        var now = SeedIds.CreatedAtUtc;
+        var now = DateTimeOffset.UtcNow;
         var role = new ManagementRole(SeedIds.Role, "RestaurantManager");
         var user = new ManagementUser(
             SeedIds.User,

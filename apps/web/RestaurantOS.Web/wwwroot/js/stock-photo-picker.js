@@ -1,4 +1,6 @@
 (() => {
+  const INITIAL_PHOTO_LIMIT = 36;
+
   const normalize = (value) =>
     (value ?? "")
       .toLocaleLowerCase("tr-TR")
@@ -32,18 +34,26 @@
   const categoryLabel = (category) => category.label ?? category.Label ?? "";
 
   const scorePhoto = (photo, queryTokens, productTokens) => {
+    const title = normalize(photoTitle(photo));
     const haystack = normalize(
       [photoTitle(photo), photoAlt(photo), ...photoTags(photo)].join(" "),
     );
     let score = 0;
     for (const token of queryTokens) {
       if (haystack.includes(token)) score += 4;
+      if (title === token || title.startsWith(`${token} `) || title.endsWith(` ${token}`)) score += 20;
     }
     for (const token of productTokens) {
       if (haystack.includes(token)) score += 6;
+      if (title === token || title.includes(token)) score += 16;
     }
-    if (photoTitle(photo) && productTokens.some((token) => normalize(photoTitle(photo)).includes(token))) {
+    if (photoTitle(photo) && productTokens.some((token) => title.includes(token))) {
       score += 8;
+    }
+    // Generic tags alone should not outrank a title match.
+    const generic = ["ana yemek", "restoran", "baslangic", "tatli", "icecek", "kahvalti"];
+    if (generic.some((g) => haystack.includes(normalize(g))) && score < 10) {
+      score = Math.max(0, score - 2);
     }
     return score;
   };
@@ -124,7 +134,10 @@
         );
 
       grid.innerHTML = "";
-      for (const { photo } of photos) {
+      const hasSearch = queryTokens.length > 0 || productTokens.length > 0;
+      const visiblePhotos = hasSearch ? photos : photos.slice(0, INITIAL_PHOTO_LIMIT);
+
+      for (const { photo } of visiblePhotos) {
         const path = photoPath(photo);
         const button = document.createElement("button");
         button.type = "button";
@@ -147,12 +160,15 @@
       }
 
       if (emptyState) {
-        emptyState.hidden = photos.length > 0;
+        emptyState.hidden = visiblePhotos.length > 0;
       }
 
       const scrollHint = root.querySelector("[data-stock-scroll-hint]");
       if (scrollHint) {
-        scrollHint.hidden = photos.length === 0;
+        scrollHint.hidden = visiblePhotos.length === 0;
+        scrollHint.textContent = hasSearch
+          ? "Daha fazla görsel için aşağı kaydırın."
+          : `İlk ${INITIAL_PHOTO_LIMIT} öneri gösteriliyor. Arama yaparak daraltın veya aşağı kaydırın.`;
       }
     };
 

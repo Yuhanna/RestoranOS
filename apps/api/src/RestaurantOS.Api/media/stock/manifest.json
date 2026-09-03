@@ -1,6 +1,6 @@
 {
-    "version": 10,
-    "license": "Unsplash License (https://unsplash.com/license)",
+    "version": 14,
+    "license": "Mixed: Wikimedia Commons (CC) and Unsplash License (https://unsplash.com/license)",
     "attribution": "See ATTRIBUTION.md in this folder.",
     "categories": [
         {
@@ -37,7 +37,7 @@
             "alt": "Izgara levrek tabak sunumu",
             "tags": [
                 "levrek",
-                "balÄ±k",
+                "balık",
                 "izgara",
                 "deniz",
                 "ana yemek",
@@ -50,12 +50,12 @@
             "id": "truflu-risotto",
             "category": "mains",
             "file": "mains/truflu-risotto.jpg",
-            "title": "TrÃ¼flÃ¼ risotto",
-            "alt": "KremalÄ± trÃ¼flÃ¼ risotto",
+            "title": "Trüflü risotto",
+            "alt": "Kremalı trüflü risotto",
             "tags": [
                 "risotto",
-                "trÃ¼f",
-                "pirinÃ§",
+                "trüf",
+                "pirinç",
                 "italyan",
                 "ana yemek",
                 "restoran"
@@ -67,7 +67,7 @@
             "category": "mains",
             "file": "mains/bonfile.jpg",
             "title": "Bonfile",
-            "alt": "Orta piÅŸmiÅŸ bonfile dilimleri",
+            "alt": "Orta pişmiş bonfile dilimleri",
             "tags": [
                 "bonfile",
                 "et",
@@ -84,20 +84,20 @@
             "category": "mains",
             "file": "mains/kebap.jpg",
             "title": "Kebap",
-            "alt": "Mangalda piÅŸen kebap ÅŸiÅŸleri",
+            "alt": "Mangalda pişen kebap şişleri",
             "tags": [
                 "kebap",
                 "et",
                 "izgara",
                 "lokanta",
                 "ana yemek",
-                "tÃ¼rk",
+                "türk",
                 "urfa kebap",
                 "urfa",
                 "beyti kebap",
                 "beyti"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Shish_kebab_%28lamb%29.jpg/960px-Shish_kebab_%28lamb%29.jpg"
         },
         {
             "id": "makarna",
@@ -119,12 +119,12 @@
             "category": "mains",
             "file": "mains/pizza.jpg",
             "title": "Pizza",
-            "alt": "FÄ±rÄ±n pizza dilimi",
+            "alt": "Fırın pizza dilimi",
             "tags": [
                 "pizza",
                 "peynir",
                 "ana yemek",
-                "fÄ±rÄ±n",
+                "fırın",
                 "italyan",
                 "karışık pizza",
                 "karisik pizza"
@@ -152,7 +152,7 @@
             "category": "mains",
             "file": "mains/tavuk-izgara.jpg",
             "title": "Izgara tavuk",
-            "alt": "Izgara tavuk gÃ¶ÄŸsÃ¼ ve garnitÃ¼r",
+            "alt": "Izgara tavuk göğsü ve garnitür",
             "tags": [
                 "tavuk",
                 "chicken",
@@ -163,7 +163,7 @@
                 "tavuk şiş",
                 "tavuk sis"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1762631934518-f75e233413ca?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Grilled_chicken_breast%2C_Santo_Domingo%2C_La_Palma.jpg/960px-Grilled_chicken_breast%2C_Santo_Domingo%2C_La_Palma.jpg"
         },
         {
             "id": "somon",
@@ -173,24 +173,24 @@
             "alt": "Izgara somon ve sebze",
             "tags": [
                 "somon",
-                "balÄ±k",
+                "balık",
                 "fish",
                 "salmon",
                 "ana yemek",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1758384077234-f91a311dcc12?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/Grilled_salmon.jpg/960px-Grilled_salmon.jpg"
         },
         {
             "id": "sushi",
             "category": "mains",
             "file": "mains/sushi.jpg",
-            "title": "Sushi tabaÄŸÄ±",
-            "alt": "KarÄ±ÅŸÄ±k sushi seÃ§kisi",
+            "title": "Sushi tabağı",
+            "alt": "Karışık sushi seçkisi",
             "tags": [
                 "sushi",
                 "japon",
-                "balÄ±k",
+                "balık",
                 "ana yemek",
                 "restoran"
             ],
@@ -206,9 +206,9 @@
                 "ramen",
                 "noodle",
                 "japon",
-                "Ã§orba",
+                "çorba",
                 "ana yemek",
-                "sÄ±cak"
+                "sıcak"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -217,7 +217,7 @@
             "category": "mains",
             "file": "mains/tacos.jpg",
             "title": "Tacos",
-            "alt": "Meksika usulÃ¼ tacos",
+            "alt": "Meksika usulü tacos",
             "tags": [
                 "tacos",
                 "meksika",
@@ -225,7 +225,7 @@
                 "bar",
                 "sokak"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Tacos.jpg"
         },
         {
             "id": "kuzu-pirzola",
@@ -250,7 +250,7 @@
             "category": "mains",
             "file": "mains/wagyu.jpg",
             "title": "Wagyu biftek",
-            "alt": "DilimlenmiÅŸ wagyu biftek",
+            "alt": "Dilimlenmiş wagyu biftek",
             "tags": [
                 "wagyu",
                 "biftek",
@@ -265,60 +265,60 @@
             "id": "kofte",
             "category": "mains",
             "file": "mains/kofte.jpg",
-            "title": "KÃ¶fte",
-            "alt": "Soslu kÃ¶fte tabaÄŸÄ±",
+            "title": "Köfte",
+            "alt": "Soslu köfte tabağı",
             "tags": [
-                "kÃ¶fte",
+                "köfte",
                 "kofte",
                 "et",
                 "lokanta",
-                "tÃ¼rk",
+                "türk",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/Izmir_kofte.jpg/960px-Izmir_kofte.jpg"
         },
         {
             "id": "lahmacun",
             "category": "mains",
             "file": "mains/lahmacun.jpg",
             "title": "Lahmacun",
-            "alt": "KÄ±ymalÄ± ince lahmacun",
+            "alt": "Kıymalı ince lahmacun",
             "tags": [
                 "lahmacun",
-                "tÃ¼rk",
+                "türk",
                 "lokanta",
                 "ana yemek",
-                "fÄ±rÄ±n",
+                "fırın",
                 "kıymalı pide",
                 "kiymali pide"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Lahmacun.jpg/960px-Lahmacun.jpg"
         },
         {
             "id": "wrap",
             "category": "mains",
             "file": "mains/wrap.jpg",
-            "title": "DÃ¼rÃ¼m wrap",
-            "alt": "Etli dÃ¼rÃ¼m wrap",
+            "title": "Dürüm wrap",
+            "alt": "Etli dürüm wrap",
             "tags": [
                 "wrap",
-                "dÃ¼rÃ¼m",
+                "dürüm",
                 "tavuk",
                 "fast food",
                 "kafe",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1627042633145-b780d842ba45?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f1/D%C3%BCr%C3%BCm_D%C3%B6ner.jpg"
         },
         {
             "id": "paella",
             "category": "mains",
             "file": "mains/paella.jpg",
             "title": "Paella",
-            "alt": "Deniz Ã¼rÃ¼nlÃ¼ paella",
+            "alt": "Deniz ürünlü paella",
             "tags": [
                 "paella",
-                "pirinÃ§",
+                "pirinç",
                 "deniz",
                 "ispanyol",
                 "ana yemek",
@@ -331,11 +331,11 @@
             "category": "mains",
             "file": "mains/pide.jpg",
             "title": "Pide",
-            "alt": "KÄ±ymalÄ± TÃ¼rk pidesi",
+            "alt": "Kıymalı Türk pidesi",
             "tags": [
                 "pide",
-                "tÃ¼rk",
-                "fÄ±rÄ±n",
+                "türk",
+                "fırın",
                 "lokanta",
                 "ana yemek",
                 "hamur",
@@ -343,75 +343,75 @@
                 "kasarli pide",
                 "kıymalı pide"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1627662236973-4fd8358fa206?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Turkish_pide.jpg/960px-Turkish_pide.jpg"
         },
         {
             "id": "adana-kebap",
             "category": "mains",
             "file": "mains/adana-kebap.jpg",
             "title": "Adana kebap",
-            "alt": "Izgara adana kebap ÅŸiÅŸ",
+            "alt": "Izgara adana kebap şiş",
             "tags": [
                 "adana",
                 "kebap",
-                "ÅŸiÅŸ",
+                "şiş",
                 "izgara",
                 "lokanta",
-                "tÃ¼rk",
+                "türk",
                 "ana yemek",
                 "urfa kebap"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Adana_kebab.jpg/960px-Adana_kebab.jpg"
         },
         {
             "id": "doner-durum",
             "category": "mains",
             "file": "mains/doner-durum.jpg",
-            "title": "DÃ¶ner dÃ¼rÃ¼m",
-            "alt": "Et dÃ¶ner dÃ¼rÃ¼m",
+            "title": "Döner dürüm",
+            "alt": "Et döner dürüm",
             "tags": [
-                "dÃ¶ner",
+                "döner",
                 "doner",
-                "dÃ¼rÃ¼m",
+                "dürüm",
                 "wrap",
                 "lokanta",
-                "tÃ¼rk",
+                "türk",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1627042633145-b780d842ba45?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f1/D%C3%BCr%C3%BCm_D%C3%B6ner.jpg"
         },
         {
             "id": "pilav",
             "category": "mains",
             "file": "mains/pilav.jpg",
             "title": "Pilav",
-            "alt": "TereyaÄŸlÄ± pilav",
+            "alt": "Tereyağlı pilav",
             "tags": [
                 "pilav",
-                "pirinÃ§",
+                "pirinç",
                 "rice",
                 "lokanta",
-                "tÃ¼rk",
+                "türk",
                 "ana yemek",
-                "garnitÃ¼r"
+                "garnitür"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1536304929831-ee1ca9d44906?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Turkish_Pilaf_Rice_-_degustation_-_Ottoman_Cuisine_%283061206332%29.jpg/960px-Turkish_Pilaf_Rice_-_degustation_-_Ottoman_Cuisine_%283061206332%29.jpg"
         },
         {
             "id": "balik-tava",
             "category": "mains",
             "file": "mains/balik-tava.jpg",
-            "title": "BalÄ±k tava",
-            "alt": "Somondan balÄ±k tabaÄŸÄ±",
+            "title": "Balık tava",
+            "alt": "Somondan balık tabağı",
             "tags": [
-                "balÄ±k",
+                "balık",
                 "tava",
                 "fish",
                 "deniz",
                 "ana yemek",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1597075687490-8f673c6c17f6?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Fried_fish.jpg/960px-Fried_fish.jpg"
         },
         {
             "id": "burrito",
@@ -433,7 +433,7 @@
             "category": "mains",
             "file": "mains/lasagna.jpg",
             "title": "Lazanya",
-            "alt": "FÄ±rÄ±n lazanya tabaÄŸÄ±",
+            "alt": "Fırın lazanya tabağı",
             "tags": [
                 "lazanya",
                 "lasagna",
@@ -449,9 +449,9 @@
             "category": "mains",
             "file": "mains/club-sandwich.jpg",
             "title": "Club sandwich",
-            "alt": "KatmanlÄ± club sandwich",
+            "alt": "Katmanlı club sandwich",
             "tags": [
-                "sandviÃ§",
+                "sandviç",
                 "club sandwich",
                 "tavuk",
                 "ana yemek",
@@ -463,45 +463,45 @@
             "id": "iskender",
             "category": "mains",
             "file": "mains/iskender.jpg",
-            "title": "Ä°skender",
-            "alt": "YoÄŸurtlu dÃ¶ner Ä°skender tabaÄŸÄ±",
+            "title": "İskender",
+            "alt": "Yoğurtlu döner İskender tabağı",
             "tags": [
                 "iskender",
-                "dÃ¶ner",
+                "döner",
                 "kebap",
-                "tÃ¼rk",
+                "türk",
                 "lokanta",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1600891964092-4316c288032e?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/3/38/Iskender_kebap.jpg"
         },
         {
             "id": "manti",
             "category": "mains",
             "file": "mains/manti.jpg",
-            "title": "MantÄ±",
-            "alt": "YoÄŸurtlu mantÄ± tabaÄŸÄ±",
+            "title": "Mantı",
+            "alt": "Yoğurtlu mantı tabağı",
             "tags": [
-                "mantÄ±",
+                "mantı",
                 "manti",
-                "tÃ¼rk",
+                "türk",
                 "lokanta",
                 "ana yemek",
                 "hamur"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1628268909376-e8c44bb3153f?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Manti_in_a_metal_plate.jpg/960px-Manti_in_a_metal_plate.jpg"
         },
         {
             "id": "borek",
             "category": "mains",
             "file": "mains/borek.jpg",
-            "title": "BÃ¶rek",
-            "alt": "Taze piÅŸmiÅŸ bÃ¶rek",
+            "title": "Börek",
+            "alt": "Taze pişmiş börek",
             "tags": [
-                "bÃ¶rek",
+                "börek",
                 "borek",
                 "hamur",
-                "tÃ¼rk",
+                "türk",
                 "lokanta",
                 "ana yemek",
                 "peynir",
@@ -510,37 +510,37 @@
                 "paçanga böreği",
                 "sigara böreği"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1601050690597-df0568f70950?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/Various_b%C3%B6reks_in_Turkey.jpg/960px-Various_b%C3%B6reks_in_Turkey.jpg"
         },
         {
             "id": "meze-tabagi",
             "category": "starters",
             "file": "starters/meze-tabagi.jpg",
-            "title": "Meze tabaÄŸÄ±",
-            "alt": "Renkli meze ve salata tabaÄŸÄ±",
+            "title": "Meze tabağı",
+            "alt": "Renkli meze ve salata tabağı",
             "tags": [
                 "meze",
                 "salata",
-                "baÅŸlangÄ±Ã§",
+                "başlangıç",
                 "starter",
                 "lokanta",
-                "tÃ¼rk",
+                "türk",
                 "paçanga",
                 "icli kofte"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1580069491658-8220b0e8722d?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/Turkish_Meze_Plate.jpg/960px-Turkish_Meze_Plate.jpg"
         },
         {
             "id": "ege-otlari",
             "category": "starters",
             "file": "starters/ege-otlari.jpg",
-            "title": "Ege otlarÄ± salatasÄ±",
-            "alt": "Taze yeÅŸillik salatasÄ±",
+            "title": "Ege otları salatası",
+            "alt": "Taze yeşillik salatası",
             "tags": [
                 "salata",
-                "yeÅŸillik",
+                "yeşillik",
                 "ege",
-                "baÅŸlangÄ±Ã§",
+                "başlangıç",
                 "vegan",
                 "restoran"
             ],
@@ -550,30 +550,30 @@
             "id": "corba",
             "category": "starters",
             "file": "starters/corba.jpg",
-            "title": "Ã‡orba",
-            "alt": "SÄ±cak Ã§orba kasesi",
+            "title": "Çorba",
+            "alt": "Sıcak çorba kasesi",
             "tags": [
-                "Ã§orba",
+                "çorba",
                 "corba",
                 "soup",
-                "baÅŸlangÄ±Ã§",
+                "başlangıç",
                 "lokanta",
-                "sÄ±cak"
+                "sıcak"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Lentil_soup_done.jpg/960px-Lentil_soup_done.jpg"
         },
         {
             "id": "midye",
             "category": "starters",
             "file": "starters/midye.jpg",
             "title": "Midye",
-            "alt": "Buharda midye tabaÄŸÄ±",
+            "alt": "Buharda midye tabağı",
             "tags": [
                 "midye",
                 "deniz",
-                "baÅŸlangÄ±Ã§",
+                "başlangıç",
                 "restoran",
-                "balÄ±k"
+                "balık"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1785031728396-c88b166a9517?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -586,11 +586,11 @@
             "tags": [
                 "bruschetta",
                 "italyan",
-                "baÅŸlangÄ±Ã§",
+                "başlangıç",
                 "restoran",
                 "vegan"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1761315414017-04c3906359d1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Bruschetta.jpg/960px-Bruschetta.jpg"
         },
         {
             "id": "nachos",
@@ -601,9 +601,9 @@
             "tags": [
                 "nachos",
                 "bar",
-                "baÅŸlangÄ±Ã§",
-                "paylaÅŸÄ±mlÄ±k",
-                "atÄ±ÅŸtÄ±rmalÄ±k"
+                "başlangıç",
+                "paylaşımlık",
+                "atıştırmalık"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1695886135860-2fe067db2fb8?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -612,30 +612,30 @@
             "category": "starters",
             "file": "starters/hummus.jpg",
             "title": "Humus",
-            "alt": "ZeytinyaÄŸlÄ± humus tabaÄŸÄ±",
+            "alt": "Zeytinyağlı humus tabağı",
             "tags": [
                 "humus",
                 "hummus",
                 "meze",
-                "baÅŸlangÄ±Ã§",
+                "başlangıç",
                 "vegan",
                 "lokanta"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/Hummus_plate.jpg/960px-Hummus_plate.jpg"
         },
         {
             "id": "patates-kizartmasi",
             "category": "starters",
             "file": "starters/patates-kizartmasi.jpg",
-            "title": "Patates kÄ±zartmasÄ±",
-            "alt": "Ã‡Ä±tÄ±r patates kÄ±zartmasÄ±",
+            "title": "Patates kızartması",
+            "alt": "Çıtır patates kızartması",
             "tags": [
                 "patates",
-                "kÄ±zartma",
+                "kızartma",
                 "fries",
                 "bar",
-                "baÅŸlangÄ±Ã§",
-                "atÄ±ÅŸtÄ±rmalÄ±k"
+                "başlangıç",
+                "atıştırmalık"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1611456338118-5b6bdc430072?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -644,11 +644,11 @@
             "category": "starters",
             "file": "starters/carpaccio.jpg",
             "title": "Carpaccio",
-            "alt": "Ä°nce dilim et carpaccio",
+            "alt": "İnce dilim et carpaccio",
             "tags": [
                 "carpaccio",
                 "et",
-                "baÅŸlangÄ±Ã§",
+                "başlangıç",
                 "restoran",
                 "italyan"
             ],
@@ -659,13 +659,13 @@
             "category": "starters",
             "file": "starters/caprese.jpg",
             "title": "Caprese salata",
-            "alt": "Domates, mozarella ve fesleÄŸen",
+            "alt": "Domates, mozarella ve fesleğen",
             "tags": [
                 "caprese",
                 "salata",
                 "mozzarella",
                 "italyan",
-                "baÅŸlangÄ±Ã§",
+                "başlangıç",
                 "meze",
                 "ton balıklı salata",
                 "ton balikli salata"
@@ -677,12 +677,12 @@
             "category": "starters",
             "file": "starters/kalamar.jpg",
             "title": "Kalamar tava",
-            "alt": "KÄ±zarmÄ±ÅŸ kalamar halkalarÄ±",
+            "alt": "Kızarmış kalamar halkaları",
             "tags": [
                 "kalamar",
                 "deniz",
                 "tava",
-                "baÅŸlangÄ±Ã§",
+                "başlangıç",
                 "meze",
                 "restoran"
             ],
@@ -693,32 +693,32 @@
             "category": "starters",
             "file": "starters/spring-rolls.jpg",
             "title": "Spring roll",
-            "alt": "Ã‡Ä±tÄ±r spring roll",
+            "alt": "Çıtır spring roll",
             "tags": [
                 "spring roll",
                 "asya",
-                "baÅŸlangÄ±Ã§",
-                "Ã§Ä±tÄ±r",
+                "başlangıç",
+                "çıtır",
                 "meze"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Spring_rolls.jpg/960px-Spring_rolls.jpg"
         },
         {
             "id": "mercimek-corbasi",
             "category": "starters",
             "file": "starters/mercimek-corbasi.jpg",
-            "title": "Mercimek Ã§orbasÄ±",
-            "alt": "KÄ±rmÄ±zÄ± mercimek Ã§orbasÄ± kasesi",
+            "title": "Mercimek çorbası",
+            "alt": "Kırmızı mercimek çorbası kasesi",
             "tags": [
                 "mercimek",
-                "Ã§orba",
+                "çorba",
                 "corba",
-                "tÃ¼rk",
+                "türk",
                 "lokanta",
-                "baÅŸlangÄ±Ã§",
-                "sÄ±cak"
+                "başlangıç",
+                "sıcak"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Mercimek_%C3%A7orbas%C4%B1.jpg/960px-Mercimek_%C3%A7orbas%C4%B1.jpg"
         },
         {
             "id": "kahvalti-tabagi",
@@ -727,7 +727,7 @@
             "title": "Kahvalti tabagi",
             "alt": "Turk kahvalti tabagi",
             "tags": [
-                "kahvaltÄ±",
+                "kahvaltı",
                 "breakfast",
                 "kafe",
                 "peynir",
@@ -741,29 +741,29 @@
             "category": "breakfast",
             "file": "breakfast/pankek.jpg",
             "title": "Pankek",
-            "alt": "AkÃ§aaÄŸaÃ§ ÅŸuruplu pankek",
+            "alt": "Akçaağaç şuruplu pankek",
             "tags": [
                 "pankek",
                 "pancake",
-                "kahvaltÄ±",
+                "kahvaltı",
                 "kafe",
-                "tatlÄ±",
+                "tatlı",
                 "sabah"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Pancake_with_maple_syrup_1.jpg/960px-Pancake_with_maple_syrup_1.jpg"
         },
         {
             "id": "kruvasan",
             "category": "breakfast",
             "file": "breakfast/kruvasan.jpg",
             "title": "Kruvasan",
-            "alt": "TereyaÄŸlÄ± kruvasan",
+            "alt": "Tereyağlı kruvasan",
             "tags": [
                 "kruvasan",
                 "croissant",
                 "kafe",
-                "kahvaltÄ±",
-                "fÄ±rÄ±n",
+                "kahvaltı",
+                "fırın",
                 "sabah"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=960&h=640&fit=crop&auto=format&q=85"
@@ -773,43 +773,43 @@
             "category": "breakfast",
             "file": "breakfast/menemen.jpg",
             "title": "Menemen",
-            "alt": "TÃ¼rk kahvaltÄ±sÄ± yumurta ve sebze tabaÄŸÄ±",
+            "alt": "Türk kahvaltısı yumurta ve sebze tabağı",
             "tags": [
                 "menemen",
                 "yumurta",
-                "kahvaltÄ±",
+                "kahvaltı",
                 "lokanta",
-                "tÃ¼rk",
+                "türk",
                 "sabah"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1678983839772-3642df88d2c1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/Menemen_in_pan.jpg/960px-Menemen_in_pan.jpg"
         },
         {
             "id": "omlet",
             "category": "breakfast",
             "file": "breakfast/omlet.jpg",
             "title": "Omlet",
-            "alt": "Renkli kahvaltÄ± sofrasÄ±",
+            "alt": "Renkli kahvaltı sofrası",
             "tags": [
                 "omlet",
                 "omelette",
                 "yumurta",
-                "kahvaltÄ±",
+                "kahvaltı",
                 "kafe",
                 "sabah"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/A_potato_omelette.jpg/960px-A_potato_omelette.jpg"
         },
         {
             "id": "avokado-toast",
             "category": "breakfast",
             "file": "breakfast/avokado-toast.jpg",
             "title": "Avokado toast",
-            "alt": "Avokado ve ekÅŸi mayalÄ± toast",
+            "alt": "Avokado ve ekşi mayalı toast",
             "tags": [
                 "avokado",
                 "toast",
-                "kahvaltÄ±",
+                "kahvaltı",
                 "kafe",
                 "vegan",
                 "brunch"
@@ -821,14 +821,14 @@
             "category": "breakfast",
             "file": "breakfast/waffle.jpg",
             "title": "Waffle",
-            "alt": "AkÃ§aaÄŸaÃ§ ÅŸuruplu waffle",
+            "alt": "Akçaağaç şuruplu waffle",
             "tags": [
                 "waffle",
-                "kahvaltÄ±",
-                "tatlÄ±",
+                "kahvaltı",
+                "tatlı",
                 "kafe",
                 "brunch",
-                "sÄ±cak"
+                "sıcak"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1713759980312-bb9fa81d1c7a?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -837,32 +837,32 @@
             "category": "breakfast",
             "file": "breakfast/simit.jpg",
             "title": "Simit",
-            "alt": "SusamlÄ± taze simit",
+            "alt": "Susamlı taze simit",
             "tags": [
                 "simit",
-                "kahvaltÄ±",
-                "tÃ¼rk",
-                "fÄ±rÄ±n",
+                "kahvaltı",
+                "türk",
+                "fırın",
                 "kafe",
                 "peynir"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Simit.jpg/960px-Simit.jpg"
         },
         {
             "id": "gozleme",
             "category": "breakfast",
             "file": "breakfast/gozleme.jpg",
-            "title": "GÃ¶zleme",
-            "alt": "Sacda piÅŸmiÅŸ gÃ¶zleme",
+            "title": "Gözleme",
+            "alt": "Sacda pişmiş gözleme",
             "tags": [
-                "gÃ¶zleme",
+                "gözleme",
                 "gozleme",
-                "kahvaltÄ±",
-                "tÃ¼rk",
+                "kahvaltı",
+                "türk",
                 "lokanta",
                 "hamur"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1777315387678-1f503093a13e?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/G%C3%B6zleme.JPG/960px-G%C3%B6zleme.JPG"
         },
         {
             "id": "cheesecake",
@@ -872,7 +872,7 @@
             "alt": "Cheesecake dilimi",
             "tags": [
                 "cheesecake",
-                "tatlÄ±",
+                "tatlı",
                 "dessert",
                 "kafe",
                 "peynir"
@@ -883,12 +883,12 @@
             "id": "cikolatali-fondan",
             "category": "desserts",
             "file": "desserts/cikolatali-fondan.jpg",
-            "title": "Ã‡ikolatalÄ± fondan",
-            "alt": "AkÄ±ÅŸkan Ã§ikolatalÄ± fondan",
+            "title": "Çikolatalı fondan",
+            "alt": "Akışkan çikolatalı fondan",
             "tags": [
-                "Ã§ikolata",
+                "çikolata",
                 "fondan",
-                "tatlÄ±",
+                "tatlı",
                 "restoran",
                 "chocolate"
             ],
@@ -902,7 +902,7 @@
             "alt": "Tiramisu dilimi",
             "tags": [
                 "tiramisu",
-                "tatlÄ±",
+                "tatlı",
                 "italyan",
                 "kafe",
                 "dessert"
@@ -914,29 +914,29 @@
             "category": "desserts",
             "file": "desserts/baklava.jpg",
             "title": "Baklava",
-            "alt": "FÄ±stÄ±klÄ± baklava",
+            "alt": "Fıstıklı baklava",
             "tags": [
                 "baklava",
-                "tatlÄ±",
-                "tÃ¼rk",
+                "tatlı",
+                "türk",
                 "lokanta",
-                "fÄ±stÄ±k",
+                "fıstık",
                 "dessert"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1777543236646-b36f83fef810?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Baklava.jpg"
         },
         {
             "id": "dondurma",
             "category": "desserts",
             "file": "desserts/dondurma.jpg",
             "title": "Dondurma",
-            "alt": "Renkli dondurma toplarÄ±",
+            "alt": "Renkli dondurma topları",
             "tags": [
                 "dondurma",
                 "ice cream",
-                "tatlÄ±",
+                "tatlı",
                 "kafe",
-                "soÄŸuk"
+                "soğuk"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -945,11 +945,11 @@
             "category": "desserts",
             "file": "desserts/brownie.jpg",
             "title": "Brownie",
-            "alt": "Ã‡ikolatalÄ± brownie dilimi",
+            "alt": "Çikolatalı brownie dilimi",
             "tags": [
                 "brownie",
-                "Ã§ikolata",
-                "tatlÄ±",
+                "çikolata",
+                "tatlı",
                 "kafe",
                 "dessert"
             ],
@@ -959,28 +959,28 @@
             "id": "kunefe",
             "category": "desserts",
             "file": "desserts/kunefe.jpg",
-            "title": "KÃ¼nefe",
-            "alt": "FÄ±stÄ±klÄ± ÅŸerbetli tatlÄ±",
+            "title": "Künefe",
+            "alt": "Fıstıklı şerbetli tatlı",
             "tags": [
-                "kÃ¼nefe",
+                "künefe",
                 "kunefe",
-                "tatlÄ±",
-                "tÃ¼rk",
+                "tatlı",
+                "türk",
                 "lokanta",
                 "peynir"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1778448806128-18e8354356e1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/Knafeh.jpg/960px-Knafeh.jpg"
         },
         {
             "id": "profiterol",
             "category": "desserts",
             "file": "desserts/profiterol.jpg",
             "title": "Profiterol",
-            "alt": "Ã‡ikolata soslu profiterol",
+            "alt": "Çikolata soslu profiterol",
             "tags": [
                 "profiterol",
-                "Ã§ikolata",
-                "tatlÄ±",
+                "çikolata",
+                "tatlı",
                 "kafe",
                 "dessert"
             ],
@@ -991,14 +991,14 @@
             "category": "desserts",
             "file": "desserts/macaron.jpg",
             "title": "Makaron",
-            "alt": "Renkli FransÄ±z makaronlarÄ±",
+            "alt": "Renkli Fransız makaronları",
             "tags": [
                 "makaron",
                 "macaron",
-                "tatlÄ±",
+                "tatlı",
                 "kafe",
                 "dessert",
-                "fransÄ±z"
+                "fransız"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1702747558545-68b3dbbdc46e?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -1007,12 +1007,12 @@
             "category": "desserts",
             "file": "desserts/lava-cake.jpg",
             "title": "Sufle / lava cake",
-            "alt": "Ã‡ikolatalÄ± lava cake",
+            "alt": "Çikolatalı lava cake",
             "tags": [
                 "lava cake",
                 "sufle",
-                "Ã§ikolata",
-                "tatlÄ±",
+                "çikolata",
+                "tatlı",
                 "kafe",
                 "dessert"
             ],
@@ -1026,26 +1026,26 @@
             "alt": "Meyveli panna cotta",
             "tags": [
                 "panna cotta",
-                "tatlÄ±",
+                "tatlı",
                 "italyan",
                 "kafe",
                 "dessert",
                 "krem"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1624353365286-3f8d62daad51?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/Panna_cotta.jpg/960px-Panna_cotta.jpg"
         },
         {
             "id": "kahve",
             "category": "drinks",
             "file": "drinks/kahve.jpg",
             "title": "Kahve",
-            "alt": "Latte art kahve fincanÄ±",
+            "alt": "Latte art kahve fincanı",
             "tags": [
                 "kahve",
                 "coffee",
-                "iÃ§ecek",
+                "içecek",
                 "kafe",
-                "sÄ±cak",
+                "sıcak",
                 "latte"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=960&h=640&fit=crop&auto=format&q=85"
@@ -1055,14 +1055,14 @@
             "category": "drinks",
             "file": "drinks/espresso.jpg",
             "title": "Espresso",
-            "alt": "Espresso fincanÄ±",
+            "alt": "Espresso fincanı",
             "tags": [
                 "espresso",
                 "kahve",
                 "coffee",
                 "kafe",
-                "sÄ±cak",
-                "iÃ§ecek"
+                "sıcak",
+                "içecek"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -1070,18 +1070,18 @@
             "id": "cay",
             "category": "drinks",
             "file": "drinks/cay.jpg",
-            "title": "Ã‡ay",
-            "alt": "Ince belli Ã§ay bardaÄŸÄ±",
+            "title": "Çay",
+            "alt": "Ince belli çay bardağı",
             "tags": [
-                "Ã§ay",
+                "çay",
                 "cay",
                 "tea",
-                "tÃ¼rk",
+                "türk",
                 "lokanta",
-                "sÄ±cak",
-                "iÃ§ecek"
+                "sıcak",
+                "içecek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1552320764-9fc870798a3f?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/Turkish_tea_glass.jpg/960px-Turkish_tea_glass.jpg"
         },
         {
             "id": "kokteyl",
@@ -1093,8 +1093,8 @@
                 "kokteyl",
                 "cocktail",
                 "bar",
-                "iÃ§ecek",
-                "soÄŸuk",
+                "içecek",
+                "soğuk",
                 "alkol",
                 "mojito margarita"
             ],
@@ -1105,14 +1105,14 @@
             "category": "drinks",
             "file": "drinks/mojito.jpg",
             "title": "Mojito",
-            "alt": "Nane yapraklÄ± mojito",
+            "alt": "Nane yapraklı mojito",
             "tags": [
                 "mojito",
                 "kokteyl",
                 "bar",
                 "nane",
-                "iÃ§ecek",
-                "soÄŸuk"
+                "içecek",
+                "soğuk"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1775717427643-2b0fc39a81f8?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -1126,7 +1126,7 @@
                 "negroni",
                 "kokteyl",
                 "bar",
-                "iÃ§ecek",
+                "içecek",
                 "alkol",
                 "restoran"
             ],
@@ -1136,10 +1136,10 @@
             "id": "sarap",
             "category": "drinks",
             "file": "drinks/sarap.jpg",
-            "title": "Åarap",
-            "alt": "KÄ±rmÄ±zÄ± ÅŸarap kadehi",
+            "title": "Şarap",
+            "alt": "Kırmızı şarap kadehi",
             "tags": [
-                "ÅŸarap",
+                "şarap",
                 "sarap",
                 "wine",
                 "bar",
@@ -1151,20 +1151,20 @@
                 "kirmizi sarap",
                 "şarap kadeh"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1758384077555-36242d3f2b4d?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4b/Glass_of_red_wine.jpg/960px-Glass_of_red_wine.jpg"
         },
         {
             "id": "bira",
             "category": "drinks",
             "file": "drinks/bira.jpg",
             "title": "Bira",
-            "alt": "SoÄŸuk bira bardaÄŸÄ±",
+            "alt": "Soğuk bira bardağı",
             "tags": [
                 "bira",
                 "beer",
                 "bar",
-                "iÃ§ecek",
-                "soÄŸuk",
+                "içecek",
+                "soğuk",
                 "alkol"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1667205248428-407f6ee39377?w=960&h=640&fit=crop&auto=format&q=85"
@@ -1179,7 +1179,7 @@
                 "viski",
                 "whiskey",
                 "bar",
-                "iÃ§ecek",
+                "içecek",
                 "alkol",
                 "restoran"
             ],
@@ -1197,7 +1197,7 @@
                 "juice",
                 "kafe",
                 "taze",
-                "iÃ§ecek"
+                "içecek"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -1205,28 +1205,28 @@
             "id": "greyfurt",
             "category": "drinks",
             "file": "drinks/greyfurt.jpg",
-            "title": "Greyfurt iÃ§eceÄŸi",
-            "alt": "SoÄŸuk greyfurt iÃ§eceÄŸi",
+            "title": "Greyfurt içeceği",
+            "alt": "Soğuk greyfurt içeceği",
             "tags": [
                 "greyfurt",
-                "iÃ§ecek",
-                "soÄŸuk",
+                "içecek",
+                "soğuk",
                 "juice",
                 "kafe"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1605270012917-bf157c5a9541?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e6/Self-made_gin_pink_grapefruit_long_drink.jpg/960px-Self-made_gin_pink_grapefruit_long_drink.jpg"
         },
         {
             "id": "limonata",
             "category": "drinks",
             "file": "drinks/limonata.jpg",
             "title": "Limonata",
-            "alt": "Ev yapÄ±mÄ± limonata",
+            "alt": "Ev yapımı limonata",
             "tags": [
                 "limonata",
                 "limon",
-                "iÃ§ecek",
-                "soÄŸuk",
+                "içecek",
+                "soğuk",
                 "kafe",
                 "lokanta"
             ],
@@ -1241,37 +1241,37 @@
             "tags": [
                 "smoothie",
                 "meyve",
-                "iÃ§ecek",
+                "içecek",
                 "kafe",
-                "soÄŸuk",
-                "saÄŸlÄ±klÄ±"
+                "soğuk",
+                "sağlıklı"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1743136708627-1f0be177e4c5?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/Fruit_smoothie.jpg/960px-Fruit_smoothie.jpg"
         },
         {
             "id": "ayran",
             "category": "drinks",
             "file": "drinks/ayran.jpg",
             "title": "Ayran",
-            "alt": "KÃ¶pÃ¼klÃ¼ ayran bardaÄŸÄ±",
+            "alt": "Köpüklü ayran bardağı",
             "tags": [
                 "ayran",
-                "yoÄŸurt",
-                "tÃ¼rk",
+                "yoğurt",
+                "türk",
                 "lokanta",
-                "iÃ§ecek",
-                "soÄŸuk"
+                "içecek",
+                "soğuk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Naneli_ayran_-_Dara.jpg/960px-Naneli_ayran_-_Dara.jpg"
         },
         {
             "id": "sampanya",
             "category": "drinks",
             "file": "drinks/sampanya.jpg",
-            "title": "Åampanya",
-            "alt": "Kadehte ÅŸampanya",
+            "title": "Şampanya",
+            "alt": "Kadehte şampanya",
             "tags": [
-                "ÅŸampanya",
+                "şampanya",
                 "champagne",
                 "bar",
                 "restoran",
@@ -1284,16 +1284,16 @@
             "id": "turk-kahvesi",
             "category": "drinks",
             "file": "drinks/turk-kahvesi.jpg",
-            "title": "TÃ¼rk kahvesi",
-            "alt": "Geleneksel TÃ¼rk kahvesi fincanÄ±",
+            "title": "Türk kahvesi",
+            "alt": "Geleneksel Türk kahvesi fincanı",
             "tags": [
-                "tÃ¼rk kahvesi",
+                "türk kahvesi",
                 "kahve",
                 "coffee",
-                "tÃ¼rk",
+                "türk",
                 "lokanta",
-                "sÄ±cak",
-                "iÃ§ecek"
+                "sıcak",
+                "içecek"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1757079649052-a24c6ab32c64?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -1302,14 +1302,14 @@
             "category": "drinks",
             "file": "drinks/cappuccino.jpg",
             "title": "Cappuccino",
-            "alt": "KÃ¶pÃ¼klÃ¼ cappuccino fincanÄ±",
+            "alt": "Köpüklü cappuccino fincanı",
             "tags": [
                 "cappuccino",
                 "kahve",
                 "coffee",
                 "kafe",
-                "sÄ±cak",
-                "iÃ§ecek"
+                "sıcak",
+                "içecek"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1518810300173-625a9c46f7d2?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -1323,23 +1323,23 @@
                 "margarita",
                 "kokteyl",
                 "bar",
-                "iÃ§ecek",
+                "içecek",
                 "alkol",
                 "lime"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1753263439663-9a3aaf952da7?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c9/Margarita_with_lime_in_a_margarita_glass_-_Evan_Swigart.jpg"
         },
         {
             "id": "buzlu-cay",
             "category": "drinks",
             "file": "drinks/buzlu-cay.jpg",
-            "title": "Buzlu Ã§ay",
-            "alt": "SoÄŸuk buzlu Ã§ay bardaÄŸÄ±",
+            "title": "Buzlu çay",
+            "alt": "Soğuk buzlu çay bardağı",
             "tags": [
-                "buzlu Ã§ay",
+                "buzlu çay",
                 "ice tea",
-                "iÃ§ecek",
-                "soÄŸuk",
+                "içecek",
+                "soğuk",
                 "kafe",
                 "limon",
                 "soğuk çay"
@@ -1357,9 +1357,9 @@
                 "kahve",
                 "coffee",
                 "kafe",
-                "sÄ±cak",
-                "iÃ§ecek",
-                "sÃ¼t"
+                "sıcak",
+                "içecek",
+                "süt"
             ],
             "sourceUrl": "https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=960&h=640&fit=crop&auto=format&q=85"
         },
@@ -1367,17 +1367,17 @@
             "id": "sicak-cikolata",
             "category": "drinks",
             "file": "drinks/sicak-cikolata.jpg",
-            "title": "SÄ±cak Ã§ikolata",
-            "alt": "KremalÄ± sÄ±cak Ã§ikolata",
+            "title": "Sıcak çikolata",
+            "alt": "Kremalı sıcak çikolata",
             "tags": [
-                "sÄ±cak Ã§ikolata",
-                "Ã§ikolata",
-                "iÃ§ecek",
+                "sıcak çikolata",
+                "çikolata",
+                "içecek",
                 "kafe",
-                "sÄ±cak",
-                "kÄ±ÅŸ"
+                "sıcak",
+                "kış"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Hot_chocolate.jpg/960px-Hot_chocolate.jpg"
         },
         {
             "id": "iskender-2",
@@ -1393,7 +1393,7 @@
                 "lokanta",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1600891964092-4316c288032e?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/3/38/Iskender_kebap.jpg"
         },
         {
             "id": "iskender-3",
@@ -1455,7 +1455,7 @@
                 "lokanta",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Lahmacun.jpg/960px-Lahmacun.jpg"
         },
         {
             "id": "pide-2",
@@ -1472,7 +1472,7 @@
                 "kaşarlı pide",
                 "kusbasili pide"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1627662236973-4fd8358fa206?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Turkish_pide.jpg/960px-Turkish_pide.jpg"
         },
         {
             "id": "doner-durum-2",
@@ -1488,7 +1488,7 @@
                 "bufe",
                 "fast food"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1627042633145-b780d842ba45?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f1/D%C3%BCr%C3%BCm_D%C3%B6ner.jpg"
         },
         {
             "id": "kofte-2",
@@ -1519,7 +1519,7 @@
                 "lokanta",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1628268909376-e8c44bb3153f?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Manti_in_a_metal_plate.jpg/960px-Manti_in_a_metal_plate.jpg"
         },
         {
             "id": "karisik-izgara",
@@ -1554,7 +1554,7 @@
                 "ana yemek",
                 "beyti kebap"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1627042633145-b780d842ba45?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f1/D%C3%BCr%C3%BCm_D%C3%B6ner.jpg"
         },
         {
             "id": "kumpir",
@@ -1569,7 +1569,7 @@
                 "sokak",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Kumpir_-_Turkish_Cuisine.jpg/960px-Kumpir_-_Turkish_Cuisine.jpg"
         },
         {
             "id": "guvec",
@@ -1590,7 +1590,7 @@
                 "hunkar begendi",
                 "ev yemeği"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Etli_g%C3%BCve%C3%A7.jpg/960px-Etli_g%C3%BCve%C3%A7.jpg"
         },
         {
             "id": "dolma",
@@ -1608,7 +1608,7 @@
                 "karnıyarık",
                 "karniyarik"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1606787366850-de6330128bfc?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Yaprak_sarma.jpg/960px-Yaprak_sarma.jpg"
         },
         {
             "id": "karides",
@@ -1717,7 +1717,7 @@
                 "başlangıç",
                 "meze"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1777199298385-07e46ccc2004?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Fried_calamari.jpg/960px-Fried_calamari.jpg"
         },
         {
             "id": "granola",
@@ -1732,7 +1732,7 @@
                 "sağlıklı",
                 "brunch"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/Yogurt%2C_fruit%2C_granola_bowl_%2834999358091%29.jpg/960px-Yogurt%2C_fruit%2C_granola_bowl_%2834999358091%29.jpg"
         },
         {
             "id": "sutlac",
@@ -1750,7 +1750,7 @@
                 "fırın sütlaç",
                 "firin sutlac"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1482930172332-2293d7138235?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/93/Sutlac.jpg/960px-Sutlac.jpg"
         },
         {
             "id": "raki",
@@ -1889,7 +1889,7 @@
                 "yumurta",
                 "kahvaltı"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1678983839772-3642df88d2c1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Sucuklu_yumurta.jpg/960px-Sucuklu_yumurta.jpg"
         },
         {
             "id": "dondurma-2",
@@ -1915,7 +1915,7 @@
                 "türk",
                 "lokanta"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Naneli_ayran_-_Dara.jpg/960px-Naneli_ayran_-_Dara.jpg"
         },
         {
             "id": "chicken-wings",
@@ -2046,7 +2046,7 @@
                 "lokanta",
                 "türk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/%C5%9Ei%C5%9F_kebap_and_pilav.jpg/960px-%C5%9Ei%C5%9F_kebap_and_pilav.jpg"
         },
         {
             "id": "adana-kebap-2",
@@ -2060,7 +2060,7 @@
                 "türk",
                 "lokanta"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Adana_kebab.jpg/960px-Adana_kebab.jpg"
         },
         {
             "id": "iskender-4",
@@ -2074,7 +2074,7 @@
                 "türk",
                 "lokanta"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1600891964092-4316c288032e?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/3/38/Iskender_kebap.jpg"
         },
         {
             "id": "doner-plate",
@@ -2089,7 +2089,7 @@
                 "lokanta",
                 "bufe"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1627042633145-b780d842ba45?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/D%C3%B6ner_Kebab_auf_Teller.jpg/960px-D%C3%B6ner_Kebab_auf_Teller.jpg"
         },
         {
             "id": "kofte-4",
@@ -2106,7 +2106,7 @@
                 "icli kofte",
                 "tavuk sote"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/%C4%B0neg%C3%B6l_meatballs_in_Bursa..JPG/960px-%C4%B0neg%C3%B6l_meatballs_in_Bursa..JPG"
         },
         {
             "id": "manti-4",
@@ -2122,7 +2122,7 @@
                 "islim kebab",
                 "islim kebabı"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1628268909376-e8c44bb3153f?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Manti_in_a_metal_plate.jpg/960px-Manti_in_a_metal_plate.jpg"
         },
         {
             "id": "lahmacun-4",
@@ -2135,7 +2135,7 @@
                 "türk",
                 "lokanta"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Lahmacun.jpg/960px-Lahmacun.jpg"
         },
         {
             "id": "vodka-tonic",
@@ -2148,7 +2148,7 @@
                 "kokteyl",
                 "bar"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1551024506-0bccd828d307?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Vodka_tonic.jpg/960px-Vodka_tonic.jpg"
         },
         {
             "id": "patates-kizartmasi-2",
@@ -2177,7 +2177,7 @@
                 "lokanta",
                 "sicak"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1712334619829-831fa0625a0f?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Ezogelin_soup.jpg/960px-Ezogelin_soup.jpg"
         },
         {
             "id": "yayla-corbasi",
@@ -2193,7 +2193,7 @@
                 "lokanta",
                 "sicak"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1733197012835-e99ebf3c914d?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Yayla_soup.jpg/960px-Yayla_soup.jpg"
         },
         {
             "id": "domates-corbasi",
@@ -2209,7 +2209,7 @@
                 "lokanta",
                 "sicak"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1752058238517-81cd22ef6087?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b5/Tomato_soup.jpg/960px-Tomato_soup.jpg"
         },
         {
             "id": "kelle-paca-corbasi",
@@ -2225,7 +2225,7 @@
                 "lokanta",
                 "sicak"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1704735436097-a24b0f2d22cf?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bd/Kelle_pa%C3%A7a_%C3%A7orbas%C4%B1_-_head_and_leg_soup.jpg/960px-Kelle_pa%C3%A7a_%C3%A7orbas%C4%B1_-_head_and_leg_soup.jpg"
         },
         {
             "id": "iskembe-corbasi",
@@ -2243,7 +2243,7 @@
                 "tavuk suyu",
                 "tavuk suyu çorbası"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1730312382513-62e9454f4797?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/Tripe_soup_and_mezes_from_Turkey.jpg/960px-Tripe_soup_and_mezes_from_Turkey.jpg"
         },
         {
             "id": "haydari",
@@ -2259,7 +2259,7 @@
                 "baslangic",
                 "yoğurt"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1571212515416-fef01fc43637?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/Haydari.jpg/960px-Haydari.jpg"
         },
         {
             "id": "haydari-2",
@@ -2273,7 +2273,7 @@
                 "yoğurt",
                 "meyhane"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1571212515416-fef01fc43637?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/Haydari.jpg/960px-Haydari.jpg"
         },
         {
             "id": "saksuka",
@@ -2288,7 +2288,7 @@
                 "meyhane",
                 "turk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1635774855717-0aec182f92cc?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/Shakshuka1.jpg/960px-Shakshuka1.jpg"
         },
         {
             "id": "muhammara",
@@ -2303,7 +2303,7 @@
                 "turk",
                 "baslangic"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1562114808-b4b33cf60f4f?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Muhammara.jpg/960px-Muhammara.jpg"
         },
         {
             "id": "acili-ezme",
@@ -2318,7 +2318,7 @@
                 "meyhane",
                 "turk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1535227798054-e4373ef3795a?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/Ezme%2C_cac%C4%B1k_and_%C3%A7oban_salata.jpg/960px-Ezme%2C_cac%C4%B1k_and_%C3%A7oban_salata.jpg"
         },
         {
             "id": "sigara-boregi",
@@ -2332,7 +2332,7 @@
                 "meze",
                 "turk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1658431618300-a69b07fb5782?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Sigara_B%C3%B6re%C4%9Fi.JPG/960px-Sigara_B%C3%B6re%C4%9Fi.JPG"
         },
         {
             "id": "coban-salata",
@@ -2347,7 +2347,7 @@
                 "turk",
                 "meze"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1641642399576-487909d0ddbc?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Bira_ve_%C3%A7oban_salata.jpg/960px-Bira_ve_%C3%A7oban_salata.jpg"
         },
         {
             "id": "coban-salata-2",
@@ -2419,7 +2419,7 @@
                 "turk",
                 "lokanta"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1627662236973-4fd8358fa206?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Turkish_pide.jpg/960px-Turkish_pide.jpg"
         },
         {
             "id": "cheeseburger",
@@ -2447,7 +2447,7 @@
                 "turk",
                 "lokanta"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1593999419634-455e51714dca?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/Kazandibi_Dessert.jpg/960px-Kazandibi_Dessert.jpg"
         },
         {
             "id": "trilece",
@@ -2504,7 +2504,7 @@
                 "meyhane",
                 "soguk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1487376480913-24046456a727?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Salgam_suyu.jpg/960px-Salgam_suyu.jpg"
         },
         {
             "id": "soda-maden-suyu",
@@ -2518,7 +2518,7 @@
                 "icecek",
                 "soguk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1567769541495-338ee7203e3c?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/Glass_of_cold_mineral_water.jpg/960px-Glass_of_cold_mineral_water.jpg"
         },
         {
             "id": "bitki-cayi",
@@ -2532,7 +2532,7 @@
                 "sicak",
                 "kafe"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1571230389215-b34a89739ef1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Herbal_tea.jpg/960px-Herbal_tea.jpg"
         },
         {
             "id": "filtre-kahve",
@@ -2562,7 +2562,7 @@
                 "meyhane",
                 "sicak"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1552320764-9fc870798a3f?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/Turkish_tea_glass.jpg/960px-Turkish_tea_glass.jpg"
         },
         {
             "id": "patates-kizartmasi-menu",

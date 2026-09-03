@@ -1,0 +1,47 @@
+---
+description: İş türüne göre gerekli mühendislik kalite seviyesini ve doğrulama derinliğini belirler
+alwaysApply: true
+---
+
+# İş Türüne Göre Kalite Seviyesi
+
+Model adına göre değil, değişikliğin riski ve etkisine göre kalite seviyesi seç.
+
+## Seviye 1 — Hızlı
+
+Dokümantasyon, metin, yorum ve davranış değiştirmeyen küçük düzenlemeler:
+- İstenen kapsamın dışına çıkma.
+- Biçim ve ilgili dosya tutarlılığını kontrol et.
+- Derleme gerekmiyorsa çalıştırma; nedenini sonuçta belirt.
+
+## Seviye 2 — Standart
+
+İzole UI bileşeni, basit endpoint, mapping veya düşük riskli hata düzeltmesi:
+- Mevcut mimari ve adlandırma kurallarını koru.
+- Mutlu yol ile temel hata durumlarını test et.
+- Etkilenen proje için format, lint/typecheck, build ve odaklı testleri çalıştır.
+
+## Seviye 3 — Yüksek
+
+Domain davranışı, veri modeli, API sözleşmesi, auth, tenant izolasyonu, sipariş ve ödeme:
+- Önce invariantları, güven sınırlarını ve başarısızlık davranışlarını belirle.
+- Geriye uyumluluk, UTC, idempotency, concurrency ve veri izolasyonunu değerlendir.
+- Birim ve entegrasyon testleri ekle; negatif ve sınır durumlarını kapsa.
+- Migration ileri/geri uygulanabilirliğini ve SQL Server uyumluluğunu doğrula.
+- İlgili tüm backend ve frontend kontrollerini çalıştır.
+
+## Seviye 4 — Kritik
+
+Kimlik doğrulama, yetkilendirme, ödeme, secret, production migration, offline senkronizasyon ve güvenlik:
+- Tehditleri ve geri alma planını değişiklikten önce açıkça değerlendir.
+- Güvenli varsayılanlar kullan; hassas veriyi loglama veya repoya ekleme.
+- Yetki atlama, replay, yarış koşulu, tenant sızıntısı ve bozuk veri senaryolarını test et.
+- Tam build/test, bağımlılık güvenlik kontrolü ve gerektiğinde yük/E2E testi çalıştır.
+- Kanıtlanmamış kritik davranışı tamamlandı olarak bildirme.
+
+## Genel Teslim Kuralı
+
+- Kullanıcı değişikliklerini koru; kapsam dışı refactor yapma.
+- Çalıştırılan kontrolleri ve sonuçlarını açıkça raporla.
+- Çalıştırılamayan kontrolü, sebebini ve kalan riski belirt.
+- Derlenmeyen, yarım veya yalnızca görsel olarak çalışan kodu tamamlanmış sayma.

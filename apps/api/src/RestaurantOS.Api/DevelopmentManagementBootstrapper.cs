@@ -110,7 +110,91 @@ public sealed class DevelopmentManagementBootstrapper(
         await dbContext.SaveChangesAsync(cancellationToken);
         await EnsureAudienceContentAsync(cancellationToken);
         await EnsureDemoMenuPromotionAsync(tenantId, branchId, cancellationToken);
+        await EnsureCustomerMenuPublishedAsync(tenantId, branchId, cancellationToken);
         await EnsurePlatformOperatorAsync(tenantId, branchId, cancellationToken);
+    }
+
+    /// <summary>
+    /// QR customer flow requires a published menu. In Development, publish an existing draft
+    /// or seed a small demo menu so scanning a table QR works out of the box.
+    /// </summary>
+    private async Task EnsureCustomerMenuPublishedAsync(
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        var hasPublished = await dbContext.Menus.AnyAsync(
+            x => x.TenantId == tenantId
+                && x.BranchId == branchId
+                && x.PublishedAtUtc != null
+                && x.ArchivedAtUtc == null,
+            cancellationToken);
+        if (hasPublished)
+        {
+            return;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var drafts = await dbContext.Menus
+            .Where(x => x.TenantId == tenantId
+                && x.BranchId == branchId
+                && x.PublishedAtUtc == null
+                && x.ArchivedAtUtc == null)
+            .OrderByDescending(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var draft in drafts)
+        {
+            var categoryCount = await dbContext.MenuCategories.CountAsync(
+                x => x.MenuId == draft.Id && x.TenantId == tenantId && x.BranchId == branchId,
+                cancellationToken);
+            var itemCount = await dbContext.MenuItems.CountAsync(
+                x => x.MenuId == draft.Id && x.TenantId == tenantId && x.BranchId == branchId,
+                cancellationToken);
+            if (categoryCount > 0 && itemCount > 0)
+            {
+                draft.Publish(now);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return;
+            }
+        }
+
+        const string demoMenuName = "Demo Menü";
+        var demoMenuId = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddd01");
+        var demoCategoryId = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddd0002");
+        var demoItemId = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddd0003");
+
+        var demoMenu = await dbContext.Menus.SingleOrDefaultAsync(x => x.Id == demoMenuId, cancellationToken);
+        if (demoMenu is null)
+        {
+            demoMenu = new PublishedMenu(demoMenuId, tenantId, branchId, demoMenuName);
+            dbContext.Menus.Add(demoMenu);
+            dbContext.MenuCategories.Add(new MenuCategory(
+                demoCategoryId,
+                tenantId,
+                branchId,
+                demoMenuId,
+                "Ana yemekler",
+                1));
+            dbContext.MenuItems.Add(new MenuItem(
+                demoItemId,
+                tenantId,
+                branchId,
+                demoMenuId,
+                demoCategoryId,
+                "Izgara köfte",
+                "Demo ürün — geliştirme ortamı",
+                new Money(25000, "TRY"),
+                isAvailable: true,
+                sortOrder: 1));
+        }
+
+        if (demoMenu.PublishedAtUtc is null && !demoMenu.IsArchived)
+        {
+            demoMenu.Publish(now);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task EnsurePlatformOperatorAsync(

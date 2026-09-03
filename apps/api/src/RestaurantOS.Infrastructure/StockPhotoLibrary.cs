@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Hosting;
@@ -18,8 +20,12 @@ public sealed class StockPhotoLibrary(IHostEnvironment environment) : IStockPhot
     public StockPhotoLibraryResult List(string? query, string? categoryId)
     {
         var manifest = _cached ??= LoadManifest();
-        var normalizedQuery = query?.Trim().ToLowerInvariant();
-        var normalizedCategory = categoryId?.Trim().ToLowerInvariant();
+        var normalizedQuery = NormalizeSearchText(query);
+        var normalizedCategory = NormalizeSearchText(categoryId);
+        if (normalizedCategory is "all")
+        {
+            normalizedCategory = null;
+        }
         if (normalizedCategory is "all" or "")
         {
             normalizedCategory = null;
@@ -30,9 +36,9 @@ public sealed class StockPhotoLibrary(IHostEnvironment environment) : IStockPhot
             .Where(photo => normalizedCategory is null || photo.Category.Equals(normalizedCategory, StringComparison.OrdinalIgnoreCase))
             .Where(photo =>
                 normalizedQuery is null
-                || photo.Title.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase)
-                || photo.Alt.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase)
-                || photo.Tags.Any(tag => tag.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase)))
+                || ContainsNormalized(photo.Title, normalizedQuery)
+                || ContainsNormalized(photo.Alt, normalizedQuery)
+                || photo.Tags.Any(tag => ContainsNormalized(tag, normalizedQuery)))
             .Select(photo => new StockPhotoResult(
                 photo.Id,
                 photo.Category,
@@ -44,6 +50,29 @@ public sealed class StockPhotoLibrary(IHostEnvironment environment) : IStockPhot
 
         return new StockPhotoLibraryResult(manifest.Categories, photos);
     }
+
+    private static string? NormalizeSearchText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim().ToLower(CultureInfo.GetCultureInfo("tr-TR")).Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+        foreach (var character in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
+            {
+                builder.Append(character);
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool ContainsNormalized(string haystack, string needle) =>
+        NormalizeSearchText(haystack)?.Contains(needle, StringComparison.Ordinal) ?? false;
 
     private string ResolveAbsolutePath(string relativeFile) =>
         Path.Combine(environment.ContentRootPath, "media", "stock", relativeFile.Replace('/', Path.DirectorySeparatorChar));

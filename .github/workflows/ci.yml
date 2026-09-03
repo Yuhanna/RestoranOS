@@ -21,6 +21,9 @@ jobs:
         run: dotnet test apps/api/tests/RestaurantOS.Api.Tests/RestaurantOS.Api.Tests.csproj -c Release --verbosity minimal
         env:
           ManagementAuth__SigningKey: "ci-test-signing-key-at-least-32-bytes-long!!"
+      - name: Validate stock photos
+        shell: pwsh
+        run: pwsh -ExecutionPolicy Bypass -File scripts/validate-stock-photos.ps1
 
   web:
     runs-on: ubuntu-latest

@@ -1,5 +1,7 @@
-﻿@using RestaurantOS.Web.Data
+﻿@using Microsoft.Extensions.Options
+@using RestaurantOS.Web.Data
 @inject IWebApiExecuter Api
+@inject IOptions<ApiOptions> ApiOptions
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -86,7 +88,26 @@
     <footer class="footer">
         <span>RESTAURANT OS · YÖNETİM</span>
     </footer>
+    @if (Api.IsAuthenticated)
+    {
+        <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js" crossorigin="anonymous"></script>
+        <script src="~/js/order-alerts.js" asp-append-version="true"></script>
+    }
     @await RenderSectionAsync("Scripts", required: false)
     <script src="~/js/theme.js" asp-append-version="true"></script>
+    @if (Api.IsAuthenticated)
+    {
+        var alertApiBase = (ApiOptions.Value.BaseUrl ?? string.Empty).TrimEnd('/');
+        var alertToken = Api.CurrentToken?.AccessToken ?? string.Empty;
+        <script>
+            (function () {
+                if (!window.RestaurantOsAlerts) return;
+                window.RestaurantOsAlerts.startGlobalAlertHub({
+                    apiBase: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(alertApiBase)),
+                    accessToken: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(alertToken))
+                });
+            })();
+        </script>
+    }
 </body>
 </html>

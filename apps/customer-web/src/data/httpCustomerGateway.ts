@@ -65,6 +65,13 @@ const problemFor = async (response: Response): Promise<CustomerGatewayError> => 
     );
   }
 
+  if (code === "INVALID_SESSION") {
+    return new CustomerGatewayError(
+      "INVALID_SESSION",
+      problem.detail ?? "Customer session is invalid.",
+    );
+  }
+
   if (code === "MENU_UNAVAILABLE") {
     return new CustomerGatewayError(
       "MENU_UNAVAILABLE",

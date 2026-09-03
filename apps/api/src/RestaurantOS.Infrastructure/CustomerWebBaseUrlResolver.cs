@@ -42,18 +42,44 @@ public static class CustomerWebBaseUrlResolver
 
     public static string? TryGetPreferredLanIPv4()
     {
-        foreach (var candidate in EnumerateLanCandidates())
-        {
-            if (IsPrivateLanAddress(candidate))
-            {
-                return candidate.ToString();
-            }
-        }
+        var ranked = EnumerateLanCandidates()
+            .Where(candidate => IsPrivateLanAddress(candidate.Address))
+            .OrderBy(Score)
+            .Select(candidate => candidate.Address.ToString())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
 
-        return null;
+        return ranked.FirstOrDefault();
     }
 
-    private static IEnumerable<IPAddress> EnumerateLanCandidates()
+    private static int Score(LanCandidate candidate)
+    {
+        // Lower is better: real Wi-Fi DHCP beats Hyper-V / host-only Ethernet (.1).
+        var score = 100;
+        if (candidate.IsWireless)
+        {
+            score -= 50;
+        }
+
+        if (candidate.IsDhcp)
+        {
+            score -= 20;
+        }
+
+        if (candidate.IsLikelyHostOnlyOrGateway)
+        {
+            score += 40;
+        }
+
+        if (candidate.IsVirtual)
+        {
+            score += 80;
+        }
+
+        return score;
+    }
+
+    private static IEnumerable<LanCandidate> EnumerateLanCandidates()
     {
         foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
         {
@@ -69,10 +95,9 @@ public static class CustomerWebBaseUrlResolver
             }
 
             var name = networkInterface.Name;
-            var isPreferredNic = name.Contains("Wi-Fi", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("WiFi", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("Wireless", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("Ethernet", StringComparison.OrdinalIgnoreCase);
+            var description = networkInterface.Description;
+            var isVirtual = IsVirtualAdapter(name, description);
+            var isWireless = IsWirelessAdapter(name, description, networkInterface.NetworkInterfaceType);
 
             foreach (var address in networkInterface.GetIPProperties().UnicastAddresses)
             {
@@ -86,43 +111,57 @@ public static class CustomerWebBaseUrlResolver
                     continue;
                 }
 
-                if (!isPreferredNic)
-                {
-                    continue;
-                }
+                var bytes = address.Address.GetAddressBytes();
+                var isLikelyHostOnlyOrGateway = bytes is [192, 168, _, 1]
+                    || bytes is [10, _, _, 1]
+                    || (bytes[0] == 172 && bytes[1] is >= 16 and <= 31 && bytes[3] == 1);
+                var isDhcp = OperatingSystem.IsWindows()
+                    && address.PrefixOrigin == PrefixOrigin.Dhcp;
 
-                yield return address.Address;
+                yield return new LanCandidate(
+                    address.Address,
+                    isWireless,
+                    isDhcp,
+                    isVirtual,
+                    isLikelyHostOnlyOrGateway);
             }
         }
+    }
 
-        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+    private static bool IsWirelessAdapter(string name, string description, NetworkInterfaceType type) =>
+        type == NetworkInterfaceType.Wireless80211
+        || name.Contains("Wi-Fi", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("WiFi", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("Wireless", StringComparison.OrdinalIgnoreCase)
+        || description.Contains("Wi-Fi", StringComparison.OrdinalIgnoreCase)
+        || description.Contains("Wireless", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsVirtualAdapter(string name, string description)
+    {
+        ReadOnlySpan<string> markers =
+        [
+            "vEthernet",
+            "Hyper-V",
+            "Virtual",
+            "VMware",
+            "VirtualBox",
+            "WSL",
+            "Default Switch",
+            "Loopback",
+            "Bluetooth",
+            "Local Area Connection*",
+        ];
+
+        foreach (var marker in markers)
         {
-            if (networkInterface.OperationalStatus != OperationalStatus.Up)
+            if (name.Contains(marker, StringComparison.OrdinalIgnoreCase)
+                || description.Contains(marker, StringComparison.OrdinalIgnoreCase))
             {
-                continue;
-            }
-
-            if (networkInterface.NetworkInterfaceType is NetworkInterfaceType.Loopback
-                or NetworkInterfaceType.Tunnel)
-            {
-                continue;
-            }
-
-            foreach (var address in networkInterface.GetIPProperties().UnicastAddresses)
-            {
-                if (address.Address.AddressFamily != AddressFamily.InterNetwork)
-                {
-                    continue;
-                }
-
-                if (IPAddress.IsLoopback(address.Address))
-                {
-                    continue;
-                }
-
-                yield return address.Address;
+                return true;
             }
         }
+
+        return false;
     }
 
     private static bool IsLoopbackUrl(string url) =>
@@ -156,4 +195,11 @@ public static class CustomerWebBaseUrlResolver
         };
         return builder.Uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
     }
+
+    private sealed record LanCandidate(
+        IPAddress Address,
+        bool IsWireless,
+        bool IsDhcp,
+        bool IsVirtual,
+        bool IsLikelyHostOnlyOrGateway);
 }

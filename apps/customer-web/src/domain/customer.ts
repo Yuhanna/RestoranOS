@@ -181,6 +181,7 @@ export class CustomerGatewayError extends Error {
   constructor(
     public readonly code:
       | "INVALID_QR"
+      | "INVALID_SESSION"
       | "MENU_UNAVAILABLE"
       | "NETWORK"
       | "ORDER_REJECTED"

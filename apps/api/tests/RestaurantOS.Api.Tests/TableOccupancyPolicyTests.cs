@@ -7,9 +7,9 @@ public sealed class TableOccupancyPolicyTests
     private static readonly DateTimeOffset Base = new(2026, 9, 1, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void SessionLifetimeIsOneHourFortyMinutes()
+    public void SessionLifetimeIsFourHours()
     {
-        Assert.Equal(TimeSpan.FromMinutes(100), TableOccupancyPolicy.SessionLifetime);
+        Assert.Equal(TimeSpan.FromHours(4), TableOccupancyPolicy.SessionLifetime);
     }
 
     [Fact]
@@ -23,7 +23,7 @@ public sealed class TableOccupancyPolicyTests
     {
         var occupied = TableOccupancyPolicy.CountsAsOccupied(
             now: Base.AddMinutes(30),
-            sessionExpiresAtUtc: Base.AddMinutes(100),
+            sessionExpiresAtUtc: Base.AddHours(4),
             lastSessionActivityUtc: Base,
             lastBillCompletedAtUtc: null);
 
@@ -36,7 +36,7 @@ public sealed class TableOccupancyPolicyTests
         var billCompleted = Base.AddMinutes(10);
         var occupied = TableOccupancyPolicy.CountsAsOccupied(
             now: billCompleted.AddMinutes(10),
-            sessionExpiresAtUtc: Base.AddMinutes(100),
+            sessionExpiresAtUtc: Base.AddHours(4),
             lastSessionActivityUtc: Base,
             lastBillCompletedAtUtc: billCompleted);
 
@@ -49,7 +49,7 @@ public sealed class TableOccupancyPolicyTests
         var billCompleted = Base.AddMinutes(10);
         var occupied = TableOccupancyPolicy.CountsAsOccupied(
             now: billCompleted.AddMinutes(16),
-            sessionExpiresAtUtc: Base.AddMinutes(100),
+            sessionExpiresAtUtc: Base.AddHours(4),
             lastSessionActivityUtc: Base,
             lastBillCompletedAtUtc: billCompleted);
 
@@ -62,7 +62,7 @@ public sealed class TableOccupancyPolicyTests
         var billCompleted = Base.AddMinutes(10);
         var occupied = TableOccupancyPolicy.CountsAsOccupied(
             now: billCompleted.AddMinutes(30),
-            sessionExpiresAtUtc: Base.AddMinutes(100),
+            sessionExpiresAtUtc: Base.AddHours(4),
             lastSessionActivityUtc: billCompleted.AddMinutes(5),
             lastBillCompletedAtUtc: billCompleted);
 
@@ -73,8 +73,8 @@ public sealed class TableOccupancyPolicyTests
     public void DoesNotCountAsOccupiedWhenSessionExpired()
     {
         var occupied = TableOccupancyPolicy.CountsAsOccupied(
-            now: Base.AddMinutes(101),
-            sessionExpiresAtUtc: Base.AddMinutes(100),
+            now: Base.AddHours(4).AddMinutes(1),
+            sessionExpiresAtUtc: Base.AddHours(4),
             lastSessionActivityUtc: Base,
             lastBillCompletedAtUtc: null);
 
@@ -85,8 +85,8 @@ public sealed class TableOccupancyPolicyTests
     public void DoesNotCountAsOccupiedAfterInactivityExceedsSessionLifetime()
     {
         var occupied = TableOccupancyPolicy.CountsAsOccupied(
-            now: Base.AddMinutes(101),
-            sessionExpiresAtUtc: Base.AddHours(4),
+            now: Base.AddHours(4).AddMinutes(1),
+            sessionExpiresAtUtc: Base.AddHours(8),
             lastSessionActivityUtc: Base,
             lastBillCompletedAtUtc: null);
 
