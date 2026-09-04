@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<IManagementServiceRequestService, ManagementServiceRequestService>();
         services.AddScoped<IManagementAnalyticsService, ManagementAnalyticsService>();
         services.AddScoped<IManagementDashboardService, ManagementDashboardService>();
+        services.AddScoped<IManagementBranchService, ManagementBranchService>();
         services.AddScoped<IPromotionManagementService, PromotionManagementService>();
         services.AddScoped<INotificationManagementService, NotificationManagementService>();
         services.AddScoped<IPlatformSubscriptionOfferService, PlatformSubscriptionOfferService>();

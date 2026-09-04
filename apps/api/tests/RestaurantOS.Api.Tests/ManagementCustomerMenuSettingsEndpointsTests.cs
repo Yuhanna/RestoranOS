@@ -52,7 +52,10 @@ public sealed class ManagementCustomerMenuSettingsEndpointsTests
                 ShowDietaryFilters: true,
                 DietaryFilterOptions: ["vegan", "glutenFree"],
                 ShowAllergenExclusions: true,
-                AllergenExclusionOptions: ["nuts"],
+                AllergenExclusionOptions: ["milk"],
+                ShowProductNutrition: true,
+                ShowProductAllergens: true,
+                ShowProductModifiers: false,
                 AllergenDisclaimer: "Lütfen alerjen bilgilerini kontrol edin.",
                 AllergenMatrixUrl: "https://example.test/allergens")));
         var updated = await updateResponse.Content.ReadFromJsonAsync<ManagementCustomerMenuSettingsResponse>();
@@ -61,6 +64,9 @@ public sealed class ManagementCustomerMenuSettingsEndpointsTests
         Assert.NotNull(updated);
         Assert.True(updated.ShowDietaryFilters);
         Assert.Equal(["vegan", "glutenFree"], updated.DietaryFilterOptions);
+        Assert.True(updated.ShowProductNutrition);
+        Assert.True(updated.ShowProductAllergens);
+        Assert.False(updated.ShowProductModifiers);
         Assert.Equal("Lütfen alerjen bilgilerini kontrol edin.", updated.AllergenDisclaimer);
     }
 

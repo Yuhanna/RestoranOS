@@ -27,7 +27,8 @@ public sealed record ManagementWorkspaceResponse(
     string BranchName,
     ManagementEntitlementUsageResponse? Entitlements = null,
     IReadOnlyList<ManagementAudienceNotificationResponse>? Notifications = null,
-    IReadOnlyList<ManagementSubscriptionOfferResponse>? SubscriptionOffers = null);
+    IReadOnlyList<ManagementSubscriptionOfferResponse>? SubscriptionOffers = null,
+    IReadOnlyList<string>? Permissions = null);
 
 public sealed record ManagementAudienceNotificationResponse(
     Guid Id,
@@ -61,7 +62,14 @@ public sealed record ManagementEntitlementUsageResponse(
     IReadOnlyList<string> Warnings,
     bool IsTrial = false,
     DateTimeOffset? TrialEndsAtUtc = null,
-    bool CanViewFinancialAnalytics = false);
+    bool CanViewFinancialAnalytics = false,
+    int IncludedBranches = 0,
+    int PurchasedBranchAddonCount = 0,
+    int FrozenBranchCount = 0,
+    int ActiveBranchCount = 0,
+    long ExtraBranchMonthlyPriceMinor = 0,
+    string BillingCurrency = "TRY",
+    bool NextBranchRequiresAddon = false);
 
 public sealed record ManagementChangeOrderStatusRequest(
     string Status,
@@ -88,7 +96,8 @@ public sealed record ManagementTodayDashboardResponse(
     int CompletedOrdersTodayCount,
     string Currency,
     DateTimeOffset DayStartUtc,
-    DateTimeOffset DayEndUtc);
+    DateTimeOffset DayEndUtc,
+    bool CanViewFinancials = false);
 
 public sealed record ManagementOrderLineResponse(
     Guid Id,
@@ -170,6 +179,16 @@ public sealed record ManagementQrPrintResponse(
 
 public sealed record ManagementCreateMenuRequest(string Name);
 
+public sealed record ManagementCloneMenuRequest(Guid SourceMenuId);
+
+public sealed record ManagementShareableMenuResponse(
+    Guid Id,
+    Guid SourceBranchId,
+    string SourceBranchName,
+    string Name,
+    int CategoryCount,
+    int ItemCount);
+
 public sealed record ManagementRenameMenuRequest(string Name);
 
 public sealed record ManagementCreateCategoryRequest(string Name, int SortOrder);
@@ -209,6 +228,9 @@ public sealed record ManagementCustomerMenuSettingsResponse(
     IReadOnlyList<string> DietaryFilterOptions,
     bool ShowAllergenExclusions,
     IReadOnlyList<string> AllergenExclusionOptions,
+    bool ShowProductNutrition,
+    bool ShowProductAllergens,
+    bool ShowProductModifiers,
     string? AllergenDisclaimer,
     string? AllergenMatrixUrl);
 
@@ -217,6 +239,9 @@ public sealed record ManagementUpdateCustomerMenuSettingsRequest(
     IReadOnlyList<string> DietaryFilterOptions,
     bool ShowAllergenExclusions,
     IReadOnlyList<string> AllergenExclusionOptions,
+    bool ShowProductNutrition,
+    bool ShowProductAllergens,
+    bool ShowProductModifiers,
     string? AllergenDisclaimer,
     string? AllergenMatrixUrl);
 
@@ -399,3 +424,92 @@ public sealed record ManagementSubscriptionOfferAdminResponse(
     DateTimeOffset StartsAtUtc,
     DateTimeOffset? EndsAtUtc,
     bool IsActive);
+
+public sealed record ManagementCreateBranchRequest(string Name, bool ConfirmAddonPurchase = false);
+
+public sealed record ManagementRenameBranchRequest(string Name);
+
+public sealed record ManagementInviteBranchMemberRequest(
+    string Email,
+    string? Password = null,
+    string RoleKey = "manager");
+
+public sealed record ManagementSwitchBranchRequest(Guid BranchId);
+
+public sealed record ManagementBranchResponse(
+    Guid Id,
+    Guid RestaurantId,
+    string Name,
+    int ActiveMemberCount,
+    int ActiveTableCount,
+    bool IsCurrent,
+    bool IsFrozen = false);
+
+public sealed record ManagementBranchMemberResponse(
+    Guid MembershipId,
+    Guid UserId,
+    string Email,
+    string RoleName,
+    string RoleKey,
+    bool IsActive,
+    DateTimeOffset? LastLoginAtUtc);
+
+public sealed record ManagementMembershipScopeResponse(
+    Guid MembershipId,
+    Guid TenantId,
+    Guid RestaurantId,
+    string RestaurantName,
+    Guid BranchId,
+    string BranchName,
+    string RoleName,
+    bool CanManageBranches);
+
+public sealed record ManagementNetworkBranchStatResponse(
+    Guid BranchId,
+    string BranchName,
+    long GrossSalesMinor,
+    int CompletedOrderCount,
+    int CancelledOrderCount,
+    int OpenOrderCount,
+    int OpenServiceRequestCount,
+    int ActiveTableCount,
+    int ActiveMemberCount,
+    long AverageTicketMinor);
+
+public sealed record ManagementNetworkSummaryResponse(
+    long GrossSalesMinor,
+    int CompletedOrderCount,
+    int CancelledOrderCount,
+    int OpenOrderCount,
+    int OpenServiceRequestCount,
+    int BranchCount,
+    string Currency,
+    IReadOnlyList<ManagementNetworkBranchStatResponse> Branches);
+
+public sealed record ManagementBranchBillingPreviewResponse(
+    string PlanCode,
+    string PlanDisplayName,
+    bool IsTrial,
+    DateTimeOffset? TrialEndsAtUtc,
+    int IncludedBranches,
+    int PurchasedBranchAddonCount,
+    int? MaxBranches,
+    int ActiveBranchCount,
+    int FrozenBranchCount,
+    bool NextBranchRequiresAddon,
+    long ExtraBranchMonthlyPriceMinor,
+    string Currency,
+    bool CanUseMultiBranch,
+    string Summary);
+
+public sealed record ManagementEnterpriseQuoteRequest(
+    string ContactName,
+    string Email,
+    string? Phone,
+    int EstimatedBranchCount,
+    string? Note);
+
+public sealed record ManagementEnterpriseQuoteResponse(
+    Guid Id,
+    DateTimeOffset CreatedAtUtc,
+    string Message);

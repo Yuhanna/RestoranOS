@@ -30,6 +30,7 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
     public DbSet<ManagementRefreshSession> ManagementRefreshSessions => Set<ManagementRefreshSession>();
     public DbSet<ManagementAuditLog> ManagementAuditLogs => Set<ManagementAuditLog>();
     public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+    public DbSet<EnterpriseQuoteRequest> EnterpriseQuoteRequests => Set<EnterpriseQuoteRequest>();
     public DbSet<MenuPromotion> MenuPromotions => Set<MenuPromotion>();
     public DbSet<TenantNotification> TenantNotifications => Set<TenantNotification>();
     public DbSet<SubscriptionOffer> SubscriptionOffers => Set<SubscriptionOffer>();
@@ -58,6 +59,7 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(160);
             entity.Property(x => x.CustomerMenuSettingsJson).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.IsFrozen).HasDefaultValue(false);
             entity.HasIndex(x => new { x.TenantId, x.Id }).IsUnique();
             entity.HasOne(x => x.Restaurant).WithMany().HasForeignKey(x => x.RestaurantId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -248,8 +250,20 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.ToTable("TenantSubscriptions", "billing");
             entity.HasKey(x => x.TenantId);
             entity.Property(x => x.PlanCode).HasMaxLength(32);
+            entity.Property(x => x.PurchasedBranchAddonCount).HasDefaultValue(0);
             entity.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Cascade);
             entity.Ignore(x => x.Entitlements);
+        });
+        modelBuilder.Entity<EnterpriseQuoteRequest>(entity =>
+        {
+            entity.ToTable("EnterpriseQuoteRequests", "billing");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ContactName).HasMaxLength(120);
+            entity.Property(x => x.Email).HasMaxLength(256);
+            entity.Property(x => x.Phone).HasMaxLength(40);
+            entity.Property(x => x.Note).HasMaxLength(2000);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.HasIndex(x => new { x.TenantId, x.CreatedAtUtc });
         });
         modelBuilder.Entity<MenuPromotion>(entity =>
         {

@@ -37,6 +37,7 @@ public sealed class ManagementDashboardEndpointsTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(dashboard);
         Assert.Equal(2, dashboard.TodaysOrderCount);
+        Assert.True(dashboard.CanViewFinancials);
         Assert.Equal(1_500, dashboard.TodaysRevenueMinor);
         Assert.Equal(1, dashboard.OpenTablesCount);
         Assert.Equal(1, dashboard.PendingOrdersCount);
@@ -140,6 +141,7 @@ public sealed class ManagementDashboardEndpointsTests
             role,
             new ManagementRolePermissionGrant(role.Id, ManagementPermissions.OrderView),
             new ManagementRolePermissionGrant(role.Id, ManagementPermissions.TableView),
+            new ManagementRolePermissionGrant(role.Id, ManagementPermissions.AnalyticsFinancialView),
             user,
             new ManagementMembership(Guid.NewGuid(), user.Id, SeedIds.TenantA, SeedIds.BranchA, role.Id),
             new DiningTable(SeedIds.TableA, SeedIds.TenantA, SeedIds.BranchA, "Masa 1"),

@@ -41,6 +41,8 @@ export const messages = {
   allergens: "Alerjenler",
   mayContain: "İçerebilir",
   ingredients: "İçindekiler",
+  moreProductInfo: "Daha fazla bilgi",
+  moreProductInfoHint: "Beslenme ve alerjen için açabilirsiniz.",
   spiceLevel: "Acılık",
   spiceLevels: ["Acısız", "Hafif acı", "Orta acı", "Çok acı"],
   prepTime: (minutes: number) => `Hazırlık ~${minutes} dk`,

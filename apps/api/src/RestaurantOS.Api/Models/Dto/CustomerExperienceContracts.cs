@@ -7,6 +7,9 @@ public sealed record CustomerMenuSettingsResponse(
     IReadOnlyList<string> DietaryFilterOptions,
     bool ShowAllergenExclusions,
     IReadOnlyList<string> AllergenExclusionOptions,
+    bool ShowProductNutrition,
+    bool ShowProductAllergens,
+    bool ShowProductModifiers,
     string? AllergenDisclaimer,
     string? AllergenMatrixUrl);
 

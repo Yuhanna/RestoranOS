@@ -111,6 +111,9 @@ const mapCustomerMenu = (raw: unknown): CustomerMenuSettings | undefined => {
     allergenExclusionOptions: Array.isArray(settings.allergenExclusionOptions)
       ? (settings.allergenExclusionOptions as CustomerMenuSettings["allergenExclusionOptions"])
       : [],
+    showProductNutrition: settings.showProductNutrition === true,
+    showProductAllergens: settings.showProductAllergens === true,
+    showProductModifiers: settings.showProductModifiers === true,
     allergenDisclaimer:
       typeof settings.allergenDisclaimer === "string" ? settings.allergenDisclaimer : undefined,
     allergenMatrixUrl:

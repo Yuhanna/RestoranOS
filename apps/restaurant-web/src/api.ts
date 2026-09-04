@@ -229,7 +229,7 @@ export class ManagementApi {
     });
   }
 
-  async checkoutPlan(planCode: "Pro" | "Enterprise"): Promise<Workspace["entitlements"]> {
+  async checkoutPlan(planCode: "Pro"): Promise<Workspace["entitlements"]> {
     return this.authorized("/api/v1/management/subscription/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

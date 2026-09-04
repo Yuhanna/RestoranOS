@@ -53,7 +53,7 @@ export function AnalyticsPanel({ managementApi, onError }: AnalyticsPanelProps) 
     void load();
   }, [load]);
 
-  const checkout = async (planCode: "Pro" | "Enterprise") => {
+  const checkout = async (planCode: "Pro") => {
     setCheckoutBusy(true);
     try {
       await managementApi.checkoutPlan(planCode);
@@ -99,7 +99,7 @@ export function AnalyticsPanel({ managementApi, onError }: AnalyticsPanelProps) 
       workspace.entitlements.planCode === "Free" &&
       !workspace.entitlements.isTrial ? (
         <div className="notice">
-          Free plandasınız. Pro ile sınırsız masa, çeviri ve canlı panel açılır.
+          Free plandasınız. Pro ile sınırsız masa, çeviri, canlı panel ve 2 şube dahildir; ek şube ücretlidir.
           <Button variant="secondary" disabled={checkoutBusy} onClick={() => void checkout("Pro")}>
             Pro&apos;ya yükselt (demo)
           </Button>

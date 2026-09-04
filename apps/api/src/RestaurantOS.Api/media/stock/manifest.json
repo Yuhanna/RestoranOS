@@ -1,7 +1,7 @@
 {
-    "version": 14,
+    "version": 19,
     "license": "Mixed: Wikimedia Commons (CC) and Unsplash License (https://unsplash.com/license)",
-    "attribution": "See ATTRIBUTION.md in this folder.",
+    "attribution": "See ATTRIBUTION.md for per-file source URLs.",
     "categories": [
         {
             "id": "all",
@@ -44,7 +44,7 @@
                 "restoran",
                 "fish"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1676471926534-d5c9771909fa?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Sea_bass_as_food.jpg/960px-Sea_bass_as_food.jpg"
         },
         {
             "id": "truflu-risotto",
@@ -60,7 +60,7 @@
                 "ana yemek",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1643879397174-4f10ac503566?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/White_Truffle_Risotto%2C_2015-%2801%29.jpg/960px-White_Truffle_Risotto%2C_2015-%2801%29.jpg"
         },
         {
             "id": "bonfile",
@@ -77,7 +77,7 @@
                 "restoran",
                 "biftek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1558030006-450675393462?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Beef_tenderloin_-_Guillaume_at_Bennelong.jpg/960px-Beef_tenderloin_-_Guillaume_at_Bennelong.jpg"
         },
         {
             "id": "kebap",
@@ -112,7 +112,7 @@
                 "ana yemek",
                 "italyan"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/aa/Spaghetti_bolognese_pasta.jpg/960px-Spaghetti_bolognese_pasta.jpg"
         },
         {
             "id": "pizza",
@@ -129,7 +129,7 @@
                 "karışık pizza",
                 "karisik pizza"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Pizza-napoletana.jpg/960px-Pizza-napoletana.jpg"
         },
         {
             "id": "hamburger",
@@ -145,7 +145,7 @@
                 "bar",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0e/Bacon_Cheeseburger_on_plate.JPG/960px-Bacon_Cheeseburger_on_plate.JPG"
         },
         {
             "id": "tavuk-izgara",
@@ -194,7 +194,7 @@
                 "ana yemek",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1553621042-f6e147245754?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Sushi_platter.jpg/960px-Sushi_platter.jpg"
         },
         {
             "id": "ramen",
@@ -210,7 +210,7 @@
                 "ana yemek",
                 "sıcak"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/69/Ramen_Bowl_2.jpg/960px-Ramen_Bowl_2.jpg"
         },
         {
             "id": "tacos",
@@ -243,7 +243,7 @@
                 "kuzu şiş",
                 "kuzu sis"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1785502108275-3fa68c2ed7bd?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/Lamb_chop_on_the_barbecue_05.jpg/960px-Lamb_chop_on_the_barbecue_05.jpg"
         },
         {
             "id": "wagyu",
@@ -259,7 +259,7 @@
                 "ana yemek",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1663530761401-15eefb544889?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5f/Sizzling_Japanese_Wagyu_from_Steak_Shack_%282024-08-18%29.jpg/960px-Sizzling_Japanese_Wagyu_from_Steak_Shack_%282024-08-18%29.jpg"
         },
         {
             "id": "kofte",
@@ -324,7 +324,7 @@
                 "ana yemek",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1768204039740-9e418a65328b?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/Seafood_paella_in_Brisbane%2C_Queensland.jpg/960px-Seafood_paella_in_Brisbane%2C_Queensland.jpg"
         },
         {
             "id": "pide",
@@ -426,7 +426,7 @@
                 "ana yemek",
                 "fast food"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1762284513096-e411d20c1a4d?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Burrito.jpg/960px-Burrito.jpg"
         },
         {
             "id": "lasagna",
@@ -442,7 +442,7 @@
                 "ana yemek",
                 "peynir"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1759409117421-1a64af35f118?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Lasagne.jpg"
         },
         {
             "id": "club-sandwich",
@@ -457,7 +457,7 @@
                 "ana yemek",
                 "brunch"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1708083414905-a8cd356032c7?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Club_sandwich.jpg/960px-Club_sandwich.jpg"
         },
         {
             "id": "iskender",
@@ -544,7 +544,7 @@
                 "vegan",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Mixed_green_salad.jpg/960px-Mixed_green_salad.jpg"
         },
         {
             "id": "corba",
@@ -560,7 +560,7 @@
                 "lokanta",
                 "sıcak"
             ],
-            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Lentil_soup_done.jpg/960px-Lentil_soup_done.jpg"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Mercimek_%C3%A7orbas%C4%B1.jpg/960px-Mercimek_%C3%A7orbas%C4%B1.jpg"
         },
         {
             "id": "midye",
@@ -575,7 +575,7 @@
                 "restoran",
                 "balık"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1785031728396-c88b166a9517?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Cooked_mussels.jpg/960px-Cooked_mussels.jpg"
         },
         {
             "id": "bruschetta",
@@ -605,7 +605,7 @@
                 "paylaşımlık",
                 "atıştırmalık"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1695886135860-2fe067db2fb8?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Nachos.jpg/960px-Nachos.jpg"
         },
         {
             "id": "hummus",
@@ -637,7 +637,7 @@
                 "başlangıç",
                 "atıştırmalık"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1611456338118-5b6bdc430072?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/French_fries.jpg/960px-French_fries.jpg"
         },
         {
             "id": "carpaccio",
@@ -652,7 +652,7 @@
                 "restoran",
                 "italyan"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1544025162-d76694265947?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b9/Carpaccio.jpg"
         },
         {
             "id": "caprese",
@@ -670,7 +670,7 @@
                 "ton balıklı salata",
                 "ton balikli salata"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1769458313860-3c8db667d990?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Insalata_caprese.jpg/960px-Insalata_caprese.jpg"
         },
         {
             "id": "kalamar",
@@ -686,7 +686,7 @@
                 "meze",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1741125528229-528746153a6c?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/34/Fried_calamari.jpg/960px-Fried_calamari.jpg"
         },
         {
             "id": "spring-rolls",
@@ -734,7 +734,7 @@
                 "yumurta",
                 "sabah"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1769706722493-36e1f9f6dc10?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Turkish_breakfast.jpg/960px-Turkish_breakfast.jpg"
         },
         {
             "id": "pankek",
@@ -766,7 +766,7 @@
                 "fırın",
                 "sabah"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/3/32/Croissant.jpg"
         },
         {
             "id": "menemen",
@@ -782,7 +782,7 @@
                 "türk",
                 "sabah"
             ],
-            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/Menemen_in_pan.jpg/960px-Menemen_in_pan.jpg"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/e/e7/Turkish_egg_dish_Menemen.jpg"
         },
         {
             "id": "omlet",
@@ -798,7 +798,7 @@
                 "kafe",
                 "sabah"
             ],
-            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/A_potato_omelette.jpg/960px-A_potato_omelette.jpg"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/Omelette_on_a_plate.jpg/960px-Omelette_on_a_plate.jpg"
         },
         {
             "id": "avokado-toast",
@@ -814,7 +814,7 @@
                 "vegan",
                 "brunch"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Avocado_toast.jpg/960px-Avocado_toast.jpg"
         },
         {
             "id": "waffle",
@@ -830,7 +830,7 @@
                 "brunch",
                 "sıcak"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1713759980312-bb9fa81d1c7a?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Belgian_waffle.jpg/960px-Belgian_waffle.jpg"
         },
         {
             "id": "simit",
@@ -877,7 +877,7 @@
                 "kafe",
                 "peynir"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/4/44/Cheesecake.jpg"
         },
         {
             "id": "cikolatali-fondan",
@@ -907,7 +907,7 @@
                 "kafe",
                 "dessert"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1768187067385-5846b09e623c?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/8/87/Tiramisu.jpg"
         },
         {
             "id": "baklava",
@@ -938,7 +938,7 @@
                 "kafe",
                 "soğuk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/88/M%C3%B6venpick_Ice_Cream.jpg/960px-M%C3%B6venpick_Ice_Cream.jpg"
         },
         {
             "id": "brownie",
@@ -953,7 +953,7 @@
                 "kafe",
                 "dessert"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Chocolate_brownie.jpg"
         },
         {
             "id": "kunefe",
@@ -984,7 +984,7 @@
                 "kafe",
                 "dessert"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1766413580427-88906bbd722d?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Profiteroles.jpg/960px-Profiteroles.jpg"
         },
         {
             "id": "macaron",
@@ -1000,7 +1000,7 @@
                 "dessert",
                 "fransız"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1702747558545-68b3dbbdc46e?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3f/Macarons.jpg"
         },
         {
             "id": "lava-cake",
@@ -1016,7 +1016,7 @@
                 "kafe",
                 "dessert"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1768342068919-1ee67c1053ba?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Chocolate_lava_cake.jpg/960px-Chocolate_lava_cake.jpg"
         },
         {
             "id": "panna-cotta",
@@ -1048,7 +1048,7 @@
                 "sıcak",
                 "latte"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Black_coffee.jpg/960px-Black_coffee.jpg"
         },
         {
             "id": "espresso",
@@ -1064,7 +1064,7 @@
                 "sıcak",
                 "içecek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1511920170033-f8396924c348?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/b/bb/Espresso.jpg"
         },
         {
             "id": "cay",
@@ -1098,7 +1098,7 @@
                 "alkol",
                 "mojito margarita"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1767065703415-ff8eef35e168?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e7/Zombiecocktail.jpg/960px-Zombiecocktail.jpg"
         },
         {
             "id": "mojito",
@@ -1114,7 +1114,7 @@
                 "içecek",
                 "soğuk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1775717427643-2b0fc39a81f8?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f2/Mojito.jpg"
         },
         {
             "id": "negroni",
@@ -1130,7 +1130,7 @@
                 "alkol",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1500217052183-bc01eee1a74e?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/5/51/Negroni.jpg"
         },
         {
             "id": "sarap",
@@ -1167,7 +1167,7 @@
                 "soğuk",
                 "alkol"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1667205248428-407f6ee39377?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/0/05/Glass_of_beer.jpg"
         },
         {
             "id": "viski",
@@ -1183,7 +1183,7 @@
                 "alkol",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Whiskey.jpg/960px-Whiskey.jpg"
         },
         {
             "id": "taze-sikma",
@@ -1199,7 +1199,7 @@
                 "taze",
                 "içecek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/30/Freshly_squeezed_orange_juice.jpg/960px-Freshly_squeezed_orange_juice.jpg"
         },
         {
             "id": "greyfurt",
@@ -1230,7 +1230,7 @@
                 "kafe",
                 "lokanta"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/8/8f/Glass_of_lemonade.jpg"
         },
         {
             "id": "smoothie",
@@ -1278,7 +1278,7 @@
                 "kutlama",
                 "alkol"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1578425144925-a3638eb650aa?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/Pouring_sparkling_wine_into_a_flute.jpg/960px-Pouring_sparkling_wine_into_a_flute.jpg"
         },
         {
             "id": "turk-kahvesi",
@@ -1295,7 +1295,7 @@
                 "sıcak",
                 "içecek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1757079649052-a24c6ab32c64?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/Turkish_coffee.jpg/960px-Turkish_coffee.jpg"
         },
         {
             "id": "cappuccino",
@@ -1311,7 +1311,7 @@
                 "sıcak",
                 "içecek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1518810300173-625a9c46f7d2?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Cappuccino.jpg/960px-Cappuccino.jpg"
         },
         {
             "id": "margarita",
@@ -1344,7 +1344,7 @@
                 "limon",
                 "soğuk çay"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Iced_tea.jpg/960px-Iced_tea.jpg"
         },
         {
             "id": "latte",
@@ -1361,7 +1361,7 @@
                 "içecek",
                 "süt"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/Latte_art.jpg/960px-Latte_art.jpg"
         },
         {
             "id": "sicak-cikolata",
@@ -1409,7 +1409,7 @@
                 "meyhane",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1600891964092-4316c288032e?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/3/38/Iskender_kebap.jpg"
         },
         {
             "id": "kebap-2",
@@ -1425,7 +1425,7 @@
                 "türk",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Adana_kebab.jpg/960px-Adana_kebab.jpg"
         },
         {
             "id": "kebap-3",
@@ -1441,7 +1441,7 @@
                 "ana yemek",
                 "meyhane"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Shish_kebab_%28lamb%29.jpg/960px-Shish_kebab_%28lamb%29.jpg"
         },
         {
             "id": "lahmacun-2",
@@ -1504,7 +1504,7 @@
                 "türk",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/%C4%B0neg%C3%B6l_k%C3%B6fte.jpg/960px-%C4%B0neg%C3%B6l_k%C3%B6fte.jpg"
         },
         {
             "id": "manti-2",
@@ -1538,7 +1538,7 @@
                 "et sote",
                 "karışık ızgara tabağı"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/32/Mixed_Grill_%285976827848%29.jpg/960px-Mixed_Grill_%285976827848%29.jpg"
         },
         {
             "id": "shawarma",
@@ -1625,7 +1625,7 @@
                 "karides güveç",
                 "güveç"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d8/Grilled_shrimp.jpg"
         },
         {
             "id": "pizza-2",
@@ -1641,7 +1641,7 @@
                 "margherita",
                 "margherita pizza"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Margherita_pizza_on_plate.jpg/960px-Margherita_pizza_on_plate.jpg"
         },
         {
             "id": "hamburger-2",
@@ -1656,7 +1656,7 @@
                 "restoran",
                 "ana yemek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Cheeseburger.jpg/960px-Cheeseburger.jpg"
         },
         {
             "id": "meze-tabagi-2",
@@ -1671,7 +1671,7 @@
                 "başlangıç",
                 "lokanta"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1580069491658-8220b0e8722d?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Meze-Taba%C4%9F%C4%B1.jpg/960px-Meze-Taba%C4%9F%C4%B1.jpg"
         },
         {
             "id": "caesar-salad",
@@ -1686,7 +1686,7 @@
                 "restoran",
                 "başlangıç"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1546793665-c74683f339c1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Caesar_salad.jpg/960px-Caesar_salad.jpg"
         },
         {
             "id": "peynir-tabagi",
@@ -1702,7 +1702,7 @@
                 "başlangıç",
                 "meze"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1548940740-204726a19be3?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Cheese_platter.jpg"
         },
         {
             "id": "kalamar-2",
@@ -1769,7 +1769,7 @@
                 "raki duble",
                 "rakı şişe"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1703013131836-362d5f600eef?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/Rak%C4%B1.jpg/960px-Rak%C4%B1.jpg"
         },
         {
             "id": "gin-tonic",
@@ -1784,7 +1784,7 @@
                 "içecek",
                 "alkol"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1746198253931-8f255451af47?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Gin_and_tonic.jpg/960px-Gin_and_tonic.jpg"
         },
         {
             "id": "old-fashioned",
@@ -1799,7 +1799,7 @@
                 "bar",
                 "içecek"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1768260732363-1e00343ef8e7?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/68/Whiskey_Old_Fashioned.jpg/960px-Whiskey_Old_Fashioned.jpg"
         },
         {
             "id": "cola",
@@ -1832,7 +1832,7 @@
                 "restoran",
                 "bufe"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Glass_of_water.jpg/960px-Glass_of_water.jpg"
         },
         {
             "id": "steak-ribeye",
@@ -1848,7 +1848,7 @@
                 "ana yemek",
                 "kuzu şiş"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1600891964092-4316c288032e?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/4_rib_eye_steaks_cooked.JPG/960px-4_rib_eye_steaks_cooked.JPG"
         },
         {
             "id": "nuggets",
@@ -1863,7 +1863,7 @@
                 "fast food",
                 "çocuk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1562967916-eb82221dfb92?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Chicken_nuggets.jpg/960px-Chicken_nuggets.jpg"
         },
         {
             "id": "ahtapot",
@@ -1876,7 +1876,7 @@
                 "deniz",
                 "meyhane"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/69/Grilled_octopus.jpg/960px-Grilled_octopus.jpg"
         },
         {
             "id": "sucuklu-yumurta",
@@ -1902,7 +1902,7 @@
                 "tatlı",
                 "bufe"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1567994132067-402de7698daa?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Ice_Cream_for_Breakfast_Day.jpg/960px-Ice_Cream_for_Breakfast_Day.jpg"
         },
         {
             "id": "ayran-2",
@@ -1931,7 +1931,7 @@
                 "pub",
                 "bufe"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Buffalo_wings.jpg/960px-Buffalo_wings.jpg"
         },
         {
             "id": "chicken-wings-2",
@@ -1946,7 +1946,7 @@
                 "bar",
                 "pub"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f6/Chicken_wings.jpg"
         },
         {
             "id": "chicken-wings-3",
@@ -1961,7 +1961,7 @@
                 "bar",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/11/Buffalo_wings.jpg/960px-Buffalo_wings.jpg"
         },
         {
             "id": "fried-chicken",
@@ -1976,7 +1976,7 @@
                 "fast food",
                 "pub"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1601785263284-65bc432520d7?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b7/Fried_chicken.jpg"
         },
         {
             "id": "fish-chips",
@@ -2018,7 +2018,7 @@
                 "bufe",
                 "fast food"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1727316225995-274f45f247d1?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Chicken_nuggets.jpg/960px-Chicken_nuggets.jpg"
         },
         {
             "id": "burger-fries",
@@ -2032,7 +2032,7 @@
                 "bufe",
                 "fast food"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1627840009553-ff79a10c9ddd?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/French_fries%2C_ketchup_and_hamburger.jpg/960px-French_fries%2C_ketchup_and_hamburger.jpg"
         },
         {
             "id": "kebap-4",
@@ -2089,7 +2089,7 @@
                 "lokanta",
                 "bufe"
             ],
-            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/D%C3%B6ner_Kebab_auf_Teller.jpg/960px-D%C3%B6ner_Kebab_auf_Teller.jpg"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Chicken_Shwarama_plate.jpeg/960px-Chicken_Shwarama_plate.jpeg"
         },
         {
             "id": "kofte-4",
@@ -2161,7 +2161,7 @@
                 "bufe",
                 "bar"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1687573974499-199d80549d4c?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/French_fries.jpg/960px-French_fries.jpg"
         },
         {
             "id": "ezogelin-corbasi",
@@ -2361,7 +2361,7 @@
                 "meze",
                 "turk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1517260739337-6799d239ce83?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/%C3%87oban_salata.jpg/960px-%C3%87oban_salata.jpg"
         },
         {
             "id": "gavurdagi-salata",
@@ -2376,7 +2376,7 @@
                 "meze",
                 "lokanta"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1560761098-21f5722ecb14?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/Tomato-onion_salad.jpg/960px-Tomato-onion_salad.jpg"
         },
         {
             "id": "akdeniz-salata",
@@ -2390,7 +2390,7 @@
                 "meze",
                 "restoran"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1498579397066-22750a3cb424?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/Greek_salad.jpg/960px-Greek_salad.jpg"
         },
         {
             "id": "kanat-izgara",
@@ -2405,7 +2405,7 @@
                 "bar",
                 "lokanta"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Grilled_chicken_wings.jpg/960px-Grilled_chicken_wings.jpg"
         },
         {
             "id": "kusbasili-pide",
@@ -2461,7 +2461,7 @@
                 "tatli",
                 "turk"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1728994062543-74a1dc2c9392?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/Tres_leches_cake.jpg/960px-Tres_leches_cake.jpg"
         },
         {
             "id": "kavun",
@@ -2475,7 +2475,7 @@
                 "meyhane",
                 "tatli"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Cantaloupe.jpg/960px-Cantaloupe.jpg"
         },
         {
             "id": "meyve-tabagi",
@@ -2489,7 +2489,7 @@
                 "meyhane",
                 "tatli"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1628689469838-524a4a973b8e?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Fruit_plate_with_fresh_fruits.jpg/960px-Fruit_plate_with_fresh_fruits.jpg"
         },
         {
             "id": "salgam",
@@ -2546,7 +2546,7 @@
                 "kafe",
                 "sicak"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b1/Filter_coffee.jpg/960px-Filter_coffee.jpg"
         },
         {
             "id": "cay-bardak",
@@ -2577,7 +2577,7 @@
                 "bar",
                 "bufe"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1611456338118-5b6bdc430072?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/42/French_fries.jpg/960px-French_fries.jpg"
         },
         {
             "id": "kuru-fasulye",
@@ -2592,7 +2592,7 @@
                 "lokanta",
                 "ev yemegi"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Kuru_fasulye.jpg/960px-Kuru_fasulye.jpg"
         },
         {
             "id": "margherita-pizza",
@@ -2606,7 +2606,7 @@
                 "restoran",
                 "fast food"
             ],
-            "sourceUrl": "https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?w=960&h=640&fit=crop&auto=format&q=85"
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Margherita_Originale.JPG/960px-Margherita_Originale.JPG"
         }
     ]
 }

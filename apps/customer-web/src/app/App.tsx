@@ -8,6 +8,7 @@ import {
   type AllergenKey,
   type CartLine,
   type CustomerGateway,
+  type CustomerMenuSettings,
   type CustomerSession,
   type DietaryFilterKey,
   type ModifierGroup,
@@ -120,17 +121,26 @@ const formatModifierDelta = (deltaMinor: number) =>
 
 function ProductDialog({
   product,
+  menuSettings,
   onClose,
   onAdd,
 }: {
   product: Product;
+  menuSettings?: CustomerMenuSettings;
   onClose: () => void;
   onAdd: (line: CartLine) => void;
 }) {
+  const showNutrition = menuSettings?.showProductNutrition === true;
+  const showAllergens = menuSettings?.showProductAllergens === true;
+  const showModifiers = menuSettings?.showProductModifiers === true;
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState("");
-  const [portionId, setPortionId] = useState(() => initialPortionId(product));
-  const [selections, setSelections] = useState(() => initialSelections(product));
+  const [portionId, setPortionId] = useState(() =>
+    showModifiers ? initialPortionId(product) : undefined,
+  );
+  const [selections, setSelections] = useState(() =>
+    showModifiers ? initialSelections(product) : {},
+  );
   const unitMinor = unitPriceMinor(product, selections, portionId);
   const previewLine: CartLine = {
     key: cartLineKey(product, selections, note, portionId),
@@ -151,6 +161,13 @@ function ProductDialog({
     salt: t.nutritionSalt,
   });
   const badgeLabel = displayBadge(product);
+  const hasExtraInfo =
+    (showAllergens &&
+      (!!product.ingredients?.length ||
+        !!product.allergenKeys.length ||
+        !!product.mayContainAllergenKeys?.length ||
+        !!product.certificationNotes)) ||
+    (showNutrition && nutritionParts.length > 0);
 
   const toggleModifierOption = (group: ModifierGroup, optionId: string) => {
     const maxSelections = group.maxSelections ?? 1;
@@ -197,9 +214,6 @@ function ProductDialog({
             </div>
             <PriceDisplay product={product} unitMinor={unitMinor} emphasize />
           </div>
-          {product.certificationNotes ? (
-            <p className="certification-note">{product.certificationNotes}</p>
-          ) : null}
           <div className="product-detail__meta">
             {product.prepTimeMinutes ? (
               <span className="meta-pill">{t.prepTime(product.prepTimeMinutes)}</span>
@@ -214,84 +228,99 @@ function ProductDialog({
             ) : null}
           </div>
           <p>{product.description}</p>
-          {product.ingredients?.length ? (
-            <div className="ingredients">
-              <h3>{t.ingredients}</h3>
-              <p>{product.ingredients.join(", ")}</p>
-            </div>
-          ) : null}
           {product.spiceLevel ? <SpiceIndicator level={product.spiceLevel} /> : null}
-          {nutritionParts.length ? (
-            <div className="nutrition">
-              <h3>{t.nutrition}</h3>
-              <p>{nutritionParts.join(" · ")}</p>
-            </div>
+
+          {hasExtraInfo ? (
+            <details className="product-more">
+              <summary>
+                {t.moreProductInfo}
+                <span className="product-more__hint">{t.moreProductInfoHint}</span>
+              </summary>
+              {showAllergens && product.certificationNotes ? (
+                <p className="certification-note">{product.certificationNotes}</p>
+              ) : null}
+              {showAllergens && product.ingredients?.length ? (
+                <div className="ingredients">
+                  <h3>{t.ingredients}</h3>
+                  <p>{product.ingredients.join(", ")}</p>
+                </div>
+              ) : null}
+              {showNutrition && nutritionParts.length ? (
+                <div className="nutrition">
+                  <h3>{t.nutrition}</h3>
+                  <p>{nutritionParts.join(" · ")}</p>
+                </div>
+              ) : null}
+              {showAllergens && product.allergenKeys.length ? (
+                <div className="allergens">
+                  <h3>{t.allergens}</h3>
+                  <div className="chip-row">
+                    {product.allergenKeys.map((key) => (
+                      <span className="chip chip--allergen" key={key}>
+                        {allergenLabel(key)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {showAllergens && product.mayContainAllergenKeys?.length ? (
+                <div className="allergens allergens--may-contain">
+                  <h3>{t.mayContain}</h3>
+                  <div className="chip-row">
+                    {product.mayContainAllergenKeys.map((key) => (
+                      <span className="chip chip--may-contain" key={key}>
+                        {allergenLabel(key)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </details>
           ) : null}
-          {product.allergenKeys.length ? (
-            <div className="allergens">
-              <h3>{t.allergens}</h3>
-              <div className="chip-row">
-                {product.allergenKeys.map((key) => (
-                  <span className="chip chip--allergen" key={key}>
-                    {allergenLabel(key)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          {product.mayContainAllergenKeys?.length ? (
-            <div className="allergens allergens--may-contain">
-              <h3>{t.mayContain}</h3>
-              <div className="chip-row">
-                {product.mayContainAllergenKeys.map((key) => (
-                  <span className="chip chip--may-contain" key={key}>
-                    {allergenLabel(key)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          {product.modifierGroups.map((group) => {
-            const maxSelections = group.maxSelections ?? 1;
-            const selected = selections[group.id] ?? [];
-            return (
-              <fieldset className="modifier-group" key={group.id}>
-                <legend>
-                  {group.name}{" "}
-                  <small>
-                    {group.required ? t.required : t.optional}
-                    {maxSelections > 1 ? ` · en fazla ${maxSelections}` : ""}
-                  </small>
-                </legend>
-                {group.options.map((option) => {
-                  const inputId = `${group.id}-${option.id}`;
-                  const isChecked = selected.includes(option.id);
-                  return (
-                    <label className="modifier-option" htmlFor={inputId} key={option.id}>
-                      <input
-                        id={inputId}
-                        type={maxSelections > 1 ? "checkbox" : "radio"}
-                        name={maxSelections > 1 ? undefined : group.id}
-                        checked={isChecked}
-                        onChange={() => toggleModifierOption(group, option.id)}
-                      />
-                      <span>{option.name}</span>
-                      {option.priceDelta.amountMinor > 0 ? (
-                        <strong>{formatModifierDelta(option.priceDelta.amountMinor)}</strong>
-                      ) : null}
-                    </label>
-                  );
-                })}
-              </fieldset>
-            );
-          })}
-          {product.portions && product.portions.length > 1 ? (
+
+          {showModifiers
+            ? product.modifierGroups.map((group) => {
+                const maxSelections = group.maxSelections ?? 1;
+                const selected = selections[group.id] ?? [];
+                return (
+                  <fieldset className="modifier-group" key={group.id}>
+                    <legend>
+                      {group.name}{" "}
+                      <small>
+                        {group.required ? t.required : t.optional}
+                        {maxSelections > 1 ? " · en fazla " + maxSelections : ""}
+                      </small>
+                    </legend>
+                    {group.options.map((option) => {
+                      const inputId = group.id + "-" + option.id;
+                      const isChecked = selected.includes(option.id);
+                      return (
+                        <label className="modifier-option" htmlFor={inputId} key={option.id}>
+                          <input
+                            id={inputId}
+                            type={maxSelections > 1 ? "checkbox" : "radio"}
+                            name={maxSelections > 1 ? undefined : group.id}
+                            checked={isChecked}
+                            onChange={() => toggleModifierOption(group, option.id)}
+                          />
+                          <span>{option.name}</span>
+                          {option.priceDelta.amountMinor > 0 ? (
+                            <strong>{formatModifierDelta(option.priceDelta.amountMinor)}</strong>
+                          ) : null}
+                        </label>
+                      );
+                    })}
+                  </fieldset>
+                );
+              })
+            : null}
+          {showModifiers && product.portions && product.portions.length > 1 ? (
             <fieldset className="modifier-group">
               <legend>
                 {t.portionChoice} <small>{t.required}</small>
               </legend>
               {product.portions.map((portion) => {
-                const inputId = `portion-${portion.id}`;
+                const inputId = "portion-" + portion.id;
                 return (
                   <label className="modifier-option" htmlFor={inputId} key={portion.id}>
                     <input
@@ -1075,6 +1104,7 @@ function Menu({
       {selectedProduct ? (
         <ProductDialog
           product={selectedProduct}
+          menuSettings={session.customerMenu}
           onClose={() => setSelectedProduct(null)}
           onAdd={addLine}
         />

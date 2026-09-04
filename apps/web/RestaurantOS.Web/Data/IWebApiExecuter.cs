@@ -32,6 +32,8 @@ public interface IWebApiExecuter
         Guid? branchId = null,
         CancellationToken cancellationToken = default);
 
+    Task SwitchBranchAsync(Guid branchId, CancellationToken cancellationToken = default);
+
     Task RegisterAsync(
         string email,
         string password,

@@ -19,17 +19,52 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
             return RedirectToAction("Login", "Account", new { returnUrl = Url.Action(nameof(Index)) });
         }
 
+        var model = new MenusIndexViewModel();
         try
         {
-            var menus = await api.InvokeGetAsync<List<MenuSummaryViewModel>>(
+            model.Menus = await api.InvokeGetAsync<List<MenuSummaryViewModel>>(
                 "/api/v1/management/menus",
                 cancellationToken) ?? [];
-            return View(menus);
+            model.ShareableMenus = await api.InvokeGetAsync<List<ShareableMenuViewModel>>(
+                "/api/v1/management/menus/shareable",
+                cancellationToken) ?? [];
+            var workspace = await api.GetWorkspaceAsync(cancellationToken);
+            ViewData["CanEditMenus"] = workspace?.CanEditMenus == true;
+            return View(model);
         }
         catch (WebApiException exception)
         {
             TempData["Error"] = exception.Message;
-            return View(new List<MenuSummaryViewModel>());
+            return View(model);
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Clone(Guid sourceMenuId, CancellationToken cancellationToken)
+    {
+        if (!api.IsAuthenticated)
+        {
+            return RedirectToAction("Login", "Account");
+        }
+
+        try
+        {
+            var created = await api.InvokePostAsync<MenuSummaryViewModel>(
+                "/api/v1/management/menus/clone",
+                new { sourceMenuId },
+                cancellationToken);
+            TempData["Message"] = created is null
+                ? "Menü kopyalandı."
+                : $"“{created.Name}” kopyalandı. Düzenleyip yayınlayın.";
+            return created is null
+                ? RedirectToAction(nameof(Index))
+                : RedirectToAction(nameof(Details), new { id = created.Id });
+        }
+        catch (WebApiException exception)
+        {
+            TempData["Error"] = exception.Message;
+            return RedirectToAction(nameof(Index));
         }
     }
 
@@ -504,6 +539,8 @@ public sealed class MenusController(IWebApiExecuter api, IOptions<ApiOptions> ap
             var workspace = await api.GetWorkspaceAsync(cancellationToken);
             ViewData["CanUseProductImages"] = workspace?.Entitlements?.CanUseProductImages ?? false;
             ViewData["PlanDisplayName"] = workspace?.Entitlements?.PlanDisplayName ?? "Free";
+            ViewData["CanEditMenus"] = workspace?.CanEditMenus == true;
+            ViewData["CanPublishMenus"] = workspace?.CanPublishMenus == true;
         }
         catch (WebApiException)
         {

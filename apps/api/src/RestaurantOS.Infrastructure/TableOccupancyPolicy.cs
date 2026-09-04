@@ -5,8 +5,8 @@ namespace RestaurantOS.Infrastructure;
 /// </summary>
 public static class TableOccupancyPolicy
 {
-    /// <summary>QR oturumu üst sınırı — 4 saat.</summary>
-    public static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(4);
+    /// <summary>QR müşteri oturumu üst sınırı — tüm gün açık ekran için 16 saat.</summary>
+    public static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(16);
 
     /// <summary>Hesap talebi garsonca tamamlandıktan sonra hareketsizlik süresi.</summary>
     public static readonly TimeSpan PostBillInactivityGrace = TimeSpan.FromMinutes(15);

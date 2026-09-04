@@ -12,6 +12,7 @@ public static class ManagementPermissions
     public const string AnalyticsView = "Analytics.View";
     public const string AnalyticsFinancialView = "Analytics.FinancialView";
     public const string SubscriptionManage = "Subscription.Manage";
+    public const string BranchManage = "Branch.Manage";
     public const string PlatformManage = "Platform.Manage";
 }
 
@@ -116,6 +117,8 @@ public sealed class ManagementMembership
     public Guid RoleId { get; private set; }
     public bool IsActive { get; private set; }
     public void Deactivate() => IsActive = false;
+    public void Activate() => IsActive = true;
+    public void ChangeRole(Guid roleId) => RoleId = roleId;
 }
 
 public sealed class ManagementRefreshSession

@@ -71,13 +71,20 @@ public sealed class Branch
 {
     private Branch() { }
     public Branch(Guid id, Guid tenantId, Guid restaurantId, string name) =>
-        (Id, TenantId, RestaurantId, Name) = (id, tenantId, restaurantId, Required(name));
+        (Id, TenantId, RestaurantId, Name, IsFrozen) = (id, tenantId, restaurantId, Required(name), false);
     public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }
     public Guid RestaurantId { get; private set; }
     public string Name { get; private set; } = null!;
+    public bool IsFrozen { get; private set; }
     public Restaurant Restaurant { get; private set; } = null!;
     public string? CustomerMenuSettingsJson { get; private set; }
+
+    public void Rename(string name) => Name = Required(name);
+
+    public void Freeze() => IsFrozen = true;
+
+    public void Unfreeze() => IsFrozen = false;
 
     public void SetCustomerMenuSettingsJson(string? json) =>
         CustomerMenuSettingsJson = string.IsNullOrWhiteSpace(json) ? null : json.Trim();

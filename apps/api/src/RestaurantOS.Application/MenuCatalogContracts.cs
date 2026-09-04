@@ -76,6 +76,12 @@ public sealed record CustomerMenuSettingsData
     public IReadOnlyList<string> DietaryFilterOptions { get; init; } = [];
     public bool ShowAllergenExclusions { get; init; }
     public IReadOnlyList<string> AllergenExclusionOptions { get; init; } = [];
+    /// <summary>Show nutrition block on customer product detail. Default off.</summary>
+    public bool ShowProductNutrition { get; init; }
+    /// <summary>Show allergen / may-contain / ingredients on product detail. Default off.</summary>
+    public bool ShowProductAllergens { get; init; }
+    /// <summary>Show modifier groups and portions on product detail. Default off.</summary>
+    public bool ShowProductModifiers { get; init; }
     public string? AllergenDisclaimer { get; init; }
     public string? AllergenMatrixUrl { get; init; }
 }

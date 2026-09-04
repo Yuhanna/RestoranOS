@@ -249,7 +249,7 @@ public sealed class ManagementTablesController(IManagementTableService tableServ
     }
 
     [HttpPost("tables/{tableId:guid}/release")]
-    [Authorize(Policy = ManagementPolicies.TableEdit)]
+    [Authorize(Policy = ManagementPolicies.OrderModify)]
     [ProducesResponseType(typeof(ManagementTableResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]

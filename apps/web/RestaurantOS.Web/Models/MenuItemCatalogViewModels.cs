@@ -75,6 +75,15 @@ public sealed class CustomerMenuSettingsViewModel
     public bool ShowDietaryFilters { get; set; }
     public bool ShowAllergenExclusions { get; set; }
 
+    [Display(Name = "Beslenme bilgisini müşteriye göster")]
+    public bool ShowProductNutrition { get; set; }
+
+    [Display(Name = "Alerjen bilgisini müşteriye göster")]
+    public bool ShowProductAllergens { get; set; }
+
+    [Display(Name = "Ek seçenekleri müşteriye göster")]
+    public bool ShowProductModifiers { get; set; }
+
     [Display(Name = "Beslenme filtre seçenekleri")]
     public bool FilterVegetarian { get; set; }
     public bool FilterVegan { get; set; }
@@ -144,6 +153,9 @@ public sealed class CustomerMenuSettingsApiModel
     public string[]? DietaryFilterOptions { get; set; }
     public bool ShowAllergenExclusions { get; set; }
     public string[]? AllergenExclusionOptions { get; set; }
+    public bool ShowProductNutrition { get; set; }
+    public bool ShowProductAllergens { get; set; }
+    public bool ShowProductModifiers { get; set; }
     public string? AllergenDisclaimer { get; set; }
     public string? AllergenMatrixUrl { get; set; }
 }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using RestaurantOS.Api.Models.Dto;
@@ -9,7 +10,7 @@ namespace RestaurantOS.Api.Controllers;
 [Route("api/v1/management/auth")]
 public sealed class ManagementAuthController(IManagementAuthService authService) : ControllerBase
 {
-    private const string RefreshCookieName = "__Secure-restaurantos-refresh";
+    private const string RefreshCookiePath = "/api/v1/management/auth";
 
     [HttpPost("register")]
     [EnableRateLimiting("management-login")]
@@ -101,7 +102,7 @@ public sealed class ManagementAuthController(IManagementAuthService authService)
         try
         {
             var result = await authService.RefreshAsync(
-                Request.Cookies[RefreshCookieName] ?? string.Empty,
+                AuthRefreshCookie.Read(Request, platform: false) ?? string.Empty,
                 cancellationToken);
             SetRefreshCookie(result);
             return Ok(ToAccessTokenResponse(result));
@@ -120,10 +121,65 @@ public sealed class ManagementAuthController(IManagementAuthService authService)
     public async Task<IActionResult> LogoutAsync(CancellationToken cancellationToken)
     {
         await authService.RevokeAsync(
-            Request.Cookies[RefreshCookieName] ?? string.Empty,
+            AuthRefreshCookie.Read(Request, platform: false) ?? string.Empty,
             cancellationToken);
         DeleteRefreshCookie();
         return NoContent();
+    }
+
+    [HttpGet("memberships")]
+    [Authorize]
+    [ProducesResponseType(typeof(IReadOnlyList<ManagementMembershipScopeResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListMembershipsAsync(CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out _, out _))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        var memberships = await authService.ListMembershipsAsync(userId, cancellationToken);
+        return Ok(memberships.Select(item => new ManagementMembershipScopeResponse(
+            item.MembershipId,
+            item.TenantId,
+            item.RestaurantId,
+            item.RestaurantName,
+            item.BranchId,
+            item.BranchName,
+            item.RoleName,
+            item.CanManageBranches)).ToArray());
+    }
+
+    [HttpPost("switch-branch")]
+    [Authorize]
+    [ProducesResponseType(typeof(ManagementAccessTokenResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SwitchBranchAsync(
+        [FromBody] ManagementSwitchBranchRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out var tenantId, out _))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        if (request is null || request.BranchId == Guid.Empty)
+        {
+            return ApiProblem.Create(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "BranchId is required.");
+        }
+
+        try
+        {
+            var result = await authService.SwitchBranchAsync(
+                userId,
+                tenantId,
+                request.BranchId,
+                cancellationToken);
+            SetRefreshCookie(result);
+            return Ok(ToAccessTokenResponse(result));
+        }
+        catch (ManagementAuthException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
+        }
     }
 
     private static ManagementAccessTokenResponse ToAccessTokenResponse(ManagementTokenResult result) =>
@@ -135,27 +191,14 @@ public sealed class ManagementAuthController(IManagementAuthService authService)
             result.BranchId);
 
     private void SetRefreshCookie(ManagementTokenResult result) =>
-        Response.Cookies.Append(
-            RefreshCookieName,
+        AuthRefreshCookie.Append(
+            Response,
+            Request,
+            platform: false,
+            RefreshCookiePath,
             result.RefreshToken,
-            new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Path = "/api/v1/management/auth",
-                Expires = result.RefreshTokenExpiresAtUtc,
-                IsEssential = true,
-            });
+            result.RefreshTokenExpiresAtUtc);
 
     private void DeleteRefreshCookie() =>
-        Response.Cookies.Delete(
-            RefreshCookieName,
-            new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Path = "/api/v1/management/auth",
-            });
+        AuthRefreshCookie.Delete(Response, Request, platform: false, RefreshCookiePath);
 }

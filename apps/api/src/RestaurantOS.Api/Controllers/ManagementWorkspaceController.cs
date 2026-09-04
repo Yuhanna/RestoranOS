@@ -56,13 +56,20 @@ public sealed class ManagementWorkspaceController(
         }
 
         var usage = await entitlements.GetUsageAsync(tenantId, branchId, cancellationToken);
-        var canViewFinancialAnalytics = await PermissionAuthorizationHandler.HasPermissionAsync(
-            dbContext,
-            userId,
-            tenantId,
-            branchId,
-            ManagementPermissions.AnalyticsFinancialView,
-            cancellationToken);
+        var permissions = await dbContext.ManagementMemberships
+            .AsNoTracking()
+            .Where(membership =>
+                membership.UserId == userId
+                && membership.TenantId == tenantId
+                && membership.BranchId == branchId
+                && membership.IsActive)
+            .SelectMany(membership => dbContext.ManagementRolePermissions
+                .Where(grant => grant.RoleId == membership.RoleId)
+                .Select(grant => grant.Permission))
+            .Distinct()
+            .OrderBy(permission => permission)
+            .ToListAsync(cancellationToken);
+        var canViewFinancialAnalytics = permissions.Contains(ManagementPermissions.AnalyticsFinancialView);
         return Ok(new ManagementWorkspaceResponse(
             workspace.TenantId,
             workspace.RestaurantId,
@@ -87,7 +94,14 @@ public sealed class ManagementWorkspaceController(
                 usage.Warnings,
                 usage.IsTrial,
                 usage.TrialEndsAtUtc,
-                canViewFinancialAnalytics),
+                canViewFinancialAnalytics,
+                usage.IncludedBranches,
+                usage.PurchasedBranchAddonCount,
+                usage.FrozenBranchCount,
+                usage.ActiveBranchCount,
+                usage.ExtraBranchMonthlyPriceMinor,
+                usage.BillingCurrency,
+                usage.NextBranchRequiresAddon),
             (usage.Notifications ?? [])
                 .Select(x => new ManagementAudienceNotificationResponse(x.Id, x.Title, x.Body, x.ActionUrl))
                 .ToArray(),
@@ -99,6 +113,7 @@ public sealed class ManagementWorkspaceController(
                     x.DurationMonths,
                     x.Title,
                     x.Body))
-                .ToArray()));
+                .ToArray(),
+            permissions));
     }
 }

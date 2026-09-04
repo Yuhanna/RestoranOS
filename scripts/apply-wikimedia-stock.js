@@ -13,7 +13,7 @@ const UA = "RestaurantOS-StockSync/1.0 (local demo; restaurant menu stock photos
 const BASE = path.join(__dirname, "..", "apps", "api", "src", "RestaurantOS.Api", "media", "stock");
 const MANIFEST_PATH = path.join(BASE, "manifest.json");
 const MAP_PATH = path.join(__dirname, "wikimedia-stock-map.json");
-const DELAY_MS = 700;
+const DELAY_MS = 1200;
 
 const SEARCH_FALLBACK = {
   kebap: "shish kebab plate",
@@ -60,13 +60,26 @@ const SEARCH_FALLBACK = {
   "kahvalti-tabagi": "turkish breakfast",
   iskender: "iskender kebab yogurt",
   "iskender-3": "döner kebab meat",
+  "ege-otlari": "mixed green salad plate",
+  "dondurma-2": "ice cream bowl dessert",
+  macaron: "colorful french macarons",
+  limonata: "yellow lemonade glass",
+  viski: "whisky glass neat",
+  hamburger: "bacon cheeseburger plate",
+  "karisik-izgara": "mixed grill kebab",
+  menemen: "turkish menemen eggs",
+  omlet: "omelette on a plate",
+  kahve: "black coffee cup alone",
+  "doner-plate": "shawarma plate rice",
+  latte: "latte art coffee cup",
+  smoothie: "fruit smoothie glass",
 };
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function requestBuffer(url) {
+function requestBuffer(url, attempt = 0) {
   return new Promise((resolve, reject) => {
     const getter = url.startsWith("https") ? https : http;
     const req = getter.get(
@@ -74,7 +87,16 @@ function requestBuffer(url) {
       { headers: { "User-Agent": UA, Accept: "image/*,application/json" } },
       (response) => {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-          requestBuffer(response.headers.location).then(resolve).catch(reject);
+          requestBuffer(response.headers.location, attempt).then(resolve).catch(reject);
+          return;
+        }
+        if (response.statusCode === 429 && attempt < 6) {
+          const waitMs = Number(response.headers["retry-after"] || 0) * 1000 || 8000 * (attempt + 1);
+          response.resume();
+          sleep(waitMs)
+            .then(() => requestBuffer(url, attempt + 1))
+            .then(resolve)
+            .catch(reject);
           return;
         }
         if (response.statusCode !== 200) {
@@ -157,12 +179,30 @@ async function searchThumb(query) {
 async function main() {
   const fileMap = JSON.parse(fs.readFileSync(MAP_PATH, "utf8"));
   const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
-  const thumbs = await resolveFiles(Object.values(fileMap));
+  const onlyMissing = process.argv.includes("--only-missing");
+  const idsArg = process.argv.find((arg) => arg.startsWith("--ids="));
+  const idFilter = idsArg
+    ? new Set(idsArg.slice("--ids=".length).split(",").map((x) => x.trim()).filter(Boolean))
+    : null;
+  let targetPhotos = onlyMissing
+    ? manifest.photos.filter((photo) => !/wikimedia|commons/i.test(photo.sourceUrl || ""))
+    : manifest.photos;
+  if (idFilter) {
+    targetPhotos = targetPhotos.filter((photo) => idFilter.has(photo.id));
+  }
+  const neededFiles = targetPhotos.map((photo) => fileMap[photo.id]).filter(Boolean);
+  console.log(`Targets=${targetPhotos.length} mappedFiles=${[...new Set(neededFiles)].length}`);
+  if (!idFilter) {
+    await sleep(15_000);
+  } else {
+    await sleep(2_000);
+  }
+  const thumbs = await resolveFiles(neededFiles);
 
   let ok = 0;
   let fail = 0;
 
-  for (const photo of manifest.photos) {
+  for (const photo of targetPhotos) {
     let url = null;
     const fileName = fileMap[photo.id];
     if (fileName) {
@@ -177,6 +217,7 @@ async function main() {
       }
     }
     if (!url) {
+      console.log(`SKIP ${photo.id}: no commons mapping`);
       continue;
     }
 
@@ -188,11 +229,18 @@ async function main() {
         throw new Error(`not an image (${buffer.length} bytes)`);
       }
       fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.writeFileSync(dest, buffer);
+      const tempDest = `${dest}.download.tmp`;
+      fs.writeFileSync(tempDest, buffer);
+      fs.renameSync(tempDest, dest);
       photo.sourceUrl = url.split("?")[0];
       console.log(`OK ${photo.id}`);
       ok++;
     } catch (error) {
+      try {
+        fs.unlinkSync(`${dest}.download.tmp`);
+      } catch {
+        /* ignore */
+      }
       console.log(`FAIL ${photo.id}: ${error.message}`);
       fail++;
     }

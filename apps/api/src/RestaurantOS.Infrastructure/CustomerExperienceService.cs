@@ -56,34 +56,61 @@ public sealed class CustomerExperienceService(
                 && x.PublishedAtUtc != null
                 && x.ArchivedAtUtc == null)
             .OrderByDescending(x => x.PublishedAtUtc)
-            .Select(x => new { x.Id })
+            .Select(x => new { x.Id, x.BranchId })
             .FirstOrDefaultAsync(cancellationToken);
+
+        // Default: use this branch's published menu. If none, fall back to another branch
+        // in the same restaurant (shared "main" menu until the branch copies its own).
+        if (menu is null)
+        {
+            var restaurantId = qr.Table.Branch.RestaurantId;
+            var siblingBranchIds = await dbContext.Branches.AsNoTracking()
+                .Where(branch => branch.TenantId == qr.TenantId && branch.RestaurantId == restaurantId)
+                .Select(branch => branch.Id)
+                .ToListAsync(cancellationToken);
+            menu = await dbContext.Menus
+                .AsNoTracking()
+                .Where(x => x.TenantId == qr.TenantId
+                    && siblingBranchIds.Contains(x.BranchId)
+                    && x.PublishedAtUtc != null
+                    && x.ArchivedAtUtc == null)
+                .OrderByDescending(x => x.PublishedAtUtc)
+                .Select(x => new { x.Id, x.BranchId })
+                .FirstOrDefaultAsync(cancellationToken);
+        }
 
         if (menu is null)
         {
             throw new CustomerExperienceException("MENU_UNAVAILABLE", "A published menu is not available.");
         }
 
+        var menuBranchId = menu.BranchId;
         var resolvedLocale = SupportedLocales.Normalize(locale);
         var categories = await dbContext.MenuCategories
             .AsNoTracking()
-            .Where(x => x.MenuId == menu.Id && x.TenantId == qr.TenantId && x.BranchId == qr.BranchId)
+            .Where(x => x.MenuId == menu.Id && x.TenantId == qr.TenantId && x.BranchId == menuBranchId)
             .OrderBy(x => x.SortOrder)
             .ToListAsync(cancellationToken);
         var products = await dbContext.MenuItems
             .AsNoTracking()
-            .Where(x => x.MenuId == menu.Id && x.TenantId == qr.TenantId && x.BranchId == qr.BranchId)
+            .Where(x => x.MenuId == menu.Id && x.TenantId == qr.TenantId && x.BranchId == menuBranchId)
             .OrderBy(x => x.SortOrder)
             .ToListAsync(cancellationToken);
+        if (products.Count == 0)
+        {
+            throw new CustomerExperienceException(
+                "MENU_UNAVAILABLE",
+                "Published menu has no items. Add products and publish again.");
+        }
         var categoryIds = categories.Select(x => x.Id).ToArray();
         var productIds = products.Select(x => x.Id).ToArray();
         var categoryTranslations = await dbContext.MenuCategoryTranslations
             .AsNoTracking()
-            .Where(x => x.TenantId == qr.TenantId && x.BranchId == qr.BranchId && categoryIds.Contains(x.CategoryId))
+            .Where(x => x.TenantId == qr.TenantId && x.BranchId == menuBranchId && categoryIds.Contains(x.CategoryId))
             .ToListAsync(cancellationToken);
         var itemTranslations = await dbContext.MenuItemTranslations
             .AsNoTracking()
-            .Where(x => x.TenantId == qr.TenantId && x.BranchId == qr.BranchId && productIds.Contains(x.ItemId))
+            .Where(x => x.TenantId == qr.TenantId && x.BranchId == menuBranchId && productIds.Contains(x.ItemId))
             .ToListAsync(cancellationToken);
 
         var now = timeProvider.GetUtcNow();
@@ -245,18 +272,28 @@ public sealed class CustomerExperienceService(
 
         customerOrderGuard.EnsureCanPlaceOrder(session.Id, client);
 
+        var restaurantId = await dbContext.Branches.AsNoTracking()
+            .Where(branch => branch.Id == session.BranchId && branch.TenantId == session.TenantId)
+            .Select(branch => branch.RestaurantId)
+            .SingleAsync(cancellationToken);
+        var restaurantBranchIds = await dbContext.Branches.AsNoTracking()
+            .Where(branch => branch.TenantId == session.TenantId && branch.RestaurantId == restaurantId)
+            .Select(branch => branch.Id)
+            .ToListAsync(cancellationToken);
+
         var productIds = lines.Select(x => x.ProductId).Distinct().ToArray();
         var products = await dbContext.MenuItems
             .AsNoTracking()
             .Where(x => productIds.Contains(x.Id)
                 && x.TenantId == session.TenantId
-                && x.BranchId == session.BranchId
+                && restaurantBranchIds.Contains(x.BranchId)
                 && x.IsAvailable
                 && dbContext.Menus.Any(menu =>
                     menu.Id == x.MenuId
                     && menu.TenantId == session.TenantId
-                    && menu.BranchId == session.BranchId
-                    && menu.PublishedAtUtc != null))
+                    && restaurantBranchIds.Contains(menu.BranchId)
+                    && menu.PublishedAtUtc != null
+                    && menu.ArchivedAtUtc == null))
             .ToDictionaryAsync(x => x.Id, cancellationToken);
         if (products.Count != productIds.Length)
         {

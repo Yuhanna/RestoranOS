@@ -74,7 +74,9 @@ public sealed class ManagementAuthService(
                 dbContext.TenantSubscriptions.Add(
                     TenantSubscription.CreateProTrial(tenantId, now));
 
-                var role = await EnsureOwnerRoleAsync(cancellationToken);
+                await ManagementRolePermissionSync.SyncBuiltInRolesAsync(dbContext, cancellationToken);
+                var role = await dbContext.ManagementRoles
+                    .SingleAsync(x => x.Name == "RestaurantOwner", cancellationToken);
                 var user = new ManagementUser(
                     Guid.NewGuid(),
                     email.Trim(),
@@ -205,6 +207,7 @@ public sealed class ManagementAuthService(
             user.UpdatePasswordHash(passwordHasher.HashPassword(user, password));
         }
 
+        await ManagementRolePermissionSync.SyncBuiltInRolesAsync(dbContext, cancellationToken);
         user.RecordSuccessfulLogin(now);
         var result = CreateTokenPair(user.Id, resolvedTenantId.Value, resolvedBranchId.Value, Guid.NewGuid(), now);
         dbContext.ManagementRefreshSessions.Add(result.Session);
@@ -308,39 +311,12 @@ public sealed class ManagementAuthService(
         return result.Result;
     }
 
-    private async Task<ManagementRole> EnsureOwnerRoleAsync(CancellationToken cancellationToken)
-    {
-        var role = await dbContext.ManagementRoles
-            .SingleOrDefaultAsync(x => x.Name == "RestaurantOwner", cancellationToken);
-        if (role is null)
-        {
-            role = new ManagementRole(Guid.NewGuid(), "RestaurantOwner");
-            dbContext.ManagementRoles.Add(role);
-        }
-
-        foreach (var permission in new[]
-                 {
-                     ManagementPermissions.OrderView,
-                     ManagementPermissions.OrderModify,
-                     ManagementPermissions.TableView,
-                     ManagementPermissions.TableEdit,
-                     ManagementPermissions.MenuView,
-                     ManagementPermissions.MenuEdit,
-                     ManagementPermissions.MenuPublish,
-                     ManagementPermissions.AnalyticsView,
-                     ManagementPermissions.AnalyticsFinancialView,
-                     ManagementPermissions.SubscriptionManage,
-                 })
-        {
-            if (!await dbContext.ManagementRolePermissions
-                    .AnyAsync(x => x.RoleId == role.Id && x.Permission == permission, cancellationToken))
-            {
-                dbContext.ManagementRolePermissions.Add(new ManagementRolePermissionGrant(role.Id, permission));
-            }
-        }
-
-        return role;
-    }
+    private Task<ManagementRole> EnsureOwnerRoleAsync(CancellationToken cancellationToken) =>
+        ManagementRolePermissionSync.SyncRoleAsync(
+            dbContext,
+            "RestaurantOwner",
+            ManagementAuthServicePermissions.Owner,
+            cancellationToken);
 
     private static void ValidateRegistration(
         string email,
@@ -462,6 +438,79 @@ public sealed class ManagementAuthService(
             session.TenantId,
             session.BranchId));
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<ManagementTokenResult> SwitchBranchAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid targetBranchId,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        if (!await HasActiveMembershipAsync(userId, tenantId, targetBranchId, cancellationToken))
+        {
+            throw new ManagementAuthException(
+                "BRANCH_ACCESS_DENIED",
+                "Bu şubeye erişim yetkiniz yok.");
+        }
+
+        var pair = CreateTokenPair(userId, tenantId, targetBranchId, Guid.NewGuid(), now);
+        dbContext.ManagementRefreshSessions.Add(pair.Session);
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "SwitchBranch",
+            true,
+            now,
+            userId,
+            tenantId,
+            targetBranchId));
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return pair.Result;
+    }
+
+    public async Task<IReadOnlyList<ManagementMembershipScopeResult>> ListMembershipsAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var rows = await (
+            from membership in dbContext.ManagementMemberships.AsNoTracking()
+            join branch in dbContext.Branches.AsNoTracking() on membership.BranchId equals branch.Id
+            join restaurant in dbContext.Restaurants.AsNoTracking() on branch.RestaurantId equals restaurant.Id
+            join role in dbContext.ManagementRoles.AsNoTracking() on membership.RoleId equals role.Id
+            where membership.UserId == userId && membership.IsActive
+            orderby restaurant.Name, branch.Name
+            select new
+            {
+                membership.Id,
+                membership.TenantId,
+                RestaurantId = restaurant.Id,
+                RestaurantName = restaurant.Name,
+                BranchId = branch.Id,
+                BranchName = branch.Name,
+                RoleName = role.Name,
+                RoleId = role.Id,
+            }).ToListAsync(cancellationToken);
+
+        var roleIds = rows.Select(x => x.RoleId).Distinct().ToArray();
+        var manageRoleIds = await dbContext.ManagementRolePermissions
+            .AsNoTracking()
+            .Where(x => roleIds.Contains(x.RoleId) && x.Permission == ManagementPermissions.BranchManage)
+            .Select(x => x.RoleId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var manageSet = manageRoleIds.ToHashSet();
+
+        return rows
+            .Select(row => new ManagementMembershipScopeResult(
+                row.Id,
+                row.TenantId,
+                row.RestaurantId,
+                row.RestaurantName,
+                row.BranchId,
+                row.BranchName,
+                row.RoleName,
+                manageSet.Contains(row.RoleId)))
+            .ToArray();
     }
 
     private bool VerifyPassword(ManagementUser? user, string password)

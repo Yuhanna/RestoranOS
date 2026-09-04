@@ -15,6 +15,13 @@ public sealed class PromotionsController(IWebApiExecuter api) : Controller
             return ChallengeLogin();
         }
 
+        var workspace = await api.GetWorkspaceAsync(cancellationToken);
+        if (workspace?.CanManagePromotions != true)
+        {
+            TempData["Error"] = "İndirim yönetimi için yetkiniz yok.";
+            return RedirectToAction("Index", "Dashboard");
+        }
+
         try
         {
             return View(await BuildPageModelAsync(new CreateMenuPromotionViewModel(), cancellationToken));

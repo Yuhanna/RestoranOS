@@ -110,6 +110,12 @@ export interface CustomerMenuSettings {
   dietaryFilterOptions: DietaryFilterKey[];
   showAllergenExclusions: boolean;
   allergenExclusionOptions: AllergenKey[];
+  /** Product detail: nutrition block. Default false. */
+  showProductNutrition?: boolean;
+  /** Product detail: allergens / ingredients. Default false. */
+  showProductAllergens?: boolean;
+  /** Product detail: modifiers / portions. Default false. */
+  showProductModifiers?: boolean;
   allergenDisclaimer?: string;
   allergenMatrixUrl?: string;
 }

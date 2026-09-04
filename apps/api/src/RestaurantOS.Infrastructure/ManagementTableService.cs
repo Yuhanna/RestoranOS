@@ -386,7 +386,7 @@ public sealed class ManagementTableService(
         Guid tableId,
         CancellationToken cancellationToken)
     {
-        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.TableEdit, cancellationToken);
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.OrderModify, cancellationToken);
         var table = await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
         var now = timeProvider.GetUtcNow();
         await TableSessionSettlement.ReleaseTableOperationalStateAsync(

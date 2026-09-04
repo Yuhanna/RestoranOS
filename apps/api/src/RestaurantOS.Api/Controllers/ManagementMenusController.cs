@@ -71,6 +71,79 @@ public sealed class ManagementMenusController(IManagementMenuService menus) : Co
         }
     }
 
+    [HttpGet("menus/shareable")]
+    [Authorize(Policy = ManagementPolicies.MenuView)]
+    [ProducesResponseType(typeof(IReadOnlyList<ManagementShareableMenuResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListShareableAsync(CancellationToken cancellationToken)
+    {
+        if (!TryScope(out var userId, out var tenantId, out var branchId))
+        {
+            return UnauthorizedToken();
+        }
+
+        try
+        {
+            var result = await menus.ListShareableMenusAsync(userId, tenantId, branchId, cancellationToken);
+            return Ok(result.Select(item => new ManagementShareableMenuResponse(
+                item.Id,
+                item.SourceBranchId,
+                item.SourceBranchName,
+                item.Name,
+                item.CategoryCount,
+                item.ItemCount)).ToArray());
+        }
+        catch (ManagementAuthException exception)
+        {
+            return Forbidden(exception);
+        }
+    }
+
+    [HttpPost("menus/clone")]
+    [Authorize(Policy = ManagementPolicies.MenuEdit)]
+    [ProducesResponseType(typeof(ManagementMenuSummaryResponse), StatusCodes.Status201Created)]
+    public async Task<IActionResult> CloneAsync(
+        [FromBody] ManagementCloneMenuRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (!TryScope(out var userId, out var tenantId, out var branchId))
+        {
+            return UnauthorizedToken();
+        }
+
+        if (request is null || request.SourceMenuId == Guid.Empty)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Validation error",
+                Detail = "sourceMenuId is required.",
+                Status = StatusCodes.Status400BadRequest,
+            });
+        }
+
+        try
+        {
+            var created = await menus.CloneMenuAsync(
+                userId,
+                tenantId,
+                branchId,
+                request.SourceMenuId,
+                cancellationToken);
+            return Created($"/api/v1/management/menus/{created.Id}", ToSummary(created));
+        }
+        catch (CustomerExperienceException exception)
+        {
+            return MenuProblem(exception);
+        }
+        catch (EntitlementException exception)
+        {
+            return EntitlementDenied(exception);
+        }
+        catch (ManagementAuthException exception)
+        {
+            return Forbidden(exception);
+        }
+    }
+
     [HttpGet("menus/{menuId:guid}")]
     [Authorize(Policy = ManagementPolicies.MenuView)]
     [ProducesResponseType(typeof(ManagementMenuDetailResponse), StatusCodes.Status200OK)]

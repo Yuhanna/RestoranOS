@@ -182,6 +182,9 @@ const session: CustomerSession = {
     dietaryFilterOptions: ["vegan", "vegetarian", "glutenFree", "halal", "dairyFree"],
     showAllergenExclusions: true,
     allergenExclusionOptions: ["gluten", "milk", "treeNuts", "eggs", "fish", "crustaceans"],
+    showProductNutrition: true,
+    showProductAllergens: true,
+    showProductModifiers: true,
     allergenDisclaimer:
       "Alerjen bilgileri reçeteye göre güncellenir. Ciddi alerjiniz varsa garsona bildirin; paylaşılan mutfakta cross-contact riski olabilir.",
   },

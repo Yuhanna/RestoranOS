@@ -22,7 +22,9 @@ public sealed class TablesController(IWebApiExecuter api) : Controller
             await Task.WhenAll(tablesTask, workspaceTask);
 
             var tables = await tablesTask ?? [];
-            ApplyTableQuotaHints(await workspaceTask);
+            var workspace = await workspaceTask;
+            ApplyTableQuotaHints(workspace);
+            ViewData["CanEditTables"] = workspace?.CanEditTables == true;
             return View(tables);
         }
         catch (WebApiException exception)
@@ -38,6 +40,13 @@ public sealed class TablesController(IWebApiExecuter api) : Controller
         if (!api.IsAuthenticated)
         {
             return RedirectToAction("Login", "Account");
+        }
+
+        var workspace = await api.GetWorkspaceAsync(cancellationToken);
+        if (workspace?.CanEditTables != true)
+        {
+            TempData["Error"] = "Masa oluşturmak için yetkiniz yok.";
+            return RedirectToAction(nameof(Index));
         }
 
         return View(await BuildCreateModelAsync(cancellationToken));

@@ -51,19 +51,7 @@ public sealed class DevelopmentManagementBootstrapper(
             dbContext.ManagementRoles.Add(role);
         }
 
-        foreach (var permission in new[]
-                 {
-                     ManagementPermissions.OrderView,
-                     ManagementPermissions.OrderModify,
-                     ManagementPermissions.TableView,
-                     ManagementPermissions.TableEdit,
-                     ManagementPermissions.MenuView,
-                     ManagementPermissions.MenuEdit,
-                     ManagementPermissions.MenuPublish,
-                     ManagementPermissions.AnalyticsView,
-                     ManagementPermissions.AnalyticsFinancialView,
-                     ManagementPermissions.SubscriptionManage,
-                 })
+        foreach (var permission in ManagementAuthServicePermissions.Owner)
         {
             if (!await dbContext.ManagementRolePermissions
                     .AnyAsync(x => x.RoleId == role.Id && x.Permission == permission, cancellationToken))

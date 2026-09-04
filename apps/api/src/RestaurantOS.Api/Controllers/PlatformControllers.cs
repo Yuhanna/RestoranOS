@@ -10,7 +10,7 @@ namespace RestaurantOS.Api.Controllers;
 [Route("api/v1/platform/auth")]
 public sealed class PlatformAuthController(IManagementAuthService authService) : ControllerBase
 {
-    private const string RefreshCookieName = "__Secure-restaurantos-platform-refresh";
+    private const string RefreshCookiePath = "/api/v1/platform/auth";
 
     [HttpPost("login")]
     [EnableRateLimiting("management-login")]
@@ -57,7 +57,7 @@ public sealed class PlatformAuthController(IManagementAuthService authService) :
     public async Task<IActionResult> LogoutAsync(CancellationToken cancellationToken)
     {
         await authService.RevokeAsync(
-            Request.Cookies[RefreshCookieName] ?? string.Empty,
+            AuthRefreshCookie.Read(Request, platform: true) ?? string.Empty,
             cancellationToken);
         DeleteRefreshCookie();
         return NoContent();
@@ -72,29 +72,16 @@ public sealed class PlatformAuthController(IManagementAuthService authService) :
             result.BranchId);
 
     private void SetRefreshCookie(ManagementTokenResult result) =>
-        Response.Cookies.Append(
-            RefreshCookieName,
+        AuthRefreshCookie.Append(
+            Response,
+            Request,
+            platform: true,
+            RefreshCookiePath,
             result.RefreshToken,
-            new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Path = "/api/v1/platform/auth",
-                Expires = result.RefreshTokenExpiresAtUtc,
-                IsEssential = true,
-            });
+            result.RefreshTokenExpiresAtUtc);
 
     private void DeleteRefreshCookie() =>
-        Response.Cookies.Delete(
-            RefreshCookieName,
-            new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Path = "/api/v1/platform/auth",
-            });
+        AuthRefreshCookie.Delete(Response, Request, platform: true, RefreshCookiePath);
 }
 
 [ApiController]

@@ -28,6 +28,16 @@ public interface IManagementAuthService
         CancellationToken cancellationToken);
 
     Task RevokeAsync(string refreshToken, CancellationToken cancellationToken);
+
+    Task<ManagementTokenResult> SwitchBranchAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid targetBranchId,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ManagementMembershipScopeResult>> ListMembershipsAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
 }
 
 public interface IManagementOrderService
@@ -171,6 +181,25 @@ public interface IManagementMenuService
         string name,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Lists published menus from other branches of the same restaurant (for copy).
+    /// </summary>
+    Task<IReadOnlyList<ManagementShareableMenuResult>> ListShareableMenusAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deep-copies a published menu from another branch in the same restaurant into this branch as a draft.
+    /// </summary>
+    Task<ManagementMenuSummaryResult> CloneMenuAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid sourceMenuId,
+        CancellationToken cancellationToken);
+
     Task<ManagementMenuSummaryResult> RenameMenuAsync(
         Guid userId,
         Guid tenantId,
@@ -291,6 +320,14 @@ public sealed record ManagementMenuSummaryResult(
     int CategoryCount,
     int ItemCount);
 
+public sealed record ManagementShareableMenuResult(
+    Guid Id,
+    Guid SourceBranchId,
+    string SourceBranchName,
+    string Name,
+    int CategoryCount,
+    int ItemCount);
+
 public sealed record ManagementMenuDetailResult(
     Guid Id,
     string Name,
@@ -370,6 +407,104 @@ public sealed record ManagementTokenResult(
     Guid TenantId,
     Guid BranchId);
 
+public sealed record ManagementMembershipScopeResult(
+    Guid MembershipId,
+    Guid TenantId,
+    Guid RestaurantId,
+    string RestaurantName,
+    Guid BranchId,
+    string BranchName,
+    string RoleName,
+    bool CanManageBranches);
+
+public interface IManagementBranchService
+{
+    Task<IReadOnlyList<ManagementBranchResult>> ListBranchesAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken);
+
+    Task<ManagementBranchResult> CreateBranchAsync(
+        Guid actorUserId,
+        Guid tenantId,
+        Guid currentBranchId,
+        string name,
+        bool confirmAddonPurchase,
+        CancellationToken cancellationToken);
+
+    Task<ManagementBranchResult> RenameBranchAsync(
+        Guid tenantId,
+        Guid branchId,
+        string name,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ManagementBranchMemberResult>> ListMembersAsync(
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken);
+
+    Task<ManagementBranchMemberResult> InviteMemberAsync(
+        Guid actorUserId,
+        Guid tenantId,
+        Guid branchId,
+        string email,
+        string? password,
+        string roleKey,
+        CancellationToken cancellationToken);
+
+    Task DeactivateMemberAsync(
+        Guid actorUserId,
+        Guid tenantId,
+        Guid branchId,
+        Guid membershipId,
+        CancellationToken cancellationToken);
+
+    Task<ManagementNetworkSummaryResult> GetNetworkSummaryAsync(
+        Guid tenantId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken);
+}
+
+public sealed record ManagementBranchResult(
+    Guid Id,
+    Guid RestaurantId,
+    string Name,
+    int ActiveMemberCount,
+    int ActiveTableCount,
+    bool IsCurrent,
+    bool IsFrozen = false);
+
+public sealed record ManagementBranchMemberResult(
+    Guid MembershipId,
+    Guid UserId,
+    string Email,
+    string RoleName,
+    string RoleKey,
+    bool IsActive,
+    DateTimeOffset? LastLoginAtUtc);
+
+public sealed record ManagementNetworkBranchStatResult(
+    Guid BranchId,
+    string BranchName,
+    long GrossSalesMinor,
+    int CompletedOrderCount,
+    int CancelledOrderCount,
+    int OpenOrderCount,
+    int OpenServiceRequestCount,
+    int ActiveTableCount,
+    int ActiveMemberCount,
+    long AverageTicketMinor);
+
+public sealed record ManagementNetworkSummaryResult(
+    long GrossSalesMinor,
+    int CompletedOrderCount,
+    int CancelledOrderCount,
+    int OpenOrderCount,
+    int OpenServiceRequestCount,
+    int BranchCount,
+    string Currency,
+    IReadOnlyList<ManagementNetworkBranchStatResult> Branches);
+
 public sealed record ManagementOrderResult(
     Guid Id,
     string DisplayNumber,
@@ -435,6 +570,13 @@ public interface IFeatureEntitlementService
 
     Task EnsureCanCreateBranchAsync(Guid tenantId, CancellationToken cancellationToken);
 
+    Task EnsureCanCreateBranchAsync(
+        Guid tenantId,
+        bool confirmAddonPurchase,
+        CancellationToken cancellationToken);
+
+    Task EnsureBranchNotFrozenAsync(Guid tenantId, Guid branchId, CancellationToken cancellationToken);
+
     Task EnsureCanCreateTableAsync(Guid tenantId, Guid branchId, CancellationToken cancellationToken);
 
     Task EnsureCanAddUserAsync(Guid tenantId, CancellationToken cancellationToken);
@@ -454,6 +596,20 @@ public interface IFeatureEntitlementService
         Guid tenantId,
         Guid branchId,
         string planCode,
+        CancellationToken cancellationToken);
+
+    Task<EnterpriseQuoteRequestResult> RequestEnterpriseQuoteAsync(
+        Guid tenantId,
+        Guid userId,
+        string contactName,
+        string email,
+        string? phone,
+        int estimatedBranchCount,
+        string? note,
+        CancellationToken cancellationToken);
+
+    Task<ManagementBranchBillingPreviewResult> GetBranchBillingPreviewAsync(
+        Guid tenantId,
         CancellationToken cancellationToken);
 }
 
@@ -545,7 +701,35 @@ public sealed record TenantEntitlementUsageResult(
     bool IsTrial = false,
     DateTimeOffset? TrialEndsAtUtc = null,
     IReadOnlyList<TenantAudienceNotificationResult>? Notifications = null,
-    IReadOnlyList<SubscriptionOfferResult>? SubscriptionOffers = null);
+    IReadOnlyList<SubscriptionOfferResult>? SubscriptionOffers = null,
+    int IncludedBranches = 0,
+    int PurchasedBranchAddonCount = 0,
+    int FrozenBranchCount = 0,
+    int ActiveBranchCount = 0,
+    long ExtraBranchMonthlyPriceMinor = 0,
+    string BillingCurrency = "TRY",
+    bool NextBranchRequiresAddon = false);
+
+public sealed record EnterpriseQuoteRequestResult(
+    Guid Id,
+    DateTimeOffset CreatedAtUtc,
+    string Message);
+
+public sealed record ManagementBranchBillingPreviewResult(
+    string PlanCode,
+    string PlanDisplayName,
+    bool IsTrial,
+    DateTimeOffset? TrialEndsAtUtc,
+    int IncludedBranches,
+    int PurchasedBranchAddonCount,
+    int? MaxBranches,
+    int ActiveBranchCount,
+    int FrozenBranchCount,
+    bool NextBranchRequiresAddon,
+    long ExtraBranchMonthlyPriceMinor,
+    string Currency,
+    bool CanUseMultiBranch,
+    string Summary);
 
 public sealed record TenantAudienceNotificationResult(
     Guid Id,

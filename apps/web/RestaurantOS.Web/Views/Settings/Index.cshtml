@@ -34,20 +34,30 @@ else
                 <dt>Restoran</dt>
                 <dd>@workspace.RestaurantName</dd>
             </div>
-            <div>
-                <dt>Şube</dt>
-                <dd>@workspace.BranchName</dd>
-            </div>
-            @if (entitlements is not null)
-            {
                 <div>
-                    <dt>Plan</dt>
-                    <dd>@entitlements.PlanDisplayName (@entitlements.PlanCode)</dd>
+                    <dt>Şube</dt>
+                    <dd>
+                        @workspace.BranchName
+                        @if (workspace.CanManageBranches || workspace.CanEditMenus)
+                        {
+                            <a asp-controller="Branches" asp-action="Index" style="margin-left:0.5rem">Şube ağı</a>
+                        }
+                    </dd>
                 </div>
-                <div>
-                    <dt>Masa kotası</dt>
-                    <dd>@entitlements.TableCount / @(entitlements.MaxTablesPerBranch?.ToString() ?? "∞")</dd>
-                </div>
+                @if (entitlements is not null)
+                {
+                    <div>
+                        <dt>Plan</dt>
+                        <dd>@entitlements.PlanDisplayName (@entitlements.PlanCode)</dd>
+                    </div>
+                    <div>
+                        <dt>Şube kotası</dt>
+                        <dd>@entitlements.BranchCount / @(entitlements.MaxBranches?.ToString() ?? "∞") · @(entitlements.CanUseMultiBranch ? "çok şube açık" : "Free’de kilitli")</dd>
+                    </div>
+                    <div>
+                        <dt>Masa kotası</dt>
+                        <dd>@entitlements.TableCount / @(entitlements.MaxTablesPerBranch?.ToString() ?? "∞")</dd>
+                    </div>
                 @if (entitlements.IsTrial && entitlements.TrialEndsAtUtc is not null)
                 {
                     <div>
@@ -73,64 +83,172 @@ else
     }
 }
 
-<section class="panel" style="margin-top:1rem">
-    <h2 style="margin-top:0">Müşteri menü ayarları</h2>
-    <p class="muted">Beslenme tercihi ve alerjen dışlama filtreleri müşteri uygulamasında gösterilir. Kapalı bırakırsanız ilgili bölüm gizlenir.</p>
-    <form asp-action="SaveCustomerMenu" method="post" class="form-grid form-grid-wide">
+@if (workspace?.CanEditMenus == true)
+{
+<section class="panel cms-panel" style="margin-top:1rem">
+    <div class="cms-hero">
+        <div>
+            <p class="cms-kicker">Müşteri uygulaması</p>
+            <h2 style="margin:0">Müşteri menü ayarları</h2>
+            <p class="muted" style="margin:0.5rem 0 0; max-width:40rem">
+                Varsayılan kapalıdır. Her kart, telefonda menünün farklı bir bölgesini kontrol eder.
+                Açtığınız alanlar misafir QR menüsünde görünür.
+            </p>
+        </div>
+        <div class="cms-phone-hint" aria-hidden="true">
+            <div class="cms-phone">
+                <span class="cms-phone__bar"></span>
+                <span class="cms-phone__zone cms-phone__zone--list">Liste</span>
+                <span class="cms-phone__zone cms-phone__zone--detail">Ürün</span>
+                <span class="cms-phone__zone cms-phone__zone--legal">Uyarı</span>
+            </div>
+        </div>
+    </div>
+
+    <form asp-action="SaveCustomerMenu" method="post" class="cms-form">
         @Html.AntiForgeryToken()
-        <label class="check span-2">
-            <input asp-for="CustomerMenu.ShowDietaryFilters" />
-            Beslenme tercihi filtrelerini göster
-        </label>
-        <div class="span-2">
-            <h3>Filtre seçenekleri</h3>
-            <div class="check-grid">
-                <label class="check"><input asp-for="CustomerMenu.FilterVegetarian" /> Vejetaryen</label>
-                <label class="check"><input asp-for="CustomerMenu.FilterVegan" /> Vegan</label>
-                <label class="check"><input asp-for="CustomerMenu.FilterGlutenFree" /> Glütensiz</label>
-                <label class="check"><input asp-for="CustomerMenu.FilterDairyFree" /> Süt içermez</label>
-                <label class="check"><input asp-for="CustomerMenu.FilterNutFree" /> Kuruyemiş içermez</label>
-                <label class="check"><input asp-for="CustomerMenu.FilterHalal" /> Helal</label>
-                <label class="check"><input asp-for="CustomerMenu.FilterKosher" /> Koşer</label>
-                <label class="check"><input asp-for="CustomerMenu.FilterJain" /> Jain</label>
+
+        <article class="cms-card cms-card--detail">
+            <header class="cms-card__head">
+                <span class="cms-icon cms-icon--detail" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+                </span>
+                <div>
+                    <p class="cms-where">Ürün detay ekranı</p>
+                    <h3>Ürün kartında göster</h3>
+                    <p class="muted">Misafir bir ürüne dokunduğunda açılan detayda hangi bilgiler görünsün?</p>
+                </div>
+            </header>
+            <div class="cms-toggles">
+                <label class="cms-toggle">
+                    <span class="cms-toggle__dot cms-toggle__dot--nutrition" aria-hidden="true"></span>
+                    <span class="cms-toggle__text">
+                        <strong>Beslenme bilgisi</strong>
+                        <small>Kalori, protein, yağ vb.</small>
+                    </span>
+                    <input asp-for="CustomerMenu.ShowProductNutrition" />
+                </label>
+                <label class="cms-toggle">
+                    <span class="cms-toggle__dot cms-toggle__dot--allergen" aria-hidden="true"></span>
+                    <span class="cms-toggle__text">
+                        <strong>Alerjen / içindekiler</strong>
+                        <small>Ürün detayındaki alerjen listesi</small>
+                    </span>
+                    <input asp-for="CustomerMenu.ShowProductAllergens" />
+                </label>
+                <label class="cms-toggle">
+                    <span class="cms-toggle__dot cms-toggle__dot--modifier" aria-hidden="true"></span>
+                    <span class="cms-toggle__text">
+                        <strong>Ek seçenekler</strong>
+                        <small>Modifier, porsiyon, ekstra malzemeler</small>
+                    </span>
+                    <input asp-for="CustomerMenu.ShowProductModifiers" />
+                </label>
             </div>
-        </div>
-        <label class="check span-2">
-            <input asp-for="CustomerMenu.ShowAllergenExclusions" />
-            Alerjen dışlama filtrelerini göster
-        </label>
-        <div class="span-2">
-            <h3>Dışlama seçenekleri</h3>
-            <div class="check-grid">
-                <label class="check"><input asp-for="CustomerMenu.ExcludeGluten" /> Gluten</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeCrustaceans" /> Kabuklu deniz</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeEggs" /> Yumurta</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeFish" /> Balık</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludePeanuts" /> Yer fıstığı</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeSoybeans" /> Soya</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeMilk" /> Süt</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeTreeNuts" /> Sert kabuklu yemiş</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeCelery" /> Kereviz</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeMustard" /> Hardal</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeSesame" /> Susam</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeSulphites" /> Sülfit</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeLupin" /> Acı bakla</label>
-                <label class="check"><input asp-for="CustomerMenu.ExcludeMolluscs" /> Yumuşakçalar</label>
+        </article>
+
+        <article class="cms-card cms-card--filters">
+            <header class="cms-card__head">
+                <span class="cms-icon cms-icon--filters" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+                </span>
+                <div>
+                    <p class="cms-where">Menü listesi · üst filtreler</p>
+                    <h3>Beslenme tercihi filtreleri</h3>
+                    <p class="muted">Misafir menüyü tararken hızlı tercih butonları görsün mü?</p>
+                </div>
+            </header>
+            <label class="cms-toggle cms-toggle--master">
+                <span class="cms-toggle__text">
+                    <strong>Filtre çubuğunu göster</strong>
+                    <small>Kapalıysa aşağıdaki seçenekler misafire görünmez</small>
+                </span>
+                <input asp-for="CustomerMenu.ShowDietaryFilters" />
+            </label>
+            <div class="cms-chip-block">
+                <p class="cms-chip-block__label">Hangi tercihler listelensin?</p>
+                <div class="cms-chips">
+                    <label class="cms-chip"><input asp-for="CustomerMenu.FilterVegetarian" /><span>Vejetaryen</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.FilterVegan" /><span>Vegan</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.FilterGlutenFree" /><span>Glütensiz</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.FilterDairyFree" /><span>Süt içermez</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.FilterNutFree" /><span>Kuruyemiş içermez</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.FilterHalal" /><span>Helal</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.FilterKosher" /><span>Koşer</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.FilterJain" /><span>Jain</span></label>
+                </div>
             </div>
-        </div>
-        <label class="span-2">
-            Menü altı uyarı metni
-            <textarea asp-for="CustomerMenu.AllergenDisclaimer" rows="3"></textarea>
-        </label>
-        <label class="span-2">
-            Yazılı alerjen matrisi URL
-            <input asp-for="CustomerMenu.AllergenMatrixUrl" placeholder="https://…" />
-        </label>
-        <div class="form-actions span-2">
+        </article>
+
+        <article class="cms-card cms-card--exclude">
+            <header class="cms-card__head">
+                <span class="cms-icon cms-icon--exclude" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M8 12h8"/></svg>
+                </span>
+                <div>
+                    <p class="cms-where">Menü listesi · alerjen dışlama</p>
+                    <h3>Alerjen dışlama filtreleri</h3>
+                    <p class="muted">Misafir “şunu yemem” diyerek menüyü daraltsın mı?</p>
+                </div>
+            </header>
+            <label class="cms-toggle cms-toggle--master">
+                <span class="cms-toggle__text">
+                    <strong>Dışlama filtrelerini göster</strong>
+                    <small>Kapalıysa alerjen dışlama çubuğu gizlenir</small>
+                </span>
+                <input asp-for="CustomerMenu.ShowAllergenExclusions" />
+            </label>
+            <div class="cms-chip-block">
+                <p class="cms-chip-block__label">Dışlanabilecek alerjenler</p>
+                <div class="cms-chips cms-chips--dense">
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeGluten" /><span>Gluten</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeCrustaceans" /><span>Kabuklu deniz</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeEggs" /><span>Yumurta</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeFish" /><span>Balık</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludePeanuts" /><span>Yer fıstığı</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeSoybeans" /><span>Soya</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeMilk" /><span>Süt</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeTreeNuts" /><span>Sert kabuklu</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeCelery" /><span>Kereviz</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeMustard" /><span>Hardal</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeSesame" /><span>Susam</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeSulphites" /><span>Sülfit</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeLupin" /><span>Acı bakla</span></label>
+                    <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeMolluscs" /><span>Yumuşakçalar</span></label>
+                </div>
+            </div>
+        </article>
+
+        <article class="cms-card cms-card--legal">
+            <header class="cms-card__head">
+                <span class="cms-icon cms-icon--legal" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4h12v16H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+                </span>
+                <div>
+                    <p class="cms-where">Menü altı · yasal / bilgilendirme</p>
+                    <h3>Uyarı metni ve matris</h3>
+                    <p class="muted">Menünün altında sabit görünen alerjen uyarısı ve isteğe bağlı matris linki.</p>
+                </div>
+            </header>
+            <div class="cms-fields">
+                <label>
+                    <span>Menü altı uyarı metni</span>
+                    <textarea asp-for="CustomerMenu.AllergenDisclaimer" rows="3" placeholder="Örn. Alerjen bilgileri mutfak beyanına göredir…"></textarea>
+                </label>
+                <label>
+                    <span>Yazılı alerjen matrisi URL</span>
+                    <input asp-for="CustomerMenu.AllergenMatrixUrl" placeholder="https://…" />
+                </label>
+            </div>
+        </article>
+
+        <div class="cms-save">
             <button type="submit" class="btn">Menü ayarlarını kaydet</button>
+            <p class="muted">Değişiklikler bir sonraki QR oturumunda müşteriye yansır.</p>
         </div>
     </form>
 </section>
+}
 
 <p class="muted" style="margin-top:1.5rem">
     Tema seçimi üst menüden yapılır. Çıkış için sağ üstteki bağlantıyı kullanın.

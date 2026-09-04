@@ -1,11 +1,15 @@
-@model IReadOnlyList<RestaurantOS.Web.Models.MenuSummaryViewModel>
+﻿@model RestaurantOS.Web.Models.MenusIndexViewModel
 @{
     ViewData["Title"] = "Menüler";
+    var canEditMenus = ViewData["CanEditMenus"] as bool? == true;
 }
 
 <div class="page-head">
     <h1>Menüler</h1>
-    <a class="btn" asp-action="Create">Yeni menü</a>
+    @if (canEditMenus)
+    {
+        <a class="btn" asp-action="Create">Yeni menü</a>
+    }
 </div>
 
 @if (TempData["Message"] is string message)
@@ -17,9 +21,16 @@
     <div class="alert" role="alert">@error</div>
 }
 
-@if (Model.Count == 0)
+@if (Model.Menus.Count == 0)
 {
-    <p class="muted">Henüz menü oluşturulmamış.</p>
+    <p class="muted">Bu şubede henüz menü yok.</p>
+    @if (canEditMenus)
+    {
+        <p class="muted">
+            Varsayılan olarak müşteri QR’si, aynı restoranın başka şubesindeki yayındaki menüyü kullanabilir.
+            Düzenlemek için kopyasını alın.
+        </p>
+    }
 }
 else
 {
@@ -34,16 +45,42 @@ else
             </tr>
         </thead>
         <tbody>
-        @foreach (var menu in Model)
+        @foreach (var menu in Model.Menus)
         {
             <tr>
                 <td>@menu.Name</td>
                 <td>@menu.Lifecycle</td>
                 <td>@menu.CategoryCount</td>
                 <td>@menu.ItemCount</td>
-                <td><a asp-action="Details" asp-route-id="@menu.Id">Aç</a></td>
+                <td><a asp-action="Details" asp-route-id="@menu.Id">@(canEditMenus ? "Aç" : "Görüntüle")</a></td>
             </tr>
         }
         </tbody>
     </table>
+}
+
+@if (canEditMenus && Model.ShareableMenus.Count > 0)
+{
+    <section class="panel" style="margin-top:1.25rem">
+        <h2 style="margin-top:0;font-size:1.1rem">Ana menüden kopyala</h2>
+        <p class="muted">
+            Diğer şubelerdeki yayındaki menüler. Kopya bu şubeye taslak olarak gelir; düzenleyip yayınlayın.
+        </p>
+        <ul class="item-list" style="list-style:none;padding:0;margin:0">
+            @foreach (var source in Model.ShareableMenus)
+            {
+                <li style="display:flex;gap:1rem;align-items:center;justify-content:space-between;padding:0.65rem 0;border-bottom:1px solid var(--line)">
+                    <div>
+                        <strong>@source.Name</strong>
+                        <span class="muted"> · @source.SourceBranchName · @source.CategoryCount kategori · @source.ItemCount ürün</span>
+                    </div>
+                    <form asp-action="Clone" method="post" class="inline">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="sourceMenuId" value="@source.Id" />
+                        <button type="submit" class="btn btn-ghost">Kopyala</button>
+                    </form>
+                </li>
+            }
+        </ul>
+    </section>
 }

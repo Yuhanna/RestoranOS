@@ -26,12 +26,38 @@
         <p style="margin: 0 0 0.5rem; color: #a8461e; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;">
           Restaurant OS
         </p>
-        <h1 style="margin: 0; font-size: 1.75rem; line-height: 1.2">Menü yükleniyor…</h1>
-        <p style="margin: 1rem 0 0; color: #74675d; line-height: 1.6">
+        <h1 id="boot-fallback-title" style="margin: 0; font-size: 1.75rem; line-height: 1.2">Menü yükleniyor…</h1>
+        <p id="boot-fallback-body" style="margin: 1rem 0 0; color: #74675d; line-height: 1.6">
           Bu ekran birkaç saniyeden uzun sürerse Wi‑Fi bağlantınızı kontrol edin ve sayfayı yenileyin.
+        </p>
+        <p id="boot-fallback-actions" style="margin: 1.25rem 0 0; display: none;">
+          <button
+            type="button"
+            onclick="location.reload()"
+            style="min-height: 2.75rem; padding: 0.75rem 1.25rem; border: 0; border-radius: 0.625rem; background: #a8461e; color: #fff; font-weight: 700;"
+          >
+            Tekrar dene
+          </button>
         </p>
       </main>
     </div>
+    <script>
+      (function () {
+        setTimeout(function () {
+          var fallback = document.getElementById("boot-fallback");
+          if (!fallback) return;
+          var title = document.getElementById("boot-fallback-title");
+          var body = document.getElementById("boot-fallback-body");
+          var actions = document.getElementById("boot-fallback-actions");
+          if (title) title.textContent = "Menü açılamadı";
+          if (body) {
+            body.textContent =
+              "Uygulama yüklenemedi. Bilgisayarda customer-web (5173) ve API (5183) çalışıyor olmalı; telefon aynı Wi‑Fi ağında olmalı. QR kodunu yönetim panelinden yeniden üretip tekrar deneyin.";
+          }
+          if (actions) actions.style.display = "block";
+        }, 8000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

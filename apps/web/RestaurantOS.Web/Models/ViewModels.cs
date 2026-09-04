@@ -84,6 +84,20 @@ public sealed class WorkspaceViewModel
     public Guid BranchId { get; set; }
     public string BranchName { get; set; } = string.Empty;
     public EntitlementUsageViewModel? Entitlements { get; set; }
+    public List<string> Permissions { get; set; } = [];
+
+    public bool HasPermission(string permission) =>
+        Permissions.Contains(permission, StringComparer.Ordinal);
+
+    public bool CanEditTables => HasPermission("Table.Edit");
+    public bool CanEditMenus => HasPermission("Menu.Edit");
+    public bool CanPublishMenus => HasPermission("Menu.Publish");
+    public bool CanViewAnalytics => HasPermission("Analytics.View");
+    public bool CanViewFinancials => HasPermission("Analytics.FinancialView");
+    public bool CanManageBranches => HasPermission("Branch.Manage");
+    public bool CanManageSubscription => HasPermission("Subscription.Manage");
+    public bool CanAccessSettings => CanEditMenus || CanManageSubscription;
+    public bool CanManagePromotions => CanEditMenus;
 }
 
 public sealed class EntitlementUsageViewModel
@@ -105,6 +119,13 @@ public sealed class EntitlementUsageViewModel
     public bool IsTrial { get; set; }
     public DateTimeOffset? TrialEndsAtUtc { get; set; }
     public List<string> Warnings { get; set; } = [];
+    public int IncludedBranches { get; set; }
+    public int PurchasedBranchAddonCount { get; set; }
+    public int FrozenBranchCount { get; set; }
+    public int ActiveBranchCount { get; set; }
+    public long ExtraBranchMonthlyPriceMinor { get; set; }
+    public string BillingCurrency { get; set; } = "TRY";
+    public bool NextBranchRequiresAddon { get; set; }
 }
 
 public sealed class OrderListItemViewModel
@@ -131,6 +152,7 @@ public sealed class DashboardTodayViewModel
     public string Currency { get; set; } = "TRY";
     public DateTimeOffset DayStartUtc { get; set; }
     public DateTimeOffset DayEndUtc { get; set; }
+    public bool CanViewFinancials { get; set; }
 }
 
 public sealed class SettingsViewModel
@@ -233,6 +255,22 @@ public sealed class MenuSummaryViewModel
     public DateTimeOffset? PublishedAtUtc { get; set; }
     public int CategoryCount { get; set; }
     public int ItemCount { get; set; }
+}
+
+public sealed class ShareableMenuViewModel
+{
+    public Guid Id { get; set; }
+    public Guid SourceBranchId { get; set; }
+    public string SourceBranchName { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public int CategoryCount { get; set; }
+    public int ItemCount { get; set; }
+}
+
+public sealed class MenusIndexViewModel
+{
+    public List<MenuSummaryViewModel> Menus { get; set; } = [];
+    public List<ShareableMenuViewModel> ShareableMenus { get; set; } = [];
 }
 
 public sealed class CreateMenuViewModel
@@ -673,4 +711,161 @@ public sealed class CreatePlatformSubscriptionOfferViewModel
     [Display(Name = "Bitiş tarihi")]
     [DataType(DataType.Date)]
     public DateTime? EndsAtLocal { get; set; }
+}
+
+public sealed class BranchesPageViewModel
+{
+    public WorkspaceViewModel? Workspace { get; set; }
+    public bool CanUseMultiBranch { get; set; }
+    public bool CanManageBranches { get; set; }
+    public int? MaxBranches { get; set; }
+    public BranchBillingPreviewViewModel? Billing { get; set; }
+    public IReadOnlyList<BranchListItemViewModel> Branches { get; set; } = [];
+    public IReadOnlyList<MembershipScopeViewModel> Memberships { get; set; } = [];
+    public NetworkSummaryViewModel? Network { get; set; }
+    public Guid? SelectedBranchId { get; set; }
+    public IReadOnlyList<BranchMemberViewModel> SelectedMembers { get; set; } = [];
+    public CreateBranchViewModel CreateBranch { get; set; } = new();
+    public InviteBranchMemberViewModel InviteMember { get; set; } = new();
+    public EnterpriseQuoteViewModel EnterpriseQuote { get; set; } = new();
+}
+
+public sealed class BranchBillingPreviewViewModel
+{
+    public string PlanCode { get; set; } = string.Empty;
+    public string PlanDisplayName { get; set; } = string.Empty;
+    public bool IsTrial { get; set; }
+    public DateTimeOffset? TrialEndsAtUtc { get; set; }
+    public int IncludedBranches { get; set; }
+    public int PurchasedBranchAddonCount { get; set; }
+    public int? MaxBranches { get; set; }
+    public int ActiveBranchCount { get; set; }
+    public int FrozenBranchCount { get; set; }
+    public bool NextBranchRequiresAddon { get; set; }
+    public long ExtraBranchMonthlyPriceMinor { get; set; }
+    public string Currency { get; set; } = "TRY";
+    public bool CanUseMultiBranch { get; set; }
+    public string Summary { get; set; } = string.Empty;
+}
+
+public sealed class BranchListItemViewModel
+{
+    public Guid Id { get; set; }
+    public Guid RestaurantId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public int ActiveMemberCount { get; set; }
+    public int ActiveTableCount { get; set; }
+    public bool IsCurrent { get; set; }
+    public bool IsFrozen { get; set; }
+}
+
+public sealed class MembershipScopeViewModel
+{
+    public Guid MembershipId { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid RestaurantId { get; set; }
+    public string RestaurantName { get; set; } = string.Empty;
+    public Guid BranchId { get; set; }
+    public string BranchName { get; set; } = string.Empty;
+    public string RoleName { get; set; } = string.Empty;
+    public bool CanManageBranches { get; set; }
+}
+
+public sealed class BranchMemberViewModel
+{
+    public Guid MembershipId { get; set; }
+    public Guid UserId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string RoleName { get; set; } = string.Empty;
+    public string RoleKey { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public DateTimeOffset? LastLoginAtUtc { get; set; }
+}
+
+public sealed class NetworkSummaryViewModel
+{
+    public long GrossSalesMinor { get; set; }
+    public int CompletedOrderCount { get; set; }
+    public int CancelledOrderCount { get; set; }
+    public int OpenOrderCount { get; set; }
+    public int OpenServiceRequestCount { get; set; }
+    public int BranchCount { get; set; }
+    public string Currency { get; set; } = "TRY";
+    public IReadOnlyList<NetworkBranchStatViewModel> Branches { get; set; } = [];
+}
+
+public sealed class NetworkBranchStatViewModel
+{
+    public Guid BranchId { get; set; }
+    public string BranchName { get; set; } = string.Empty;
+    public long GrossSalesMinor { get; set; }
+    public int CompletedOrderCount { get; set; }
+    public int CancelledOrderCount { get; set; }
+    public int OpenOrderCount { get; set; }
+    public int OpenServiceRequestCount { get; set; }
+    public int ActiveTableCount { get; set; }
+    public int ActiveMemberCount { get; set; }
+    public long AverageTicketMinor { get; set; }
+}
+
+public sealed class CreateBranchViewModel
+{
+    [Required(ErrorMessage = "Şube adı gerekli.")]
+    [StringLength(120)]
+    [Display(Name = "Yeni şube adı")]
+    public string Name { get; set; } = string.Empty;
+
+    [Display(Name = "Ek şube ücretini onaylıyorum")]
+    public bool ConfirmAddonPurchase { get; set; }
+}
+
+public sealed class InviteBranchMemberViewModel
+{
+    public Guid BranchId { get; set; }
+
+    [Required(ErrorMessage = "E-posta gerekli.")]
+    [EmailAddress]
+    [Display(Name = "E-posta")]
+    public string Email { get; set; } = string.Empty;
+
+    [StringLength(128)]
+    [Display(Name = "Şifre (yeni hesapsa)")]
+    public string? Password { get; set; }
+
+    [Display(Name = "Rol")]
+    public string RoleKey { get; set; } = "manager";
+}
+
+public sealed class RenameBranchViewModel
+{
+    public Guid BranchId { get; set; }
+
+    [Required(ErrorMessage = "Şube adı gerekli.")]
+    [StringLength(120)]
+    public string Name { get; set; } = string.Empty;
+}
+
+public sealed class EnterpriseQuoteViewModel
+{
+    [Required(ErrorMessage = "İsim gerekli.")]
+    [StringLength(120)]
+    [Display(Name = "Yetkili adı")]
+    public string ContactName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "E-posta gerekli.")]
+    [EmailAddress]
+    [Display(Name = "E-posta")]
+    public string Email { get; set; } = string.Empty;
+
+    [StringLength(40)]
+    [Display(Name = "Telefon")]
+    public string? Phone { get; set; }
+
+    [Range(3, 500)]
+    [Display(Name = "Tahmini şube sayısı")]
+    public int EstimatedBranchCount { get; set; } = 5;
+
+    [StringLength(2000)]
+    [Display(Name = "Not")]
+    public string? Note { get; set; }
 }

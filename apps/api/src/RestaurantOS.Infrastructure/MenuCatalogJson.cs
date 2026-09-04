@@ -110,6 +110,9 @@ public static class MenuCatalogJson
             DietaryFilterOptions = FilterKnown(data.DietaryFilterOptions, MenuCatalogDefaults.AllDietaryTags),
             ShowAllergenExclusions = data.ShowAllergenExclusions,
             AllergenExclusionOptions = FilterKnown(data.AllergenExclusionOptions, MenuCatalogDefaults.AllAllergenKeys),
+            ShowProductNutrition = data.ShowProductNutrition,
+            ShowProductAllergens = data.ShowProductAllergens,
+            ShowProductModifiers = data.ShowProductModifiers,
             AllergenDisclaimer = TrimOrNull(data.AllergenDisclaimer) ?? MenuCatalogDefaults.DefaultAllergenDisclaimer,
             AllergenMatrixUrl = TrimOrNull(data.AllergenMatrixUrl),
         };

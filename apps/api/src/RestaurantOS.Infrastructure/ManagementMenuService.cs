@@ -101,8 +101,169 @@ public sealed class ManagementMenuService(
         }
 
         dbContext.Menus.Add(menu);
+        await dbContext.SaveChangesAsync(cancellationToken);
         await AuditAsync(userId, tenantId, branchId, "MenuCreated", menu.Id, menu.Name, cancellationToken);
         return ToSummary(menu, 0, 0);
+    }
+
+    public async Task<IReadOnlyList<ManagementShareableMenuResult>> ListShareableMenusAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.MenuView, cancellationToken);
+        var restaurantId = await dbContext.Branches.AsNoTracking()
+            .Where(branch => branch.Id == branchId && branch.TenantId == tenantId)
+            .Select(branch => branch.RestaurantId)
+            .SingleAsync(cancellationToken);
+
+        var siblingBranchIds = await dbContext.Branches.AsNoTracking()
+            .Where(branch => branch.TenantId == tenantId
+                && branch.RestaurantId == restaurantId
+                && branch.Id != branchId)
+            .Select(branch => new { branch.Id, branch.Name })
+            .ToListAsync(cancellationToken);
+        if (siblingBranchIds.Count == 0)
+        {
+            return [];
+        }
+
+        var branchNames = siblingBranchIds.ToDictionary(x => x.Id, x => x.Name);
+        var ids = siblingBranchIds.Select(x => x.Id).ToArray();
+        var menus = await dbContext.Menus.AsNoTracking()
+            .Where(menu => menu.TenantId == tenantId
+                && ids.Contains(menu.BranchId)
+                && menu.PublishedAtUtc != null
+                && menu.ArchivedAtUtc == null)
+            .OrderByDescending(menu => menu.PublishedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var results = new List<ManagementShareableMenuResult>();
+        foreach (var menu in menus)
+        {
+            var categoryCount = await dbContext.MenuCategories.CountAsync(
+                category => category.MenuId == menu.Id && category.TenantId == tenantId && category.BranchId == menu.BranchId,
+                cancellationToken);
+            var itemCount = await dbContext.MenuItems.CountAsync(
+                item => item.MenuId == menu.Id && item.TenantId == tenantId && item.BranchId == menu.BranchId,
+                cancellationToken);
+            results.Add(new ManagementShareableMenuResult(
+                menu.Id,
+                menu.BranchId,
+                branchNames.GetValueOrDefault(menu.BranchId, "Şube"),
+                menu.Name,
+                categoryCount,
+                itemCount));
+        }
+
+        return results;
+    }
+
+    public async Task<ManagementMenuSummaryResult> CloneMenuAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid sourceMenuId,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.MenuEdit, cancellationToken);
+
+        var restaurantId = await dbContext.Branches.AsNoTracking()
+            .Where(branch => branch.Id == branchId && branch.TenantId == tenantId)
+            .Select(branch => branch.RestaurantId)
+            .SingleAsync(cancellationToken);
+
+        var sourceMenu = await dbContext.Menus.AsNoTracking()
+            .SingleOrDefaultAsync(
+                menu => menu.Id == sourceMenuId
+                    && menu.TenantId == tenantId
+                    && menu.PublishedAtUtc != null
+                    && menu.ArchivedAtUtc == null
+                    && dbContext.Branches.Any(branch =>
+                        branch.Id == menu.BranchId
+                        && branch.TenantId == tenantId
+                        && branch.RestaurantId == restaurantId),
+                cancellationToken)
+            ?? throw new CustomerExperienceException("MENU_NOT_FOUND", "Source menu was not found.");
+
+        if (sourceMenu.BranchId == branchId)
+        {
+            throw new CustomerExperienceException("INVALID_MENU", "Cannot copy a menu onto the same branch.");
+        }
+
+        var sourceCategories = await dbContext.MenuCategories.AsNoTracking()
+            .Where(category => category.MenuId == sourceMenu.Id
+                && category.TenantId == tenantId
+                && category.BranchId == sourceMenu.BranchId)
+            .OrderBy(category => category.SortOrder)
+            .ToListAsync(cancellationToken);
+        var sourceItems = await dbContext.MenuItems.AsNoTracking()
+            .Where(item => item.MenuId == sourceMenu.Id
+                && item.TenantId == tenantId
+                && item.BranchId == sourceMenu.BranchId)
+            .OrderBy(item => item.SortOrder)
+            .ToListAsync(cancellationToken);
+
+        PublishedMenu clone;
+        try
+        {
+            clone = new PublishedMenu(Guid.NewGuid(), tenantId, branchId, $"{sourceMenu.Name} (kopya)");
+        }
+        catch (ArgumentException)
+        {
+            throw new CustomerExperienceException("VALIDATION_ERROR", "A menu name is required.");
+        }
+
+        dbContext.Menus.Add(clone);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var categoryMap = new Dictionary<Guid, Guid>();
+        foreach (var category in sourceCategories)
+        {
+            var newCategory = new MenuCategory(
+                Guid.NewGuid(),
+                tenantId,
+                branchId,
+                clone.Id,
+                category.Name,
+                category.SortOrder);
+            categoryMap[category.Id] = newCategory.Id;
+            dbContext.MenuCategories.Add(newCategory);
+        }
+
+        foreach (var item in sourceItems)
+        {
+            if (!categoryMap.TryGetValue(item.CategoryId, out var newCategoryId))
+            {
+                continue;
+            }
+
+            var newItem = new MenuItem(
+                Guid.NewGuid(),
+                tenantId,
+                branchId,
+                clone.Id,
+                newCategoryId,
+                item.Name,
+                item.Description,
+                Money.Try(item.PriceAmountMinor),
+                item.IsAvailable,
+                item.SortOrder,
+                item.ImageUrl,
+                item.ImageAlt,
+                item.PrepTimeSeconds);
+            if (!string.IsNullOrWhiteSpace(item.CatalogJson))
+            {
+                newItem.SetCatalogJson(item.CatalogJson);
+            }
+
+            dbContext.MenuItems.Add(newItem);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await AuditAsync(userId, tenantId, branchId, "MenuCloned", clone.Id, sourceMenu.Id.ToString("N"), cancellationToken);
+        return ToSummary(clone, sourceCategories.Count, sourceItems.Count);
     }
 
     public async Task<ManagementMenuSummaryResult> RenameMenuAsync(

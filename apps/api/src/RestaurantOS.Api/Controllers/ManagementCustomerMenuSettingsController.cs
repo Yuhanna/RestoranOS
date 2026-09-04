@@ -10,7 +10,7 @@ namespace RestaurantOS.Api.Controllers;
 public sealed class ManagementCustomerMenuSettingsController(ICustomerMenuSettingsService settings) : ControllerBase
 {
     [HttpGet("settings")]
-    [Authorize(Policy = ManagementPolicies.MenuView)]
+    [Authorize(Policy = ManagementPolicies.MenuEdit)]
     [ProducesResponseType(typeof(ManagementCustomerMenuSettingsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSettingsAsync(CancellationToken cancellationToken)
     {

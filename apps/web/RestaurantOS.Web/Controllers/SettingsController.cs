@@ -13,18 +13,23 @@ public sealed class SettingsController(IWebApiExecuter api) : Controller
             return RedirectToAction("Login", "Account");
         }
 
-        var model = new SettingsViewModel();
+        var workspace = await api.GetWorkspaceAsync(cancellationToken);
+        if (workspace?.CanAccessSettings != true)
+        {
+            TempData["Error"] = "Ayarlar için yetkiniz yok.";
+            return RedirectToAction("Index", "Dashboard");
+        }
+
+        var model = new SettingsViewModel { Workspace = workspace };
         try
         {
-            var workspaceTask = api.GetWorkspaceAsync(cancellationToken);
-            var settingsTask = api.InvokeGetAsync<CustomerMenuSettingsApiModel>(
-                "/api/v1/management/customer-menu/settings",
-                cancellationToken);
-            await Task.WhenAll(workspaceTask, settingsTask);
-
-            model.Workspace = await workspaceTask;
-            var settings = await settingsTask;
-            model.CustomerMenu = MenuCatalogFormHelper.FromApi(settings);
+            if (workspace.CanEditMenus)
+            {
+                var settings = await api.InvokeGetAsync<CustomerMenuSettingsApiModel>(
+                    "/api/v1/management/customer-menu/settings",
+                    cancellationToken);
+                model.CustomerMenu = MenuCatalogFormHelper.FromApi(settings);
+            }
         }
         catch (WebApiException exception)
         {

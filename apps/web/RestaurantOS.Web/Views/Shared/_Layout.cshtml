@@ -1,7 +1,32 @@
 ﻿@using Microsoft.Extensions.Options
 @using RestaurantOS.Web.Data
+@using RestaurantOS.Web.Models
 @inject IWebApiExecuter Api
 @inject IOptions<ApiOptions> ApiOptions
+@{
+    WorkspaceViewModel? navWorkspace = null;
+    if (Api.IsAuthenticated)
+    {
+        try
+        {
+            navWorkspace = await Api.GetWorkspaceAsync();
+        }
+        catch
+        {
+            navWorkspace = null;
+        }
+    }
+
+    var canViewAnalytics = navWorkspace?.CanViewAnalytics == true;
+    var canManageBranches = navWorkspace?.CanManageBranches == true;
+    var canEditMenus = navWorkspace?.CanEditMenus == true;
+    var canAccessSettings = navWorkspace?.CanAccessSettings == true;
+    var canManagePromotions = navWorkspace?.CanManagePromotions == true;
+    // Owner: full branch admin. Manager: switch/view assigned branches. Staff: hidden.
+    var canSeeBranches = canManageBranches || canEditMenus;
+    var planName = ViewData["PlanDisplayName"] as string
+        ?? navWorkspace?.Entitlements?.PlanDisplayName;
+}
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -37,17 +62,30 @@
                 <a asp-controller="Orders" asp-action="Index">Siparişler</a>
                 <a asp-controller="Tables" asp-action="Index">Masalar</a>
                 <a asp-controller="Menus" asp-action="Index">Menüler</a>
-                <a asp-controller="Promotions" asp-action="Index">İndirimler</a>
-                <a asp-controller="Analytics" asp-action="Index">İstatistikler</a>
-                <a asp-controller="Settings" asp-action="Index">Ayarlar</a>
+                @if (canManagePromotions)
+                {
+                    <a asp-controller="Promotions" asp-action="Index">İndirimler</a>
+                }
+                @if (canViewAnalytics)
+                {
+                    <a asp-controller="Analytics" asp-action="Index">İstatistikler</a>
+                }
+                @if (canSeeBranches)
+                {
+                    <a asp-controller="Branches" asp-action="Index">Şubeler</a>
+                }
+                @if (canAccessSettings)
+                {
+                    <a asp-controller="Settings" asp-action="Index">Ayarlar</a>
+                }
             </nav>
             @if (!string.IsNullOrWhiteSpace(Api.CurrentRestaurantName))
             {
                 <span class="scope-chip" title="Yalnızca bu restoran ve şube verisi görünür">
                     @Api.CurrentRestaurantName · @(Api.CurrentBranchName ?? "Şube")
-                    @if (ViewData["PlanDisplayName"] is string plan && !string.IsNullOrWhiteSpace(plan))
+                    @if (!string.IsNullOrWhiteSpace(planName))
                     {
-                        <text> · @plan</text>
+                        <text> · @planName</text>
                     }
                 </span>
             }

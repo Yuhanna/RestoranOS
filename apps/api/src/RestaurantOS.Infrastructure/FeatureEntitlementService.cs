@@ -36,17 +36,69 @@ public sealed class FeatureEntitlementService(
         CancellationToken cancellationToken)
     {
         var normalized = PlanCatalog.Normalize(planCode);
-        if (normalized is not (SubscriptionPlanCodes.Pro or SubscriptionPlanCodes.Enterprise))
+        if (normalized == SubscriptionPlanCodes.Enterprise)
         {
-            throw new EntitlementException("VALIDATION_ERROR", "Only Pro or Enterprise can be purchased.");
+            throw new EntitlementException(
+                "ENTERPRISE_QUOTE_REQUIRED",
+                "Enterprise self-serve satın alınamaz. Lütfen teklif formu ile satış ekibine ulaşın.");
+        }
+
+        if (normalized != SubscriptionPlanCodes.Pro)
+        {
+            throw new EntitlementException("VALIDATION_ERROR", "Only Pro can be purchased self-serve.");
         }
 
         var subscription = await GetOrCreateSubscriptionAsync(tenantId, cancellationToken);
         await ApplyExpiryIfNeededAsync(subscription, cancellationToken);
         var now = timeProvider.GetUtcNow();
         subscription.ConvertToPaid(normalized, now);
+        await ReconcileBranchQuotaAsync(subscription, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return await GetUsageAsync(tenantId, branchId, cancellationToken);
+    }
+
+    public async Task<EnterpriseQuoteRequestResult> RequestEnterpriseQuoteAsync(
+        Guid tenantId,
+        Guid userId,
+        string contactName,
+        string email,
+        string? phone,
+        int estimatedBranchCount,
+        string? note,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var request = new EnterpriseQuoteRequest(
+                Guid.NewGuid(),
+                tenantId,
+                userId,
+                contactName,
+                email,
+                phone,
+                estimatedBranchCount,
+                note,
+                timeProvider.GetUtcNow());
+            dbContext.EnterpriseQuoteRequests.Add(request);
+            dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+                Guid.NewGuid(),
+                "EnterpriseQuoteRequested",
+                true,
+                timeProvider.GetUtcNow(),
+                userId,
+                tenantId,
+                subjectId: request.Id,
+                detail: $"{estimatedBranchCount} şube"));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return new EnterpriseQuoteRequestResult(
+                request.Id,
+                request.CreatedAtUtc,
+                "Talebiniz alındı. Satış ekibi en kısa sürede sizinle iletişime geçecek.");
+        }
+        catch (ArgumentException exception)
+        {
+            throw new EntitlementException("VALIDATION_ERROR", exception.Message);
+        }
     }
 
     public async Task<FeatureEntitlements> GetEntitlementsAsync(
@@ -55,7 +107,7 @@ public sealed class FeatureEntitlementService(
     {
         var subscription = await GetOrCreateSubscriptionAsync(tenantId, cancellationToken);
         await ApplyExpiryIfNeededAsync(subscription, cancellationToken);
-        return subscription.Entitlements;
+        return PlanCatalog.ResolveEffective(subscription, timeProvider.GetUtcNow());
     }
 
     public async Task<TenantEntitlementUsageResult> GetUsageAsync(
@@ -65,12 +117,25 @@ public sealed class FeatureEntitlementService(
     {
         var subscription = await GetOrCreateSubscriptionAsync(tenantId, cancellationToken);
         await ApplyExpiryIfNeededAsync(subscription, cancellationToken);
-        var entitlements = subscription.Entitlements;
         var now = timeProvider.GetUtcNow();
+        var entitlements = PlanCatalog.ResolveEffective(subscription, now);
         var isTrial = subscription.IsTrialActive(now);
         var displayName = isTrial ? "Pro (deneme)" : entitlements.DisplayName;
+        var included = BranchBillingPolicy.ResolveIncludedBranches(subscription.PlanCode, isTrial);
+        if (included == int.MaxValue)
+        {
+            included = 0; // unlimited display
+        }
+        else if (!isTrial && entitlements.PlanCode == SubscriptionPlanCodes.Pro)
+        {
+            included = BranchBillingPolicy.ProIncludedBranches;
+        }
 
         var branchCount = await dbContext.Branches.CountAsync(x => x.TenantId == tenantId, cancellationToken);
+        var frozenCount = await dbContext.Branches.CountAsync(
+            x => x.TenantId == tenantId && x.IsFrozen,
+            cancellationToken);
+        var activeCount = branchCount - frozenCount;
         var tableCount = await dbContext.DiningTables.CountAsync(
             x => x.TenantId == tenantId && x.BranchId == branchId,
             cancellationToken);
@@ -105,8 +170,8 @@ public sealed class FeatureEntitlementService(
                 x.Body))
             .ToArray();
 
-        // Do not push plan/limit nags onto every screen. Limits are enforced at the
-        // action (create table/user/branch, translation upsert) with a clear message.
+        var nextRequiresAddon = RequiresAddonForNextBranch(entitlements, isTrial, activeCount);
+
         return new TenantEntitlementUsageResult(
             entitlements.PlanCode,
             displayName,
@@ -122,20 +187,62 @@ public sealed class FeatureEntitlementService(
             entitlements.CanUseLiveOrderPanel,
             entitlements.CanUseMultiBranch,
             entitlements.HasPrioritySupport,
-            Warnings: [],
+            Warnings: BuildWarnings(entitlements, isTrial, frozenCount, activeCount),
             isTrial,
             isTrial ? subscription.ExpiresAtUtc : null,
             visibleNotifications,
-            visibleOffers);
+            visibleOffers,
+            IncludedBranches: included,
+            PurchasedBranchAddonCount: subscription.PurchasedBranchAddonCount,
+            FrozenBranchCount: frozenCount,
+            ActiveBranchCount: activeCount,
+            ExtraBranchMonthlyPriceMinor: BranchBillingPolicy.ExtraBranchMonthlyPriceMinor,
+            BillingCurrency: BranchBillingPolicy.Currency,
+            NextBranchRequiresAddon: nextRequiresAddon);
     }
 
-    public async Task EnsureCanCreateBranchAsync(Guid tenantId, CancellationToken cancellationToken)
+    public async Task<ManagementBranchBillingPreviewResult> GetBranchBillingPreviewAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
     {
-        var entitlements = await GetEntitlementsAsync(tenantId, cancellationToken);
-        if (entitlements.IsUnlimitedBranches)
-        {
-            return;
-        }
+        var usage = await GetUsageAsync(tenantId, Guid.Empty, cancellationToken);
+        var subscription = await GetOrCreateSubscriptionAsync(tenantId, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        var isTrial = subscription.IsTrialActive(now);
+        var entitlements = PlanCatalog.ResolveEffective(subscription, now);
+        return new ManagementBranchBillingPreviewResult(
+            usage.PlanCode,
+            usage.PlanDisplayName,
+            isTrial,
+            usage.TrialEndsAtUtc,
+            usage.IncludedBranches,
+            usage.PurchasedBranchAddonCount,
+            usage.MaxBranches,
+            usage.ActiveBranchCount,
+            usage.FrozenBranchCount,
+            usage.NextBranchRequiresAddon,
+            BranchBillingPolicy.ExtraBranchMonthlyPriceMinor,
+            BranchBillingPolicy.Currency,
+            entitlements.CanUseMultiBranch,
+            usage.IsTrial
+                ? $"Denemede en fazla {BranchBillingPolicy.TrialMaxBranches} şube açabilirsiniz. Süre bitince yalnızca {BranchBillingPolicy.FreeMaxBranches} şube aktif kalır."
+                : usage.PlanCode == SubscriptionPlanCodes.Pro
+                    ? $"Pro pakete {BranchBillingPolicy.ProIncludedBranches} şube dahildir. Ek şube {FormatMoney(BranchBillingPolicy.ExtraBranchMonthlyPriceMinor)} / ay."
+                    : usage.PlanCode == SubscriptionPlanCodes.Enterprise
+                        ? "Enterprise planda şube kotası sözleşmenize göredir."
+                        : "Free planda yalnızca 1 şube vardır. Çok şube için Pro deneme veya Pro plana geçin.");
+    }
+
+    public async Task EnsureCanCreateBranchAsync(
+        Guid tenantId,
+        bool confirmAddonPurchase,
+        CancellationToken cancellationToken)
+    {
+        var subscription = await GetOrCreateSubscriptionAsync(tenantId, cancellationToken);
+        await ApplyExpiryIfNeededAsync(subscription, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        var entitlements = PlanCatalog.ResolveEffective(subscription, now);
+        var isTrial = subscription.IsTrialActive(now);
 
         if (!entitlements.CanUseMultiBranch && entitlements.MaxBranches is 1)
         {
@@ -144,18 +251,66 @@ public sealed class FeatureEntitlementService(
             {
                 throw new EntitlementException(
                     "ENTITLEMENT_BRANCH_LIMIT",
-                    "Free/Pro planında yalnızca 1 şube vardır. Çok şube için Enterprise gerekir.");
+                    "Free planda yalnızca 1 şube vardır. Çok şube için Pro deneme veya Pro plana geçin.");
             }
 
             return;
         }
 
-        var branchCount = await dbContext.Branches.CountAsync(x => x.TenantId == tenantId, cancellationToken);
-        if (branchCount >= entitlements.MaxBranches)
+        if (entitlements.IsUnlimitedBranches)
+        {
+            return;
+        }
+
+        var activeCount = await dbContext.Branches.CountAsync(
+            x => x.TenantId == tenantId && !x.IsFrozen,
+            cancellationToken);
+
+        if (activeCount < entitlements.MaxBranches)
+        {
+            return;
+        }
+
+        // At cap: paid Pro may buy an addon seat (not during trial / free).
+        if (!isTrial
+            && entitlements.PlanCode == SubscriptionPlanCodes.Pro
+            && confirmAddonPurchase)
+        {
+            subscription.PurchaseBranchAddon(now);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        if (!isTrial
+            && entitlements.PlanCode == SubscriptionPlanCodes.Pro
+            && !confirmAddonPurchase)
         {
             throw new EntitlementException(
-                "ENTITLEMENT_BRANCH_LIMIT",
-                $"Şube limiti aşıldı ({branchCount}/{entitlements.MaxBranches}).");
+                "BRANCH_ADDON_REQUIRED",
+                $"Pro pakete {BranchBillingPolicy.ProIncludedBranches} şube dahildir. Ek şube için {FormatMoney(BranchBillingPolicy.ExtraBranchMonthlyPriceMinor)} / ay onaylayın.");
+        }
+
+        throw new EntitlementException(
+            "ENTITLEMENT_BRANCH_LIMIT",
+            $"Şube limiti aşıldı ({activeCount}/{entitlements.MaxBranches}).");
+    }
+
+    public Task EnsureCanCreateBranchAsync(Guid tenantId, CancellationToken cancellationToken) =>
+        EnsureCanCreateBranchAsync(tenantId, confirmAddonPurchase: false, cancellationToken);
+
+    public async Task EnsureBranchNotFrozenAsync(
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        var frozen = await dbContext.Branches.AsNoTracking().AnyAsync(
+            x => x.Id == branchId && x.TenantId == tenantId && x.IsFrozen,
+            cancellationToken);
+        if (frozen)
+        {
+            throw new EntitlementException(
+                "BRANCH_FROZEN",
+                "Bu şube dondurulmuş. Planınızı yükseltin veya ek şube koltuğu satın alın.");
         }
     }
 
@@ -164,6 +319,7 @@ public sealed class FeatureEntitlementService(
         Guid branchId,
         CancellationToken cancellationToken)
     {
+        await EnsureBranchNotFrozenAsync(tenantId, branchId, cancellationToken);
         var entitlements = await GetEntitlementsAsync(tenantId, cancellationToken);
         if (entitlements.IsUnlimitedTables)
         {
@@ -270,7 +426,46 @@ public sealed class FeatureEntitlementService(
         }
 
         subscription.DowngradeToFree(now);
+        await ReconcileBranchQuotaAsync(subscription, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task ReconcileBranchQuotaAsync(
+        TenantSubscription subscription,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        var entitlements = PlanCatalog.ResolveEffective(subscription, now);
+        var branches = await dbContext.Branches
+            .Where(x => x.TenantId == subscription.TenantId)
+            .OrderBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        if (entitlements.IsUnlimitedBranches)
+        {
+            foreach (var branch in branches.Where(x => x.IsFrozen))
+            {
+                branch.Unfreeze();
+            }
+
+            return;
+        }
+
+        var keep = entitlements.MaxBranches ?? BranchBillingPolicy.FreeMaxBranches;
+        for (var i = 0; i < branches.Count; i++)
+        {
+            if (i < keep)
+            {
+                if (branches[i].IsFrozen)
+                {
+                    branches[i].Unfreeze();
+                }
+            }
+            else if (!branches[i].IsFrozen)
+            {
+                branches[i].Freeze();
+            }
+        }
     }
 
     private async Task<TenantSubscription> GetOrCreateSubscriptionAsync(
@@ -289,4 +484,47 @@ public sealed class FeatureEntitlementService(
         await dbContext.SaveChangesAsync(cancellationToken);
         return created;
     }
+
+    private static bool RequiresAddonForNextBranch(
+        FeatureEntitlements entitlements,
+        bool isTrial,
+        int activeCount)
+    {
+        if (entitlements.IsUnlimitedBranches || !entitlements.CanUseMultiBranch || isTrial)
+        {
+            return false;
+        }
+
+        if (entitlements.PlanCode != SubscriptionPlanCodes.Pro || entitlements.MaxBranches is null)
+        {
+            return false;
+        }
+
+        return activeCount >= entitlements.MaxBranches;
+    }
+
+    private static List<string> BuildWarnings(
+        FeatureEntitlements entitlements,
+        bool isTrial,
+        int frozenCount,
+        int activeCount)
+    {
+        var warnings = new List<string>();
+        if (frozenCount > 0)
+        {
+            warnings.Add(
+                $"{frozenCount} şube donduruldu. Operasyon için Pro’ya geçin veya ek şube koltuğu ekleyin (aktif: {activeCount}).");
+        }
+
+        if (isTrial && entitlements.MaxBranches is int trialMax)
+        {
+            warnings.Add(
+                $"Deneme sürüyor: en fazla {trialMax} şube. Süre bitince fazla şubeler dondurulur.");
+        }
+
+        return warnings;
+    }
+
+    private static string FormatMoney(long minor) =>
+        $"{(minor / 100m):N2} {BranchBillingPolicy.Currency}";
 }

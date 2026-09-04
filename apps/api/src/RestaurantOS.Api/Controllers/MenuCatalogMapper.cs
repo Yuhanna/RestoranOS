@@ -38,6 +38,9 @@ internal static class MenuCatalogMapper
             settings.DietaryFilterOptions,
             settings.ShowAllergenExclusions,
             settings.AllergenExclusionOptions,
+            settings.ShowProductNutrition,
+            settings.ShowProductAllergens,
+            settings.ShowProductModifiers,
             settings.AllergenDisclaimer,
             settings.AllergenMatrixUrl);
 
@@ -47,6 +50,9 @@ internal static class MenuCatalogMapper
             settings.DietaryFilterOptions,
             settings.ShowAllergenExclusions,
             settings.AllergenExclusionOptions,
+            settings.ShowProductNutrition,
+            settings.ShowProductAllergens,
+            settings.ShowProductModifiers,
             settings.AllergenDisclaimer,
             settings.AllergenMatrixUrl);
 
@@ -57,6 +63,9 @@ internal static class MenuCatalogMapper
             DietaryFilterOptions = request.DietaryFilterOptions,
             ShowAllergenExclusions = request.ShowAllergenExclusions,
             AllergenExclusionOptions = request.AllergenExclusionOptions,
+            ShowProductNutrition = request.ShowProductNutrition,
+            ShowProductAllergens = request.ShowProductAllergens,
+            ShowProductModifiers = request.ShowProductModifiers,
             AllergenDisclaimer = request.AllergenDisclaimer,
             AllergenMatrixUrl = request.AllergenMatrixUrl,
         };

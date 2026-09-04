@@ -147,6 +147,9 @@ public static class MenuCatalogFormHelper
         {
             ShowDietaryFilters = settings?.ShowDietaryFilters ?? false,
             ShowAllergenExclusions = settings?.ShowAllergenExclusions ?? false,
+            ShowProductNutrition = settings?.ShowProductNutrition ?? false,
+            ShowProductAllergens = settings?.ShowProductAllergens ?? false,
+            ShowProductModifiers = settings?.ShowProductModifiers ?? false,
             AllergenDisclaimer = settings?.AllergenDisclaimer,
             AllergenMatrixUrl = settings?.AllergenMatrixUrl,
         };
@@ -160,6 +163,9 @@ public static class MenuCatalogFormHelper
         {
             ShowDietaryFilters = model.ShowDietaryFilters,
             ShowAllergenExclusions = model.ShowAllergenExclusions,
+            ShowProductNutrition = model.ShowProductNutrition,
+            ShowProductAllergens = model.ShowProductAllergens,
+            ShowProductModifiers = model.ShowProductModifiers,
             AllergenDisclaimer = model.AllergenDisclaimer,
             AllergenMatrixUrl = model.AllergenMatrixUrl,
             DietaryFilterOptions = ReadFilters(model),

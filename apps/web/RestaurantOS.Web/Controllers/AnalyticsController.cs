@@ -15,6 +15,13 @@ public sealed class AnalyticsController(IWebApiExecuter api) : Controller
             return RedirectToAction("Login", "Account");
         }
 
+        var workspace = await api.GetWorkspaceAsync(cancellationToken);
+        if (workspace?.CanViewAnalytics != true)
+        {
+            TempData["Error"] = "İstatistikler için yetkiniz yok.";
+            return RedirectToAction("Index", "Dashboard");
+        }
+
         days = Math.Clamp(days, 1, 366);
         var to = DateTimeOffset.UtcNow;
         var from = to.AddDays(-days);

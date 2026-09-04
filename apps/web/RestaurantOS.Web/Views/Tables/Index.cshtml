@@ -1,6 +1,7 @@
 @model IReadOnlyList<RestaurantOS.Web.Models.TableListItemViewModel>
 @{
     ViewData["Title"] = "Masalar";
+    var canEditTables = ViewData["CanEditTables"] as bool? == true;
 }
 
 <div class="page-head">
@@ -11,13 +12,16 @@
             <p class="muted">Kota: @quota masa</p>
         }
     </div>
-    @if (ViewData["TableQuotaReached"] as bool? == true)
+    @if (canEditTables)
     {
-        <a class="btn btn-ghost" asp-action="Create" title="Plan limitine ulaşıldı">Yeni masa</a>
-    }
-    else
-    {
-        <a class="btn" asp-action="Create">Yeni masa</a>
+        @if (ViewData["TableQuotaReached"] as bool? == true)
+        {
+            <a class="btn btn-ghost" asp-action="Create" title="Plan limitine ulaşıldı">Yeni masa</a>
+        }
+        else
+        {
+            <a class="btn" asp-action="Create">Yeni masa</a>
+        }
     }
 </div>
 
@@ -61,10 +65,13 @@ else
                 <td>@(table.IsActive ? "Aktif" : "Kapalı")</td>
                 <td>@table.ActiveQrCount</td>
                 <td class="table-actions">
-                    <form asp-action="GenerateQr" asp-route-id="@table.Id" method="post" class="inline">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="linkish">QR üret</button>
-                    </form>
+                    @if (canEditTables)
+                    {
+                        <form asp-action="GenerateQr" asp-route-id="@table.Id" method="post" class="inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="linkish">QR üret</button>
+                        </form>
+                    }
                     @if (table.OperationalStatus is "occupied" or "has_pending_order")
                     {
                         <form asp-action="Release" asp-route-id="@table.Id" method="post" class="inline">

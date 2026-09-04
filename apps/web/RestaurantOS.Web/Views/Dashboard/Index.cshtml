@@ -28,10 +28,13 @@
         <span class="stat-label">Bugünkü siparişler</span>
         <strong>@Model.TodaysOrderCount</strong>
     </article>
-    <article class="stat-card">
-        <span class="stat-label">Bugünkü gelir</span>
-        <strong>@Money(Model.TodaysRevenueMinor, Model.Currency)</strong>
-    </article>
+    @if (Model.CanViewFinancials)
+    {
+        <article class="stat-card">
+            <span class="stat-label">Bugünkü gelir</span>
+            <strong>@Money(Model.TodaysRevenueMinor, Model.Currency)</strong>
+        </article>
+    }
     <article class="stat-card">
         <span class="stat-label">Açık masalar</span>
         <strong>@Model.OpenTablesCount</strong>
@@ -46,6 +49,9 @@
     </article>
 </div>
 
-<p class="muted" style="margin-top:1.5rem">
-    Gelişmiş istatistikler için <a asp-controller="Analytics" asp-action="Index">İstatistikler</a> sayfasını kullanın.
-</p>
+@if (Model.CanViewFinancials)
+{
+    <p class="muted" style="margin-top:1.5rem">
+        Gelişmiş istatistikler için <a asp-controller="Analytics" asp-action="Index">İstatistikler</a> sayfasını kullanın.
+    </p>
+}

@@ -159,6 +159,29 @@ public class WebApiExecuter(
             cancellationToken);
     }
 
+    public async Task SwitchBranchAsync(Guid branchId, CancellationToken cancellationToken = default)
+    {
+        EnsureSession();
+        var token = await SendAsync<JwtToken>(
+            HttpMethod.Post,
+            "/api/v1/management/auth/switch-branch",
+            new { branchId },
+            allowRetry: true,
+            cancellationToken);
+
+        if (token is null || string.IsNullOrWhiteSpace(token.AccessToken))
+        {
+            throw new WebApiException(StatusCodes.Status403Forbidden, new ErrorResponse
+            {
+                Code = "BRANCH_SWITCH_FAILED",
+                Detail = "Şube değiştirilemedi.",
+            });
+        }
+
+        StoreAccessToken(token);
+        InvalidateWorkspaceCache();
+    }
+
     protected async Task LoginCoreAsync(
         string relativePath,
         object body,
