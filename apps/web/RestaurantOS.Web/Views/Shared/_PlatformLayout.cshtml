@@ -5,7 +5,9 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@(ViewData["Title"] ?? "Platform") · Restaurant OS</title>
+    <title>@(ViewData["Title"] ?? "Platform") · Pasa</title>
+    <link rel="icon" type="image/svg+xml" href="~/img/pasa-mark.svg" asp-append-version="true" />
+    <link rel="apple-touch-icon" href="~/img/pasa-mark.png" asp-append-version="true" />
     <script>
         (function () {
             var key = "restaurantos-theme";
@@ -23,11 +25,17 @@
             document.documentElement.dataset.themePreference = pref;
         })();
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
     <header class="topbar topbar-platform">
-        <a class="brand" href="/platform">Restaurant OS · Platform</a>
+        <a class="brand" href="/platform">
+            <img src="~/img/pasa-mark.svg" alt="" width="28" height="28" asp-append-version="true" />
+            <span>Pasa · Platform</span>
+        </a>
         @if (PlatformApi.IsAuthenticated)
         {
             <nav aria-label="Platform menü">

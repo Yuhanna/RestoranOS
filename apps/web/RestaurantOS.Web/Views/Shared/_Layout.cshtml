@@ -1,4 +1,4 @@
-﻿@using Microsoft.Extensions.Options
+@using Microsoft.Extensions.Options
 @using RestaurantOS.Web.Data
 @using RestaurantOS.Web.Models
 @inject IWebApiExecuter Api
@@ -17,7 +17,7 @@
         }
     }
 
-    var canViewAnalytics = navWorkspace?.CanViewAnalytics == true;
+    var canViewAnalytics = navWorkspace?.CanOpenAnalyticsPage == true;
     var canManageBranches = navWorkspace?.CanManageBranches == true;
     var canEditMenus = navWorkspace?.CanEditMenus == true;
     var canAccessSettings = navWorkspace?.CanAccessSettings == true;
@@ -26,20 +26,27 @@
     var canSeeBranches = canManageBranches || canEditMenus;
     var planName = ViewData["PlanDisplayName"] as string
         ?? navWorkspace?.Entitlements?.PlanDisplayName;
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    string? NavClass(string controller) =>
+        string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) ? "is-active" : null;
+    var moreOpen = currentController is "LunchPackages" or "Promotions" or "Analytics" or "Branches" or "Settings";
 }
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@(ViewData["Title"] ?? "Operasyon") · Restaurant OS</title>
+    <title>@(ViewData["Title"] ?? "Operasyon") · Pasa</title>
+    <link rel="icon" type="image/svg+xml" href="~/img/pasa-mark.svg" asp-append-version="true" />
+    <link rel="apple-touch-icon" href="~/img/pasa-mark.png" asp-append-version="true" />
     <script>
         (function () {
             var key = "restaurantos-theme";
+            var allowed = ["system", "light", "dark", "soft", "saas", "warm", "luxury"];
             var pref = "system";
             try {
                 var stored = localStorage.getItem(key);
-                if (stored === "light" || stored === "dark" || stored === "soft" || stored === "system") {
+                if (allowed.indexOf(stored) >= 0) {
                     pref = stored;
                 }
             } catch (_) { }
@@ -50,81 +57,111 @@
             document.documentElement.dataset.themePreference = pref;
         })();
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
     <header class="topbar">
-        <a class="brand" asp-controller="Home" asp-action="Index">Restaurant OS</a>
+        <a class="brand" asp-controller="Home" asp-action="Index">
+            <img src="~/img/pasa-mark.svg" alt="" width="28" height="28" asp-append-version="true" />
+            <span>Pasa</span>
+        </a>
         @if (Api.IsAuthenticated)
         {
-            <nav aria-label="Ana menü">
-                <a asp-controller="Dashboard" asp-action="Index">Gösterge paneli</a>
-                <a asp-controller="Orders" asp-action="Index">Siparişler</a>
-                <a asp-controller="Tables" asp-action="Index">Masalar</a>
-                <a asp-controller="Menus" asp-action="Index">Menüler</a>
-                @if (canManagePromotions)
+            <nav class="topbar-nav" aria-label="Ana menü">
+                <div class="topbar-nav__primary">
+                    <a class="@NavClass("Dashboard")" asp-controller="Dashboard" asp-action="Index">Panel</a>
+                    <a class="nav-orders @NavClass("Orders")" asp-controller="Orders" asp-action="Index">Siparişler</a>
+                    <a class="@NavClass("Tables")" asp-controller="Tables" asp-action="Index">Masalar</a>
+                    <a class="@NavClass("Menus")" asp-controller="Menus" asp-action="Index">Menüler</a>
+                </div>
+                @if (canEditMenus || canManagePromotions || canViewAnalytics || canSeeBranches || canAccessSettings)
                 {
-                    <a asp-controller="Promotions" asp-action="Index">İndirimler</a>
-                }
-                @if (canViewAnalytics)
-                {
-                    <a asp-controller="Analytics" asp-action="Index">İstatistikler</a>
-                }
-                @if (canSeeBranches)
-                {
-                    <a asp-controller="Branches" asp-action="Index">Şubeler</a>
-                }
-                @if (canAccessSettings)
-                {
-                    <a asp-controller="Settings" asp-action="Index">Ayarlar</a>
+                    <details class="topbar-more @(moreOpen ? "is-current" : null)">
+                        <summary>Daha fazla</summary>
+                        <div class="topbar-more__panel" role="menu">
+                            @if (canEditMenus)
+                            {
+                                <a class="@NavClass("LunchPackages")" asp-controller="LunchPackages" asp-action="Index" role="menuitem">Günün menüsü</a>
+                            }
+                            @if (canManagePromotions)
+                            {
+                                <a class="@NavClass("Promotions")" asp-controller="Promotions" asp-action="Index" role="menuitem">İndirimler</a>
+                            }
+                            @if (canViewAnalytics)
+                            {
+                                <a class="@NavClass("Analytics")" asp-controller="Analytics" asp-action="Index" role="menuitem">İstatistikler</a>
+                            }
+                            @if (canSeeBranches)
+                            {
+                                <a class="@NavClass("Branches")" asp-controller="Branches" asp-action="Index" role="menuitem">Şubeler</a>
+                            }
+                            @if (canAccessSettings)
+                            {
+                                <a class="@NavClass("Settings")" asp-controller="Settings" asp-action="Index" role="menuitem">Ayarlar</a>
+                            }
+                        </div>
+                    </details>
                 }
             </nav>
-            @if (!string.IsNullOrWhiteSpace(Api.CurrentRestaurantName))
-            {
-                <span class="scope-chip" title="Yalnızca bu restoran ve şube verisi görünür">
-                    @Api.CurrentRestaurantName · @(Api.CurrentBranchName ?? "Şube")
-                    @if (!string.IsNullOrWhiteSpace(planName))
-                    {
-                        <text> · @planName</text>
-                    }
-                </span>
-            }
-            <label class="theme-picker">
-                <span class="theme-picker__label">Tema</span>
-                <select id="theme-select" aria-label="Tema seçin">
-                    <option value="system">Sistem</option>
-                    <option value="light">Açık</option>
-                    <option value="dark">Koyu</option>
-                    <option value="soft">Yumuşak koyu</option>
-                </select>
-            </label>
-            <form asp-controller="Account" asp-action="Logout" method="post" class="inline">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="linkish">Çıkış yap</button>
-            </form>
+            <div class="topbar-tools">
+                @if (!string.IsNullOrWhiteSpace(Api.CurrentRestaurantName))
+                {
+                    <span class="scope-chip" title="Yalnızca bu restoran ve şube verisi görünür">
+                        <span class="scope-chip__name">@(Api.CurrentBranchName ?? Api.CurrentRestaurantName)</span>
+                        @if (!string.IsNullOrWhiteSpace(planName))
+                        {
+                            <span class="scope-chip__plan">@planName</span>
+                        }
+                    </span>
+                }
+                <label class="theme-picker">
+                    <span class="theme-picker__label">Tema</span>
+                    <select id="theme-select" aria-label="Tema seçin">
+                        <option value="system">Sistem</option>
+                        <option value="dark">Operasyon</option>
+                        <option value="light">Açık</option>
+                        <option value="soft">Yumuşak koyu</option>
+                        <option value="saas">SaaS</option>
+                        <option value="warm">Sıcak</option>
+                        <option value="luxury">Luxury</option>
+                    </select>
+                </label>
+                <form asp-controller="Account" asp-action="Logout" method="post" class="inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="linkish">Çıkış</button>
+                </form>
+            </div>
         }
         else
         {
-            <nav aria-label="Hesap">
+            <nav class="topbar-nav topbar-nav--guest" aria-label="Hesap">
                 <a asp-controller="Account" asp-action="Register">Hesap oluştur</a>
                 <a asp-controller="Account" asp-action="Login" class="nav-cta">Giriş yap</a>
             </nav>
-            <label class="theme-picker">
-                <span class="theme-picker__label">Tema</span>
-                <select id="theme-select" aria-label="Tema seçin">
-                    <option value="system">Sistem</option>
-                    <option value="light">Açık</option>
-                    <option value="dark">Koyu</option>
-                    <option value="soft">Yumuşak koyu</option>
-                </select>
-            </label>
+            <div class="topbar-tools">
+                <label class="theme-picker">
+                    <span class="theme-picker__label">Tema</span>
+                    <select id="theme-select" aria-label="Tema seçin">
+                        <option value="system">Sistem</option>
+                        <option value="dark">Operasyon</option>
+                        <option value="light">Açık</option>
+                        <option value="soft">Yumuşak koyu</option>
+                        <option value="saas">SaaS</option>
+                        <option value="warm">Sıcak</option>
+                        <option value="luxury">Luxury</option>
+                    </select>
+                </label>
+            </div>
         }
     </header>
     <main class="page">
         @RenderBody()
     </main>
     <footer class="footer">
-        <span>RESTAURANT OS · YÖNETİM</span>
+        <span>PASA · YÖNETİM</span>
     </footer>
     @if (Api.IsAuthenticated)
     {
@@ -132,7 +169,25 @@
         <script src="~/js/order-alerts.js" asp-append-version="true"></script>
     }
     @await RenderSectionAsync("Scripts", required: false)
+    <script src="~/js/category-product-filter.js" asp-append-version="true"></script>
     <script src="~/js/theme.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            document.querySelectorAll(".topbar-more").forEach(function (el) {
+                el.addEventListener("toggle", function () {
+                    if (!el.open) return;
+                    document.querySelectorAll(".topbar-more").forEach(function (other) {
+                        if (other !== el) other.open = false;
+                    });
+                });
+            });
+            document.addEventListener("click", function (event) {
+                document.querySelectorAll(".topbar-more[open]").forEach(function (el) {
+                    if (!el.contains(event.target)) el.open = false;
+                });
+            });
+        })();
+    </script>
     @if (Api.IsAuthenticated)
     {
         var alertApiBase = (ApiOptions.Value.BaseUrl ?? string.Empty).TrimEnd('/');

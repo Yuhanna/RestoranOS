@@ -3,6 +3,7 @@ export type OrderStatus =
   | "accepted"
   | "preparing"
   | "ready"
+  | "served"
   | "completed"
   | "cancelled";
 
@@ -34,6 +35,17 @@ export type Order = {
   tableLabel: string;
 };
 
+export type TodayBranchStat = {
+  branchId: string;
+  branchName: string;
+  todaysOrderCount: number;
+  todaysRevenueMinor: number;
+  openTablesCount: number;
+  pendingOrdersCount: number;
+  completedOrdersTodayCount: number;
+  isFrozen: boolean;
+};
+
 export type TodayDashboard = {
   todaysOrderCount: number;
   todaysRevenueMinor: number;
@@ -43,6 +55,10 @@ export type TodayDashboard = {
   currency: string;
   dayStartUtc: string;
   dayEndUtc: string;
+  canViewFinancials?: boolean;
+  scope?: "branch" | "network" | string;
+  branchCount?: number;
+  branches?: TodayBranchStat[];
 };
 
 export type OrderLine = {
@@ -98,6 +114,19 @@ export type WorkspaceEntitlements = {
   planDisplayName: string;
   isTrial: boolean;
   trialEndsAtUtc: string | null;
+  tableCount?: number;
+  maxTablesPerBranch?: number | null;
+  activeQrCount?: number;
+  maxActiveQrCodes?: number | null;
+  maxConcurrentLiveSessions?: number | null;
+  canUseLiveOrderPanel?: boolean;
+  canUsePromotions?: boolean;
+  canUseAnalytics?: boolean;
+  canUseMenuThemes?: boolean;
+  canUseMultiBranch?: boolean;
+  canUseBrandWatermark?: boolean;
+  canViewFinancialAnalytics?: boolean;
+  warnings?: string[];
 };
 
 export type AudienceNotification = {
@@ -123,9 +152,14 @@ export type Workspace = {
   branchId: string;
   branchName: string;
   entitlements: WorkspaceEntitlements | null;
+  permissions?: string[];
   canViewFinancialAnalytics?: boolean;
   notifications?: AudienceNotification[];
   subscriptionOffers?: SubscriptionOffer[];
+  brandLogoUrl?: string | null;
+  brandLogoAlt?: string | null;
+  showBrandWatermark?: boolean;
+  brandWatermarkIntensity?: string;
 };
 
 export type AnalyticsSummary = {
@@ -258,6 +292,8 @@ export type MenuPromotion = {
   categoryId: string | null;
   menuItemId: string | null;
   isActive: boolean;
+  /** Bitmask: bit0=Sun … bit6=Sat. Null = every day. */
+  daysOfWeekMask?: number | null;
 };
 
 export type CreateMenuPromotionInput = {
@@ -272,6 +308,7 @@ export type CreateMenuPromotionInput = {
   categoryId?: string | null;
   menuItemId?: string | null;
   isActive?: boolean;
+  daysOfWeekMask?: number | null;
 };
 
 export type ManagedNotification = {
@@ -305,10 +342,11 @@ export type NotificationDispatchResult = {
 };
 
 export const nextStatuses: Record<OrderStatus, OrderStatus[]> = {
-  submitted: ["accepted", "preparing", "ready", "completed", "cancelled"],
-  accepted: ["preparing", "ready", "completed", "cancelled"],
-  preparing: ["ready", "completed", "cancelled"],
-  ready: ["completed"],
+  submitted: ["accepted", "preparing", "ready", "served", "cancelled"],
+  accepted: ["preparing", "ready", "served", "cancelled"],
+  preparing: ["ready", "served", "cancelled"],
+  ready: ["served"],
+  served: [],
   completed: [],
   cancelled: [],
 };

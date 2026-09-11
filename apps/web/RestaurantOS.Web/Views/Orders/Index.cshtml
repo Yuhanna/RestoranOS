@@ -14,10 +14,42 @@
         "preparing" => "Hazırlanıyor",
         "ready" => "Hazır",
         "served" => "Servis edildi",
-        "completed" => "Tamamlandı",
+        "completed" => "Hesap kapandı",
         "cancelled" => "İptal",
         _ => status ?? "—"
     };
+    string StatusBadgeClass(string? status) => status?.ToLowerInvariant() switch
+    {
+        "submitted" => "badge-status-submitted",
+        "accepted" => "badge-status-accepted",
+        "preparing" => "badge-status-preparing",
+        "ready" => "badge-status-ready",
+        "served" => "badge-status-served",
+        "completed" => "badge-status-completed",
+        "cancelled" => "badge-status-cancelled",
+        _ => "badge-warn"
+    };
+    var tableGroups = Model
+        .GroupBy(order => order.TableId)
+        .Select(group =>
+        {
+            var rounds = group.OrderBy(order => order.CreatedAtUtc ?? order.StatusChangedAtUtc).ToList();
+            return new
+            {
+                TableId = group.Key,
+                TableLabel = rounds[0].TableLabel,
+                Rounds = rounds,
+                TotalMinor = rounds.Sum(order => order.AmountMinor),
+                HasIncomplete = rounds.Any(order =>
+                {
+                    var s = order.Status?.ToLowerInvariant();
+                    return s is "submitted" or "accepted" or "preparing";
+                }),
+            };
+        })
+        .OrderByDescending(group => group.HasIncomplete)
+        .ThenByDescending(group => group.Rounds.Max(order => order.CreatedAtUtc ?? order.StatusChangedAtUtc))
+        .ToList();
 }
 
 <div class="page-head">
@@ -26,6 +58,7 @@
         <p class="muted" id="orders-live-status" role="status">Canlı bağlantı kuruluyor…</p>
     </div>
     <div class="page-head-actions">
+        <a class="btn btn-ghost" asp-action="History">Sipariş geçmişi</a>
         <button type="button" class="btn btn-ghost" id="orders-sound-toggle" aria-pressed="true">
             Zil sesi: Açık
         </button>
@@ -40,6 +73,7 @@
 {
     <div class="alert" role="alert">@error</div>
 }
+<div id="orders-toast" class="alert success hidden" role="status"></div>
 
 <section class="panel" style="margin-bottom:1.25rem">
     <div class="page-head" style="margin-bottom:0.75rem">
@@ -53,32 +87,98 @@
     <p class="muted">Şu anda aktif sipariş yok. Yeni siparişler anında burada görünür.</p>
 </div>
 
-<div class="item-grid" id="orders-grid">
-    @foreach (var order in Model)
+<div id="orders-by-table" class="table-order-list">
+    @foreach (var group in tableGroups)
     {
-        <article class="item-card" data-order-id="@order.Id" data-status="@order.Status" data-status-changed="@order.StatusChangedAtUtc.ToString("O")">
-            <div class="item-card-top">
-                <h3>@order.DisplayNumber</h3>
-                <span class="price">₺@((order.AmountMinor / 100m).ToString("N2"))</span>
+        <section class="table-order-group" data-table-id="@group.TableId">
+            <header class="table-order-group__head">
+                <div>
+                    <h2 class="table-order-group__title">@(string.IsNullOrWhiteSpace(group.TableLabel) ? "—" : group.TableLabel)</h2>
+                    <p class="muted table-order-group__meta">
+                        <span class="table-round-count">@group.Rounds.Count tur</span>
+                        · masa toplamı
+                        <strong class="table-total">₺@((group.TotalMinor / 100m).ToString("N2"))</strong>
+                    </p>
+                </div>
+                <button type="button"
+                        class="btn table-close-check"
+                        data-table-id="@group.TableId"
+                        data-table-label="@(group.TableLabel ?? "")">
+                    Hesabı kapat
+                </button>
+            </header>
+            <div class="item-grid table-order-group__rounds">
+                @foreach (var order in group.Rounds)
+                {
+                    <article class="item-card"
+                             data-order-id="@order.Id"
+                             data-table-id="@order.TableId"
+                             data-status="@order.Status"
+                             data-status-changed="@order.StatusChangedAtUtc.ToString("O")"
+                             data-amount-minor="@order.AmountMinor"
+                             data-created="@(order.CreatedAtUtc?.ToString("O") ?? "")"
+                             data-display="@order.DisplayNumber"
+                             data-table-label="@(order.TableLabel ?? "")"
+                             data-currency="@order.Currency">
+                        <div class="item-card-top">
+                            <h3>@order.DisplayNumber</h3>
+                            <span class="price">₺@((order.AmountMinor / 100m).ToString("N2"))</span>
+                        </div>
+                        <p class="item-desc">
+                            Durum: <strong class="order-status-label">@StatusTr(order.Status)</strong><br />
+                            Sipariş: <span class="order-created">@(order.CreatedAtUtc?.ToLocalTime().ToString("g") ?? "—")</span><br />
+                            Güncelleme: <span class="order-changed">@order.StatusChangedAtUtc.ToLocalTime().ToString("g")</span>
+                        </p>
+                        <div class="item-meta">
+                            <span class="badge @StatusBadgeClass(order.Status) order-status-code">@StatusTr(order.Status)</span>
+                            <a class="linkish"
+                               asp-action="Detail"
+                               asp-route-id="@order.Id">Detay</a>
+                            @if (order.Status is not "served" and not "completed" and not "cancelled")
+                            {
+                                <a class="linkish order-change-link"
+                                   asp-action="ChangeStatus"
+                                   asp-route-id="@order.Id">Durumu değiştir</a>
+                            }
+                        </div>
+                    </article>
+                }
             </div>
-            <p class="item-desc">
-                Masa: <strong class="order-table-label">@(string.IsNullOrWhiteSpace(order.TableLabel) ? "—" : order.TableLabel)</strong><br />
-                Durum: <strong class="order-status-label">@StatusTr(order.Status)</strong><br />
-                Sipariş: <span class="order-created">@(order.CreatedAtUtc?.ToLocalTime().ToString("g") ?? "—")</span><br />
-                Güncelleme: <span class="order-changed">@order.StatusChangedAtUtc.ToLocalTime().ToString("g")</span>
-            </p>
-            <div class="item-meta">
-                <span class="badge badge-warn order-status-code">@order.Status</span>
-                <a class="linkish"
-                   asp-action="Detail"
-                   asp-route-id="@order.Id">Detay</a>
-                <a class="linkish order-change-link"
-                   asp-action="ChangeStatus"
-                   asp-route-id="@order.Id">Durumu değiştir</a>
-            </div>
-        </article>
+        </section>
     }
 </div>
+
+<dialog id="close-check-dialog" class="ros-dialog">
+    <form method="dialog" id="close-check-form" class="ros-dialog__body">
+        <header class="ros-dialog__head">
+            <h2 id="close-check-title">Hesabı kapat</h2>
+            <p class="muted" id="close-check-summary"></p>
+        </header>
+        <div id="close-check-rounds" class="close-check-rounds" aria-live="polite"></div>
+        <fieldset class="ros-dialog__fieldset">
+            <legend>Tahsilat yöntemi</legend>
+            <label class="ros-choice"><input type="radio" name="tender" value="cash" checked /> Nakit</label>
+            <label class="ros-choice"><input type="radio" name="tender" value="card" /> Kart</label>
+            <label class="ros-choice"><input type="radio" name="tender" value="other" /> Diğer</label>
+        </fieldset>
+        <label class="ros-dialog__note">
+            <span>Not <span class="opt">opsiyonel</span></span>
+            <input type="text" id="close-check-note" maxlength="120" placeholder="Örn. fiş kesildi" />
+        </label>
+        <div id="close-check-incomplete" class="alert hidden" role="alert">
+            Mutfakta hâlâ hazırlanan tur var. Onaylarsanız tüm turlar tamamlandı sayılır ve masa boşaltılır.
+            <label class="ros-choice" style="margin-top:0.5rem">
+                <input type="checkbox" id="close-check-force" />
+                Yine de hesabı kapat
+            </label>
+        </div>
+        <p id="close-check-error" class="alert hidden" role="alert"></p>
+        <footer class="ros-dialog__actions">
+            <button type="button" class="btn btn-ghost" id="close-check-cancel" value="cancel">Vazgeç</button>
+            <button type="submit" class="btn" id="close-check-submit">Hesabı kapat</button>
+        </footer>
+    </form>
+</dialog>
 
 @section Scripts {
     <script>
@@ -88,14 +188,28 @@
             const apiBase = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(apiBase));
             const accessToken = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(accessToken));
             const statusEl = document.getElementById("orders-live-status");
-            const grid = document.getElementById("orders-grid");
+            const listEl = document.getElementById("orders-by-table");
             const emptyEl = document.getElementById("orders-empty");
+            const toastEl = document.getElementById("orders-toast");
             const serviceGrid = document.getElementById("service-requests-grid");
             const serviceEmpty = document.getElementById("service-requests-empty");
             const soundToggle = document.getElementById("orders-sound-toggle");
+            const dialog = document.getElementById("close-check-dialog");
+            const form = document.getElementById("close-check-form");
+            const incompleteBox = document.getElementById("close-check-incomplete");
+            const forceBox = document.getElementById("close-check-force");
+            const errorEl = document.getElementById("close-check-error");
+            const summaryEl = document.getElementById("close-check-summary");
+            const titleEl = document.getElementById("close-check-title");
+            const noteEl = document.getElementById("close-check-note");
+            const roundsDetailEl = document.getElementById("close-check-rounds");
+            const cancelBtn = document.getElementById("close-check-cancel");
+
+            /** @@type {Map<string, object>} */
+            const ordersById = new Map();
+
             if (!apiBase || !accessToken || !window.signalR) {
                 if (statusEl) statusEl.textContent = "Canlı bağlantı kullanılamıyor; sayfayı yenileyerek güncelleyin.";
-                return;
             }
 
             const statusTr = {
@@ -104,16 +218,28 @@
                 preparing: "Hazırlanıyor",
                 ready: "Hazır",
                 served: "Servis edildi",
-                completed: "Tamamlandı",
+                completed: "Hesap kapandı",
                 cancelled: "İptal"
             };
+            function statusBadgeClass(status) {
+                switch ((status || "").toLowerCase()) {
+                    case "submitted": return "badge-status-submitted";
+                    case "accepted": return "badge-status-accepted";
+                    case "preparing": return "badge-status-preparing";
+                    case "ready": return "badge-status-ready";
+                    case "served": return "badge-status-served";
+                    case "completed": return "badge-status-completed";
+                    case "cancelled": return "badge-status-cancelled";
+                    default: return "badge-warn";
+                }
+            }
             const requestTypeTr = {
-                waiter: "Garson",
-                bill: "Hesap",
-                water: "Su",
+                waiter: "Garson çağrısı",
+                bill: "Hesap isteği",
+                water: "Su isteği",
                 cutlery: "Çatal-bıçak",
                 napkin: "Peçete",
-                other: "Diğer"
+                other: "Diğer çağrı"
             };
 
             function syncSoundToggle(state) {
@@ -148,13 +274,6 @@
                 syncSoundToggle({ soundEnabled: true, audioUnlocked: false });
             }
 
-            // Seed known ids so initial paint does not chime.
-            if (alerts) {
-                const seed = [];
-                grid.querySelectorAll("[data-order-id]").forEach((el) => seed.push(el.dataset.orderId));
-                alerts.seedKnownOrders(seed);
-            }
-
             function formatMoney(amountMinor) {
                 return "₺" + (Number(amountMinor) / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
@@ -169,9 +288,33 @@
                 if (statusEl) statusEl.textContent = text;
             }
 
-            function syncEmpty() {
-                const hasCards = grid.querySelectorAll("[data-order-id]").length > 0;
-                emptyEl.classList.toggle("hidden", hasCards);
+            function showToast(text) {
+                if (!toastEl) return;
+                toastEl.textContent = text;
+                toastEl.classList.remove("hidden");
+                window.setTimeout(() => toastEl.classList.add("hidden"), 5000);
+            }
+
+            function isKitchenIncomplete(status) {
+                const s = (status || "").toLowerCase();
+                return s === "submitted" || s === "accepted" || s === "preparing";
+            }
+
+            function seedFromDom() {
+                listEl.querySelectorAll("[data-order-id]").forEach((el) => {
+                    ordersById.set(el.dataset.orderId, {
+                        id: el.dataset.orderId,
+                        tableId: el.dataset.tableId,
+                        tableLabel: el.dataset.tableLabel || "",
+                        displayNumber: el.dataset.display || "",
+                        status: el.dataset.status || "",
+                        statusChangedAtUtc: el.dataset.statusChanged || "",
+                        createdAtUtc: el.dataset.created || null,
+                        amountMinor: Number(el.dataset.amountMinor || 0),
+                        currency: el.dataset.currency || "TRY"
+                    });
+                });
+                if (alerts) alerts.seedKnownOrders([...ordersById.keys()]);
             }
 
             function detailUrl(order) {
@@ -182,53 +325,106 @@
                 return "/Orders/ChangeStatus?id=" + encodeURIComponent(order.id);
             }
 
+            function groupOrders() {
+                const byTable = new Map();
+                for (const order of ordersById.values()) {
+                    const key = order.tableId || ("label:" + (order.tableLabel || "—"));
+                    if (!byTable.has(key)) byTable.set(key, []);
+                    byTable.get(key).push(order);
+                }
+                const groups = [];
+                for (const [tableId, rounds] of byTable) {
+                    rounds.sort((a, b) => new Date(a.createdAtUtc || a.statusChangedAtUtc) - new Date(b.createdAtUtc || b.statusChangedAtUtc));
+                    const hasIncomplete = rounds.some((r) => isKitchenIncomplete(r.status));
+                    const newest = Math.max(...rounds.map((r) => new Date(r.createdAtUtc || r.statusChangedAtUtc).getTime()));
+                    groups.push({
+                        tableId,
+                        tableLabel: rounds[0].tableLabel || "—",
+                        rounds,
+                        totalMinor: rounds.reduce((sum, r) => sum + Number(r.amountMinor || 0), 0),
+                        hasIncomplete,
+                        newest
+                    });
+                }
+                groups.sort((a, b) => {
+                    if (a.hasIncomplete !== b.hasIncomplete) return a.hasIncomplete ? -1 : 1;
+                    return b.newest - a.newest;
+                });
+                return groups;
+            }
+
+            function renderOrders() {
+                const groups = groupOrders();
+                emptyEl.classList.toggle("hidden", groups.length > 0);
+                listEl.innerHTML = "";
+                for (const group of groups) {
+                    const section = document.createElement("section");
+                    section.className = "table-order-group";
+                    section.dataset.tableId = group.tableId;
+                    section.innerHTML =
+                        '<header class="table-order-group__head">' +
+                        '<div><h2 class="table-order-group__title"></h2>' +
+                        '<p class="muted table-order-group__meta"><span class="table-round-count"></span> · masa toplamı <strong class="table-total"></strong></p></div>' +
+                        '<button type="button" class="btn table-close-check">Hesabı kapat</button></header>' +
+                        '<div class="item-grid table-order-group__rounds"></div>';
+                    section.querySelector(".table-order-group__title").textContent = group.tableLabel;
+                    section.querySelector(".table-round-count").textContent = group.rounds.length + " tur";
+                    section.querySelector(".table-total").textContent = formatMoney(group.totalMinor);
+                    const closeBtn = section.querySelector(".table-close-check");
+                    closeBtn.dataset.tableId = group.tableId;
+                    closeBtn.dataset.tableLabel = group.tableLabel;
+                    closeBtn.addEventListener("click", () => openCloseCheck(group.tableId, group.tableLabel));
+                    const roundsEl = section.querySelector(".table-order-group__rounds");
+                    for (const order of group.rounds) {
+                        const status = (order.status || "").toLowerCase();
+                        const card = document.createElement("article");
+                        card.className = "item-card";
+                        card.dataset.orderId = order.id;
+                        card.innerHTML =
+                            '<div class="item-card-top"><h3></h3><span class="price"></span></div>' +
+                            '<p class="item-desc">Durum: <strong class="order-status-label"></strong><br />' +
+                            'Sipariş: <span class="order-created"></span><br />' +
+                            'Güncelleme: <span class="order-changed"></span></p>' +
+                            '<div class="item-meta"><span class="badge order-status-code"></span>' +
+                            '<a class="linkish order-detail-link">Detay</a>' +
+                            (status === "served" || status === "completed" || status === "cancelled"
+                                ? ""
+                                : '<a class="linkish order-change-link">Durumu değiştir</a>') +
+                            "</div>";
+                        card.querySelector("h3").textContent = order.displayNumber;
+                        card.querySelector(".price").textContent = formatMoney(order.amountMinor);
+                        card.querySelector(".order-status-label").textContent = statusTr[status] || order.status;
+                        card.querySelector(".order-created").textContent = formatLocal(order.createdAtUtc);
+                        card.querySelector(".order-changed").textContent = formatLocal(order.statusChangedAtUtc);
+                        const badge = card.querySelector(".order-status-code");
+                        badge.textContent = statusTr[status] || order.status;
+                        badge.className = "badge order-status-code " + statusBadgeClass(status);
+                        card.querySelector(".order-detail-link").href = detailUrl(order);
+                        const changeLink = card.querySelector(".order-change-link");
+                        if (changeLink) changeLink.href = changeStatusUrl(order);
+                        roundsEl.appendChild(card);
+                    }
+                    listEl.appendChild(section);
+                }
+            }
+
             function upsertOrder(order, options) {
                 const silent = options && options.silent;
                 const status = (order.status || "").toLowerCase();
+                const id = order.id;
+                const existed = ordersById.has(id);
                 if (status === "completed" || status === "cancelled") {
-                    const existing = grid.querySelector('[data-order-id="' + order.id + '"]');
-                    if (existing) existing.remove();
-                    syncEmpty();
+                    ordersById.delete(id);
+                    renderOrders();
                     return;
                 }
-
-                let card = grid.querySelector('[data-order-id="' + order.id + '"]');
-                const isNew = !card;
-                if (!card) {
-                    card = document.createElement("article");
-                    card.className = "item-card";
-                    card.dataset.orderId = order.id;
-                    card.innerHTML =
-                        '<div class="item-card-top"><h3></h3><span class="price"></span></div>' +
-                        '<p class="item-desc">Masa: <strong class="order-table-label"></strong><br />' +
-                        'Durum: <strong class="order-status-label"></strong><br />' +
-                        'Sipariş: <span class="order-created"></span><br />' +
-                        'Güncelleme: <span class="order-changed"></span></p>' +
-                        '<div class="item-meta"><span class="badge badge-warn order-status-code"></span>' +
-                        '<a class="linkish order-detail-link">Detay</a>' +
-                        '<a class="linkish order-change-link">Durumu değiştir</a></div>';
-                    grid.prepend(card);
-                }
-
-                card.dataset.status = status;
-                card.dataset.statusChanged = order.statusChangedAtUtc;
-                card.querySelector("h3").textContent = order.displayNumber;
-                card.querySelector(".price").textContent = formatMoney(order.amountMinor);
-                card.querySelector(".order-table-label").textContent = order.tableLabel || "—";
-                card.querySelector(".order-status-label").textContent = statusTr[status] || order.status;
-                card.querySelector(".order-created").textContent = formatLocal(order.createdAtUtc);
-                card.querySelector(".order-changed").textContent = formatLocal(order.statusChangedAtUtc);
-                card.querySelector(".order-status-code").textContent = order.status;
-                const detailLink = card.querySelector(".order-detail-link");
-                detailLink.href = detailUrl(order);
-                const link = card.querySelector(".order-change-link");
-                link.href = changeStatusUrl(order);
-                syncEmpty();
-                if (isNew && !silent) {
-                    if (alerts) alerts.rememberOrderId(order.id);
+                ordersById.set(id, order);
+                renderOrders();
+                if (!existed && !silent) {
+                    if (alerts) alerts.rememberOrderId(id);
                     playAlertChime("order");
                 } else if (alerts) {
-                    alerts.rememberOrderId(order.id);
+                    alerts.rememberOrderId(id);
                 }
             }
 
@@ -238,13 +434,109 @@
                 });
                 if (!response.ok) throw new Error("resync failed");
                 const orders = await response.json();
-                grid.querySelectorAll("[data-order-id]").forEach((el) => el.remove());
-                for (const order of orders) {
-                    upsertOrder(order, { silent: true });
-                }
-                syncEmpty();
+                ordersById.clear();
+                for (const order of orders) ordersById.set(order.id, order);
+                renderOrders();
                 await resyncServiceRequests();
             }
+
+            let activeCloseTableId = null;
+
+            function openCloseCheck(tableId, tableLabel) {
+                activeCloseTableId = tableId;
+                titleEl.textContent = (tableLabel || "Masa") + " · Hesabı kapat";
+                const rounds = [...ordersById.values()]
+                    .filter((o) => o.tableId === tableId)
+                    .sort((a, b) => String(a.displayNumber || "").localeCompare(String(b.displayNumber || "")));
+                const total = rounds.reduce((sum, o) => sum + Number(o.amountMinor || 0), 0);
+                const incomplete = rounds.filter((o) => isKitchenIncomplete(o.status)).length;
+                summaryEl.textContent = rounds.length + " tur · " + formatMoney(total);
+                if (roundsDetailEl) {
+                    if (rounds.length === 0) {
+                        roundsDetailEl.innerHTML = "<p class=\"muted\">Bu masada açık tur yok.</p>";
+                    } else {
+                        roundsDetailEl.innerHTML = rounds.map((order) => {
+                            const status = (order.status || "").toLowerCase();
+                            return "<div class=\"close-check-round\">" +
+                                "<div><strong></strong><span class=\"price\"></span></div>" +
+                                "<span class=\"badge\"></span></div>";
+                        }).join("");
+                        const nodes = roundsDetailEl.querySelectorAll(".close-check-round");
+                        rounds.forEach((order, index) => {
+                            const status = (order.status || "").toLowerCase();
+                            const node = nodes[index];
+                            node.querySelector("strong").textContent = order.displayNumber;
+                            node.querySelector(".price").textContent = formatMoney(order.amountMinor);
+                            const badge = node.querySelector(".badge");
+                            badge.textContent = statusTr[status] || order.status;
+                            badge.className = "badge " + statusBadgeClass(status);
+                        });
+                    }
+                }
+                incompleteBox.classList.toggle("hidden", incomplete === 0);
+                forceBox.checked = false;
+                errorEl.classList.add("hidden");
+                errorEl.textContent = "";
+                noteEl.value = "";
+                const cash = form.querySelector('input[name="tender"][value="cash"]');
+                if (cash) cash.checked = true;
+                if (typeof dialog.showModal === "function") dialog.showModal();
+            }
+
+            listEl.addEventListener("click", (event) => {
+                const btn = event.target.closest(".table-close-check");
+                if (!btn) return;
+                openCloseCheck(btn.dataset.tableId, btn.dataset.tableLabel);
+            });
+
+            cancelBtn.addEventListener("click", () => dialog.close());
+
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                if (!activeCloseTableId) return;
+                errorEl.classList.add("hidden");
+                const tender = (form.querySelector('input[name="tender"]:checked') || {}).value || "cash";
+                const confirmIncompleteKitchen = forceBox.checked;
+                const note = noteEl.value.trim() || null;
+                const submitBtn = document.getElementById("close-check-submit");
+                submitBtn.disabled = true;
+                try {
+                    const response = await fetch(
+                        apiBase + "/api/v1/management/tables/" + encodeURIComponent(activeCloseTableId) + "/close-check",
+                        {
+                            method: "POST",
+                            headers: {
+                                Authorization: "Bearer " + accessToken,
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({ tender, confirmIncompleteKitchen, note })
+                        });
+                    if (response.status === 409) {
+                        const problem = await response.json().catch(() => ({}));
+                        incompleteBox.classList.remove("hidden");
+                        errorEl.textContent = problem.detail || problem.title || "Mutfakta tamamlanmamış tur var. Onay kutusunu işaretleyin.";
+                        errorEl.classList.remove("hidden");
+                        return;
+                    }
+                    if (!response.ok) {
+                        const problem = await response.json().catch(() => ({}));
+                        errorEl.textContent = problem.detail || problem.title || "Hesap kapatılamadı.";
+                        errorEl.classList.remove("hidden");
+                        return;
+                    }
+                    const result = await response.json();
+                    dialog.close();
+                    for (const id of (result.closedOrderIds || [])) ordersById.delete(id);
+                    renderOrders();
+                    const forced = result.forcedIncompleteKitchen ? " (mutfak onaysız kapatıldı)" : "";
+                    showToast((result.tableLabel || "Masa") + " hesabı kapatıldı · " + formatMoney(result.totalAmountMinor) + forced);
+                } catch {
+                    errorEl.textContent = "Bağlantı hatası. Tekrar deneyin.";
+                    errorEl.classList.remove("hidden");
+                } finally {
+                    submitBtn.disabled = false;
+                }
+            });
 
             function syncServiceEmpty() {
                 const has = serviceGrid.querySelectorAll("[data-request-id]").length > 0;
@@ -267,7 +559,7 @@
                     card.className = "item-card";
                     card.dataset.requestId = request.id;
                     card.innerHTML =
-                        '<div class="item-card-top"><h3 class="request-table"></h3><span class="badge badge-warn request-type"></span></div>' +
+                        '<div class="item-card-top"><h3 class="request-table"></h3><span class="badge request-type"></span></div>' +
                         '<p class="item-desc request-time"></p>' +
                         '<div class="item-meta"><button type="button" class="btn request-complete">Tamamla</button></div>';
                     serviceGrid.prepend(card);
@@ -283,8 +575,15 @@
                     });
                 }
 
+                const typeKey = (request.type || "").toLowerCase();
+                const typeBadge = card.querySelector(".request-type");
                 card.querySelector(".request-table").textContent = request.tableLabel;
-                card.querySelector(".request-type").textContent = requestTypeTr[request.type] || request.type;
+                typeBadge.textContent = requestTypeTr[request.type] || request.type;
+                typeBadge.className = "badge request-type " + (
+                    typeKey === "bill" ? "badge-bill"
+                    : typeKey === "waiter" ? "badge-waiter"
+                    : "badge-warn"
+                );
                 card.querySelector(".request-time").textContent = formatLocal(request.createdAtUtc);
                 syncServiceEmpty();
                 if (isNew && !silent) {
@@ -306,6 +605,12 @@
                 serviceGrid.querySelectorAll("[data-request-id]").forEach((el) => el.remove());
                 for (const item of items) upsertServiceRequest(item, { silent: true });
                 syncServiceEmpty();
+            }
+
+            seedFromDom();
+
+            if (!apiBase || !accessToken || !window.signalR) {
+                return;
             }
 
             const connection = new signalR.HubConnectionBuilder()
@@ -334,4 +639,3 @@
         })();
     </script>
 }
-

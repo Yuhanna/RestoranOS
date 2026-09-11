@@ -13,8 +13,11 @@ public enum OrderStatus
     Accepted = 2,
     Preparing = 3,
     Ready = 4,
-    Completed = 5,
-    Cancelled = 6,
+    /// <summary>Food served to the table; check may still be open.</summary>
+    Served = 5,
+    /// <summary>Settled via close-check (or equivalent); leaves the active board.</summary>
+    Completed = 6,
+    Cancelled = 7,
 }
 
 public readonly record struct Money(long AmountMinor, string Currency)
@@ -737,7 +740,11 @@ public sealed class CustomerOrder
             return current is OrderStatus.Submitted or OrderStatus.Accepted or OrderStatus.Preparing;
         }
 
-        if (next is OrderStatus.Accepted or OrderStatus.Preparing or OrderStatus.Ready or OrderStatus.Completed)
+        if (next is OrderStatus.Accepted
+            or OrderStatus.Preparing
+            or OrderStatus.Ready
+            or OrderStatus.Served
+            or OrderStatus.Completed)
         {
             return (int)next > (int)current;
         }
@@ -765,7 +772,9 @@ public sealed class CustomerOrderItem
         Money discountUnitAmount,
         Money finalUnitPrice,
         int quantity,
-        string? note)
+        string? note,
+        Guid? sourcePackageId = null,
+        string? sourcePackageName = null)
     {
         if (quantity is < 1 or > 50)
         {
@@ -782,6 +791,10 @@ public sealed class CustomerOrderItem
         UnitPriceCurrency = finalUnitPrice.Currency;
         Quantity = quantity;
         Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        SourcePackageId = sourcePackageId;
+        SourcePackageName = string.IsNullOrWhiteSpace(sourcePackageName)
+            ? null
+            : sourcePackageName.Trim();
     }
 
     public CustomerOrderItem(Guid id, Guid orderId, Guid menuItemId, string name, Money unitPrice, int quantity, string? note)
@@ -802,4 +815,7 @@ public sealed class CustomerOrderItem
     public Money UnitPrice => new(UnitPriceAmountMinor, UnitPriceCurrency);
     public int Quantity { get; private set; }
     public string? Note { get; private set; }
+    /// <summary>When set, this line is an expanded component of a lunch/meal package.</summary>
+    public Guid? SourcePackageId { get; private set; }
+    public string? SourcePackageName { get; private set; }
 }

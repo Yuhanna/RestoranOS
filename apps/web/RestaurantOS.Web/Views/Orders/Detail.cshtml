@@ -7,7 +7,8 @@
         "accepted" => "Onaylandı",
         "preparing" => "Hazırlanıyor",
         "ready" => "Hazır",
-        "completed" => "Tamamlandı",
+        "served" => "Servis edildi",
+        "completed" => "Hesap kapandı",
         "cancelled" => "İptal",
         _ => status ?? "—"
     };
@@ -21,7 +22,7 @@
     </div>
     <div class="page-head-actions">
         <a class="btn btn-ghost" asp-action="Index">← Aktif siparişler</a>
-        @if (Model.Status is not "completed" and not "cancelled")
+        @if (Model.Status is not "completed" and not "cancelled" and not "served")
         {
             <a class="btn" asp-action="ChangeStatus" asp-route-id="@Model.Id">Durumu değiştir</a>
         }

@@ -22,17 +22,31 @@ public sealed class OrderLifecycleTests
             At(18));
 
     [Fact]
-    public void ValidLifecycleReachesCompleted()
+    public void ValidLifecycleReachesServedThenCompleted()
     {
         var order = CreateOrder();
 
         order.ChangeStatus(OrderStatus.Accepted, At(1));
         order.ChangeStatus(OrderStatus.Preparing, At(2));
         order.ChangeStatus(OrderStatus.Ready, At(15));
+        order.ChangeStatus(OrderStatus.Served, At(18));
+
+        Assert.Equal(OrderStatus.Served, order.Status);
+
         order.ChangeStatus(OrderStatus.Completed, At(20));
 
         Assert.Equal(OrderStatus.Completed, order.Status);
         Assert.Equal(At(20), order.StatusChangedAtUtc);
+    }
+
+    [Fact]
+    public void ReadyCanSkipServedStraightToCompletedForCheckClose()
+    {
+        var order = CreateOrder();
+        order.ChangeStatus(OrderStatus.Ready, At(5));
+        order.ChangeStatus(OrderStatus.Completed, At(6));
+
+        Assert.Equal(OrderStatus.Completed, order.Status);
     }
 
     [Fact]

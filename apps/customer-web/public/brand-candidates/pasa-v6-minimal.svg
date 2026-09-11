@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Pasa">
+  <!-- V6 Minimal candidate: no tile -->
+  <path fill="#171310" fill-rule="evenodd" d="M12 54V10h20.5c9.7 0 15.9 5.3 15.9 13.6 0 8.2-6.2 13.6-15.9 13.6H22V54H12zm10-22.2h10.1c4.7 0 7.55-2.3 7.55-6s-2.85-6-7.55-6H22v12z"/>
+  <rect x="12" y="28.2" width="36.5" height="6.8" rx="3.4" fill="#E39A4A"/>
+</svg>

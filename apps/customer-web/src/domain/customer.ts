@@ -28,6 +28,7 @@ export type OrderStatus =
   | "accepted"
   | "preparing"
   | "ready"
+  | "served"
   | "completed"
   | "cancelled";
 
@@ -79,6 +80,10 @@ export interface Product {
   listPrice?: Money;
   discount?: Money;
   promotionLabel?: string;
+  discountKind?: "percent" | "fixed_minor" | string;
+  discountValue?: number;
+  discountPercent?: number;
+  promotionEndsAtUtc?: string;
   imageUrl: string;
   imageAlt: string;
   available: boolean;
@@ -118,6 +123,34 @@ export interface CustomerMenuSettings {
   showProductModifiers?: boolean;
   allergenDisclaimer?: string;
   allergenMatrixUrl?: string;
+  /** Guest QR visual theme id (modern | luxury | cafe | bar | meyhane | fast_casual | minimal | seafood | grill | brunch | asian | hotel | healthy). */
+  themeId?: string;
+  logoUrl?: string;
+  logoAlt?: string;
+  showBrandWatermark?: boolean;
+  brandWatermarkIntensity?: "soft" | "medium" | string;
+}
+
+export interface LunchPackageComponent {
+  menuItemId: string;
+  name: string;
+  slotLabel?: string | null;
+  listAmountMinor: number;
+  imageUrl?: string;
+  imageAlt?: string;
+  description?: string;
+}
+
+export interface LunchPackage {
+  id: string;
+  name: string;
+  description: string;
+  price: Money;
+  listPrice: Money;
+  discount: Money;
+  components: ReadonlyArray<LunchPackageComponent>;
+  dailyStartLocal?: string | null;
+  dailyEndLocal?: string | null;
 }
 
 export interface CustomerSession {
@@ -128,20 +161,31 @@ export interface CustomerSession {
   locale: Locale;
   categories: ReadonlyArray<{ id: string; name: string }>;
   products: ReadonlyArray<Product>;
+  /** Empty when the lunch-package feature is unused — hide UI entirely. */
+  packages: ReadonlyArray<LunchPackage>;
   customerMenu?: CustomerMenuSettings;
   openServiceRequestTypes?: ReadonlyArray<ServiceRequestType | string>;
   /** Open orders already on this table (survives refresh / QR re-scan). */
   activeOrders?: ReadonlyArray<Order>;
 }
 
-export interface CartLine {
-  key: string;
-  product: Product;
-  quantity: number;
-  selections: Record<string, string[]>;
-  portionId?: string;
-  note: string;
-}
+export type CartLine =
+  | {
+      kind: "product";
+      key: string;
+      product: Product;
+      quantity: number;
+      selections: Record<string, string[]>;
+      portionId?: string;
+      note: string;
+    }
+  | {
+      kind: "package";
+      key: string;
+      package: LunchPackage;
+      quantity: number;
+      note: string;
+    };
 
 export interface Order {
   id: string;
@@ -158,9 +202,10 @@ export interface SubmitOrderRequest {
   sessionToken: string;
   idempotencyKey: string;
   lines: ReadonlyArray<{
-    productId: string;
+    productId?: string;
+    packageId?: string;
     quantity: number;
-    modifierOptionIds: string[];
+    modifierOptionIds?: string[];
     note?: string;
   }>;
 }

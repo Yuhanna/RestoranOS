@@ -8,6 +8,11 @@
   --color-brand: #a8461e;
   --color-brand-strong: #843313;
   --color-brand-soft: #f8e7de;
+  /* Pasa mark: charcoal tile + cream P + amber pass shelf */
+  --color-mark-tile: #171310;
+  --color-mark-letter: #fff6ed;
+  --color-mark-pass: #e39a4a;
+  --color-mark-tile-light: #fff7f0;
   --color-success: #26724c;
   --color-danger: #a32d2d;
   --color-border: #ded5ca;

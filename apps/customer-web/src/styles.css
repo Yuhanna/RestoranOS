@@ -37,24 +37,347 @@ a:focus-visible {
   outline-offset: 0.1875rem;
 }
 
+/* Skip-to-content removed from UI — was half-visible on mobile WebKit. */
 .skip-link {
-  position: fixed;
-  inset-block-start: var(--space-2);
-  inset-inline-start: var(--space-2);
-  z-index: 100;
-  padding: var(--space-3) var(--space-4);
-  color: white;
-  background: var(--color-ink);
-  border-radius: var(--radius-sm);
-  transform: translateY(-150%);
-}
-
-.skip-link:focus {
-  transform: translateY(0);
+  display: none !important;
 }
 
 .app-shell {
   min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Guest QR menu themes — Visual Directions tokens; layout stays shared. */
+.app-shell[data-menu-theme="modern"] {
+  /* Premium Food (Visual Directions) — warm editorial default */
+  color-scheme: light;
+  --color-canvas: #faf6f0;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3ebe3;
+  --color-ink: #1c1208;
+  --color-ink-muted: #74655a;
+  --color-brand: #c4622d;
+  --color-brand-strong: #a34e22;
+  --color-brand-soft: #fdf4ed;
+  --color-success: #2f6b4f;
+  --color-danger: #a33b3b;
+  --color-border: #e6d9cb;
+  --color-focus: #c4622d;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "DM Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 0.125rem 1rem rgb(28 18 8 / 6%);
+  --radius-sm: 0.75rem;
+  --radius-md: 1.125rem;
+  --radius-lg: 1.25rem;
+}
+
+.app-shell[data-menu-theme="luxury"] {
+  /* Luxury Hospitality — midnight navy + gold leaf */
+  color-scheme: dark;
+  --color-canvas: #0c0f1a;
+  --color-surface: #111520;
+  --color-surface-muted: #171b28;
+  --color-ink: #f0ebe1;
+  --color-ink-muted: #a8a092;
+  --color-brand: #c8aa5a;
+  --color-brand-strong: #e0c57a;
+  --color-brand-soft: #2a2416;
+  --color-success: #6aad7a;
+  --color-danger: #d06a6a;
+  --color-border: #2a3144;
+  --color-focus: #c8aa5a;
+  --font-display: "EB Garamond", Georgia, "Times New Roman", serif;
+  --font-body: "EB Garamond", Georgia, "Times New Roman", serif;
+  --shadow-card: 0 0.35rem 1.75rem rgb(0 0 0 / 45%);
+  --shadow-overlay: 0 1rem 3.5rem rgb(0 0 0 / 60%);
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+.app-shell[data-menu-theme="cafe"] {
+  color-scheme: light;
+  --color-canvas: #f3efe6;
+  --color-surface: #fffcf7;
+  --color-surface-muted: #e8e0d2;
+  --color-ink: #2c241b;
+  --color-ink-muted: #6f6558;
+  --color-brand: #4a7c59;
+  --color-brand-strong: #355c41;
+  --color-brand-soft: #e4efe7;
+  --color-success: #2f6b4f;
+  --color-danger: #a33b3b;
+  --color-border: #d5cdb8;
+  --color-focus: #3d6b4f;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "DM Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 0.25rem 1.4rem rgb(44 36 27 / 7%);
+}
+
+.app-shell[data-menu-theme="bar"] {
+  color-scheme: dark;
+  --color-canvas: #12100e;
+  --color-surface: #1c1916;
+  --color-surface-muted: #28241f;
+  --color-ink: #f3e9d7;
+  --color-ink-muted: #b3a690;
+  --color-brand: #d4a017;
+  --color-brand-strong: #f0c14b;
+  --color-brand-soft: #3a2f16;
+  --color-success: #5fad7a;
+  --color-danger: #e06a6a;
+  --color-border: #3a342e;
+  --color-focus: #d4a017;
+  --font-display: "Plus Jakarta Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "DM Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 0.35rem 1.6rem rgb(0 0 0 / 35%);
+  --shadow-overlay: 0 1rem 3.5rem rgb(0 0 0 / 55%);
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.125rem;
+}
+
+.app-shell[data-menu-theme="meyhane"] {
+  color-scheme: dark;
+  --color-canvas: #1a1210;
+  --color-surface: #241816;
+  --color-surface-muted: #332220;
+  --color-ink: #f0e4d4;
+  --color-ink-muted: #b9a698;
+  --color-brand: #8b3a3a;
+  --color-brand-strong: #b04a4a;
+  --color-brand-soft: #3d2220;
+  --color-success: #6a9b6e;
+  --color-danger: #d45c5c;
+  --color-border: #3a2622;
+  --color-focus: #c9a227;
+  --font-display: "EB Garamond", Georgia, "Times New Roman", serif;
+  --font-body: "EB Garamond", Georgia, "Times New Roman", serif;
+  --shadow-card: 0 0.35rem 1.5rem rgb(0 0 0 / 40%);
+  --radius-sm: 0.375rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+}
+
+.app-shell[data-menu-theme="fast_casual"] {
+  color-scheme: light;
+  --color-canvas: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f3f3;
+  --color-ink: #141414;
+  --color-ink-muted: #5c5c5c;
+  --color-brand: #e85d04;
+  --color-brand-strong: #c44d03;
+  --color-brand-soft: #ffe8d6;
+  --color-success: #2f9e44;
+  --color-danger: #e03131;
+  --color-border: #e5e5e5;
+  --color-focus: #e85d04;
+  --font-display: "Plus Jakarta Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --shadow-card: 0 0.2rem 0.9rem rgb(20 20 20 / 8%);
+}
+
+.app-shell[data-menu-theme="minimal"] {
+  /* Minimal Apple-like — white, hairline, system blue accent */
+  color-scheme: light;
+  --color-canvas: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f2f2f7;
+  --color-ink: #000000;
+  --color-ink-muted: #6e6e73;
+  --color-brand: #007aff;
+  --color-brand-strong: #0066d6;
+  --color-brand-soft: #e8f0fe;
+  --color-success: #34c759;
+  --color-danger: #ff3b30;
+  --color-border: #e5e5ea;
+  --color-focus: #007aff;
+  --font-display: "Plus Jakarta Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 0.625rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1rem;
+  --shadow-card: none;
+}
+
+.app-shell[data-menu-theme="seafood"] {
+  /* Balık / deniz — ice blue + foam white */
+  color-scheme: light;
+  --color-canvas: #f2f7fb;
+  --color-surface: #ffffff;
+  --color-surface-muted: #e4eef6;
+  --color-ink: #0f2a3d;
+  --color-ink-muted: #5a7388;
+  --color-brand: #1a6f95;
+  --color-brand-strong: #0f5574;
+  --color-brand-soft: #d9ecf5;
+  --color-success: #2f8f6b;
+  --color-danger: #c45c5c;
+  --color-border: #c9dae8;
+  --color-focus: #1a6f95;
+  --font-display: "Literata", Georgia, "Times New Roman", serif;
+  --font-body: "DM Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 0.25rem 1.25rem rgb(15 42 61 / 7%);
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+}
+
+.app-shell[data-menu-theme="grill"] {
+  /* Ocakbaşı — charcoal + ember red */
+  color-scheme: dark;
+  --color-canvas: #120e0c;
+  --color-surface: #1c1613;
+  --color-surface-muted: #2a211c;
+  --color-ink: #f5ebe0;
+  --color-ink-muted: #b5a496;
+  --color-brand: #e0452f;
+  --color-brand-strong: #ff6a4d;
+  --color-brand-soft: #3a1c16;
+  --color-success: #6aad6a;
+  --color-danger: #ff7a7a;
+  --color-border: #3a2e28;
+  --color-focus: #e0452f;
+  --font-display: "Outfit", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "DM Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 0.4rem 1.6rem rgb(0 0 0 / 45%);
+  --shadow-overlay: 0 1rem 3.5rem rgb(0 0 0 / 60%);
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+}
+
+.app-shell[data-menu-theme="brunch"] {
+  /* Brunch / pastane — powder blush + soft cream */
+  color-scheme: light;
+  --color-canvas: #fbf6f2;
+  --color-surface: #fffdfb;
+  --color-surface-muted: #f3e8e1;
+  --color-ink: #3a2a28;
+  --color-ink-muted: #8a7470;
+  --color-brand: #d4848c;
+  --color-brand-strong: #b86a73;
+  --color-brand-soft: #f8e8ea;
+  --color-success: #5d9b7a;
+  --color-danger: #c45c5c;
+  --color-border: #eadad4;
+  --color-focus: #d4848c;
+  --font-display: "Nunito", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Nunito", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 0.3rem 1.4rem rgb(58 42 40 / 6%);
+  --radius-sm: 1rem;
+  --radius-md: 1.35rem;
+  --radius-lg: 1.75rem;
+  --radius-pill: 999px;
+}
+
+.app-shell[data-menu-theme="asian"] {
+  /* Asya / noodle — lacquer black + vermillion */
+  color-scheme: dark;
+  --color-canvas: #0a0a0a;
+  --color-surface: #141414;
+  --color-surface-muted: #1f1f1f;
+  --color-ink: #f5f5f5;
+  --color-ink-muted: #a3a3a3;
+  --color-brand: #e11d2e;
+  --color-brand-strong: #ff3b4b;
+  --color-brand-soft: #3a1216;
+  --color-success: #3dd68c;
+  --color-danger: #ff6b6b;
+  --color-border: #2a2a2a;
+  --color-focus: #e11d2e;
+  --font-display: "Outfit", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 0.35rem 1.5rem rgb(0 0 0 / 50%);
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+.app-shell[data-menu-theme="hotel"] {
+  /* Butik otel — warm stone + soft bronze */
+  color-scheme: light;
+  --color-canvas: #f4f1ec;
+  --color-surface: #fffcf8;
+  --color-surface-muted: #ebe6df;
+  --color-ink: #2a2622;
+  --color-ink-muted: #7a736b;
+  --color-brand: #8b7355;
+  --color-brand-strong: #6f5a42;
+  --color-brand-soft: #efe8dc;
+  --color-success: #4f7d5e;
+  --color-danger: #a34d4d;
+  --color-border: #ddd5c8;
+  --color-focus: #8b7355;
+  --font-display: "Literata", Georgia, "Times New Roman", serif;
+  --font-body: "DM Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 0.2rem 1.1rem rgb(42 38 34 / 6%);
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+}
+
+.app-shell[data-menu-theme="healthy"] {
+  /* Sağlıklı / vegan — leaf green + airy white */
+  color-scheme: light;
+  --color-canvas: #f5faf4;
+  --color-surface: #ffffff;
+  --color-surface-muted: #e8f2e6;
+  --color-ink: #1a2e1c;
+  --color-ink-muted: #5f7361;
+  --color-brand: #3f8f4a;
+  --color-brand-strong: #2f6f38;
+  --color-brand-soft: #e2f2e4;
+  --color-success: #3f8f4a;
+  --color-danger: #c45c5c;
+  --color-border: #cfe0cb;
+  --color-focus: #3f8f4a;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "DM Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 0.25rem 1.2rem rgb(26 46 28 / 6%);
+  --radius-sm: 0.875rem;
+  --radius-md: 1.125rem;
+  --radius-lg: 1.5rem;
+}
+
+/* Theme micro-polish: typography character without layout forks */
+.app-shell[data-menu-theme="luxury"] .menu-hero h1,
+.app-shell[data-menu-theme="luxury"] .product-card__body > strong,
+.app-shell[data-menu-theme="luxury"] .dialog-heading h2,
+.app-shell[data-menu-theme="meyhane"] .menu-hero h1,
+.app-shell[data-menu-theme="meyhane"] .product-card__body > strong,
+.app-shell[data-menu-theme="meyhane"] .dialog-heading h2,
+.app-shell[data-menu-theme="hotel"] .menu-hero h1,
+.app-shell[data-menu-theme="seafood"] .menu-hero h1 {
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.app-shell[data-menu-theme="minimal"] .product-card,
+.app-shell[data-menu-theme="minimal"] .lunch-package-card,
+.app-shell[data-menu-theme="healthy"] .product-card {
+  box-shadow: none;
+  border-color: var(--color-border);
+}
+
+.app-shell[data-menu-theme="modern"] .product-card__body > strong,
+.app-shell[data-menu-theme="cafe"] .product-card__body > strong,
+.app-shell[data-menu-theme="brunch"] .product-card__body > strong {
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.app-shell[data-menu-theme="asian"] .product-card__body > strong,
+.app-shell[data-menu-theme="grill"] .product-card__body > strong {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
 }
 
 .offline-banner {
@@ -107,11 +430,24 @@ a:focus-visible {
 
 .ds-button--ghost {
   color: var(--color-ink);
-  background: transparent;
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
 }
 
 .ds-button--full {
   width: 100%;
+}
+
+.staff-actions .ds-button {
+  min-width: 8.5rem;
+}
+
+.staff-actions .ds-button--secondary {
+  /* Always readable on both light and dark menu themes */
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-ink) 12%);
+  border-color: color-mix(in srgb, var(--color-border) 70%, var(--color-ink) 30%);
+  font-weight: 700;
 }
 
 .entry-state {
@@ -126,6 +462,38 @@ a:focus-visible {
 }
 
 .entry-state__mark,
+
+.tracking-rounds {
+  display: grid;
+  gap: var(--space-4);
+  margin: var(--space-5) 0;
+}
+
+.tracking-round {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.tracking-round__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: baseline;
+  margin-bottom: var(--space-3);
+}
+
+.tracking-round__head strong {
+  font-size: 1.05rem;
+}
+
+.tracking-round__head span {
+  color: var(--color-brand);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .tracking__mark {
   width: 4.5rem;
   aspect-ratio: 1;
@@ -244,6 +612,59 @@ a:focus-visible {
   background: var(--color-brand);
   border-radius: var(--radius-sm);
   font: 1.25rem var(--font-display);
+}
+
+.restaurant-mark--logo {
+  display: block !important;
+  object-fit: contain;
+  padding: 0.2rem;
+  background: color-mix(in srgb, var(--color-surface, #fff) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border, #ccc) 70%, transparent);
+}
+
+.restaurant-mark--platform {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.entry-state__mark img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+}
+
+.app-shell[data-brand-watermark="soft"]::before,
+.app-shell[data-brand-watermark="medium"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--brand-watermark-url);
+  background-repeat: no-repeat;
+  background-position: center 42%;
+  background-size: min(58vw, 22rem);
+  opacity: 0.045;
+  filter: grayscale(0.15);
+}
+
+.app-shell[data-brand-watermark="medium"]::before {
+  opacity: 0.075;
+  background-size: min(64vw, 24rem);
+}
+
+.app-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell[data-brand-watermark="soft"]::before,
+  .app-shell[data-brand-watermark="medium"]::before {
+    opacity: 0.03;
+  }
 }
 
 .header-cart {
@@ -397,7 +818,8 @@ a:focus-visible {
 .product-card__media > .badge {
   position: absolute;
   inset-block-start: var(--space-2);
-  inset-inline-start: var(--space-2);
+  inset-inline-end: var(--space-2);
+  inset-inline-start: auto;
 }
 
 .product-card__body {
@@ -938,11 +1360,225 @@ a:focus-visible {
   border-block-end: 1px solid var(--color-border);
 }
 
-.cart-lines img {
+.cart-lines img,
+.cart-line__thumb {
   width: 3.5rem;
   aspect-ratio: 1;
   object-fit: cover;
   border-radius: var(--radius-sm);
+}
+
+.cart-line__thumb--package {
+  display: grid;
+  place-items: center;
+  color: var(--color-brand);
+  background: color-mix(in srgb, var(--color-brand) 12%, white);
+  font: 1.125rem var(--font-display, inherit);
+  font-weight: 700;
+}
+
+.lunch-packages {
+  margin: 0 0 var(--space-5);
+  padding: 0 var(--space-4);
+}
+
+.lunch-packages__grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.lunch-package-card {
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-surface, #1a1816) 92%, var(--color-brand));
+  border: 1px solid color-mix(in srgb, var(--color-brand) 28%, transparent);
+  overflow: hidden;
+}
+
+.lunch-package-card__hit {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: var(--space-4);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lunch-package-card__hit:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
+}
+
+.lunch-package-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lunch-package-card__hours {
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.lunch-package-card__title {
+  margin: 0;
+  font: 1.35rem / 1.2 var(--font-display);
+}
+
+.lunch-package-card__desc,
+.lunch-package-card__hint {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.lunch-package-card__thumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lunch-package-card__thumbs li,
+.lunch-package-card__thumb-fallback,
+.lunch-package-card__thumb-more {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 8px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-ink) 12%, transparent);
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.lunch-package-card__thumbs img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lunch-package-card__price-row {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: 0.25rem;
+}
+
+.lunch-package-card__cta-label {
+  color: var(--color-brand);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.lunch-package-detail {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.lunch-package-detail h2 {
+  margin: 0;
+  font: 1.5rem / 1.2 var(--font-display);
+}
+
+.lunch-package-detail__hours {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.lunch-package-detail__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.lunch-package-detail__items li {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr auto;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.lunch-package-detail__media {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 10px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-ink) 10%, transparent);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+
+.lunch-package-detail__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lunch-package-detail__copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.lunch-package-detail__slot {
+  color: var(--color-brand);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lunch-package-detail__copy strong {
+  font-size: 0.95rem;
+}
+
+.lunch-package-detail__copy p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.lunch-package-detail__item-price {
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lunch-package-detail__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.lunch-package-detail__footer-price {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.lunch-package-detail__save {
+  color: var(--color-success, #2f6b4f);
+  font-size: 0.8125rem;
+  font-weight: 700;
 }
 
 .cart-lines h3 {
@@ -1007,6 +1643,19 @@ a:focus-visible {
   gap: 0.125rem;
 }
 
+.price-stack--detail {
+  gap: 0.25rem;
+}
+
+.price-stack--detail .price-final {
+  font-size: 1.375rem;
+}
+
+.price-stack--cart {
+  align-self: start;
+  text-align: right;
+}
+
 .price-list {
   color: var(--color-ink-muted);
   font-size: 0.8125rem;
@@ -1015,6 +1664,97 @@ a:focus-visible {
 
 .price-final {
   color: var(--color-brand);
+}
+
+.badge--promo,
+.promo-chip {
+  background: color-mix(in srgb, var(--color-brand) 16%, white);
+  color: var(--color-brand);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.promo-chip {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 1;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.product-card__media .badge--brand {
+  top: var(--space-2);
+  right: var(--space-2);
+  left: auto;
+}
+
+.promo-deal {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand) 12%, white),
+    color-mix(in srgb, var(--color-success, #2f6b4f) 10%, white)
+  );
+  border: 1px solid color-mix(in srgb, var(--color-brand) 22%, transparent);
+}
+
+.promo-deal__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.promo-deal__name {
+  color: var(--color-ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.promo-deal__headline {
+  margin: 0;
+  color: var(--color-brand);
+  font: 1.125rem var(--font-display, inherit);
+  font-weight: 700;
+}
+
+.promo-deal__save {
+  margin: 0.25rem 0 0;
+  color: var(--color-success, #2f6b4f);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.promo-deal__until {
+  margin: 0.35rem 0 0;
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+}
+
+.promo-deal__until-label {
+  font-weight: 600;
+}
+
+.cart-line__promo {
+  margin: 0.15rem 0 0.25rem;
+  color: var(--color-brand);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cart-total__hint {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
 }
 
 .service-note {

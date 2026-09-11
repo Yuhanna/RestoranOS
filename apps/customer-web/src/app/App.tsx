@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Button, Dialog } from "@restaurant-os/design-system";
 import { getCustomerGateway } from "../data/customerGateway";
 import { readQrFromLocation } from "../data/resolveCustomerApiBaseUrl";
@@ -11,13 +11,15 @@ import {
   type CustomerMenuSettings,
   type CustomerSession,
   type DietaryFilterKey,
+  type Locale,
+  type LunchPackage,
   type ModifierGroup,
   type Money,
   type Order,
   type Product,
   type SpiceLevel,
 } from "../domain/customer";
-import { messages as t } from "../i18n/messages";
+import { lunchPackageMessages, messages as t } from "../i18n/messages";
 import { createClientId } from "../lib/createClientId";
 import {
   displayBadge,
@@ -30,11 +32,19 @@ import {
   initialSelections,
   lineTotalMinor,
   modifierOptionIds,
+  packageCartLineKey,
   portionLabel,
   selectionLabels,
   unitPriceMinor,
 } from "../lib/productPricing";
 import { resolveProductMediaUrl } from "../lib/resolveProductMediaUrl";
+import {
+  formatPromoEndsAt,
+  productHasPromo,
+  promoHeadline,
+  promoPercentBadge,
+  promoSavingsMoney,
+} from "../lib/promoOffer";
 
 const allergenLabel = (key: AllergenKey) => t.allergenKeys[key];
 
@@ -81,7 +91,7 @@ function PriceDisplay({
   }
 
   const displayMinor = unitMinor ?? product.price.amountMinor;
-  const hasDiscount = (product.discount?.amountMinor ?? 0) > 0 && product.listPrice;
+  const hasDiscount = productHasPromo(product);
   if (!hasDiscount) {
     return (
       <strong className={emphasize ? "price-final" : undefined}>
@@ -91,12 +101,47 @@ function PriceDisplay({
   }
 
   return (
-    <span className="price-stack">
+    <span className={`price-stack${emphasize ? " price-stack--detail" : ""}`}>
       <span className="price-list">{formatMoney(product.listPrice!)}</span>
       <strong className="price-final">
         {formatMoney({ amountMinor: displayMinor, currency: product.price.currency })}
       </strong>
     </span>
+  );
+}
+
+function PromoDeal({ product, compact = false }: { product: Product; compact?: boolean }) {
+  if (!productHasPromo(product)) return null;
+  const savings = promoSavingsMoney(product);
+  const ends = formatPromoEndsAt(product.promotionEndsAtUtc);
+  const percentBadge = promoPercentBadge(product);
+
+  if (compact) {
+    return (
+      <span className="promo-chip" aria-label={promoHeadline(product)}>
+        {percentBadge ?? t.promoBadge}
+      </span>
+    );
+  }
+
+  return (
+    <aside className="promo-deal" aria-label={t.promoBadge}>
+      <div className="promo-deal__badges">
+        <span className="badge badge--promo">{percentBadge ?? t.promoBadge}</span>
+        {product.promotionLabel ? (
+          <span className="promo-deal__name">{product.promotionLabel}</span>
+        ) : null}
+      </div>
+      <p className="promo-deal__headline">{promoHeadline(product)}</p>
+      {savings ? (
+        <p className="promo-deal__save">{t.promoYouSave(formatMoney(savings))}</p>
+      ) : null}
+      {ends ? (
+        <p className="promo-deal__until">
+          <span className="promo-deal__until-label">{t.promoUntil}</span> {ends}
+        </p>
+      ) : null}
+    </aside>
   );
 }
 
@@ -143,6 +188,7 @@ function ProductDialog({
   );
   const unitMinor = unitPriceMinor(product, selections, portionId);
   const previewLine: CartLine = {
+    kind: "product",
     key: cartLineKey(product, selections, note, portionId),
     product,
     quantity,
@@ -214,6 +260,7 @@ function ProductDialog({
             </div>
             <PriceDisplay product={product} unitMinor={unitMinor} emphasize />
           </div>
+          <PromoDeal product={product} />
           <div className="product-detail__meta">
             {product.prepTimeMinutes ? (
               <span className="meta-pill">{t.prepTime(product.prepTimeMinutes)}</span>
@@ -386,6 +433,181 @@ function ProductDialog({
   );
 }
 
+function LunchPackagesSection({
+  packages,
+  products,
+  locale,
+  onAdd,
+}: {
+  packages: ReadonlyArray<LunchPackage>;
+  products: ReadonlyArray<Product>;
+  locale: Locale;
+  onAdd: (pkg: LunchPackage) => void;
+}) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const copy = lunchPackageMessages[locale] ?? lunchPackageMessages.tr;
+  const productById = useMemo(() => {
+    const map = new Map<string, Product>();
+    for (const product of products) map.set(product.id, product);
+    return map;
+  }, [products]);
+
+  if (!packages.length) return null;
+
+  const openPackage = openId ? packages.find((item) => item.id === openId) ?? null : null;
+
+  const resolveComponent = (component: LunchPackage["components"][number]) => {
+    const product = productById.get(component.menuItemId);
+    const imageUrl = component.imageUrl || product?.imageUrl || "";
+    return {
+      ...component,
+      imageUrl,
+      imageAlt: component.imageAlt || product?.imageAlt || component.name,
+      description: component.description || product?.description || "",
+    };
+  };
+
+  return (
+    <section className="lunch-packages" aria-label={copy.title}>
+      <div className="lunch-packages__grid">
+        {packages.map((pkg) => {
+          const hasDiscount = pkg.discount.amountMinor > 0;
+          const preview = pkg.components.slice(0, 3).map(resolveComponent);
+          return (
+            <article className="lunch-package-card" key={pkg.id}>
+              <button
+                type="button"
+                className="lunch-package-card__hit"
+                onClick={() => setOpenId(pkg.id)}
+                aria-label={`${pkg.name}. ${copy.openDetails}`}
+              >
+                <div className="lunch-package-card__meta">
+                  <span className="badge badge--promo">{copy.subtitle}</span>
+                  {pkg.dailyStartLocal && pkg.dailyEndLocal ? (
+                    <span className="lunch-package-card__hours">
+                      {pkg.dailyStartLocal} – {pkg.dailyEndLocal}
+                    </span>
+                  ) : null}
+                </div>
+                <h2 className="lunch-package-card__title">{pkg.name}</h2>
+                {pkg.description ? (
+                  <p className="lunch-package-card__desc">{pkg.description}</p>
+                ) : (
+                  <p className="lunch-package-card__hint">{copy.tapHint}</p>
+                )}
+                {preview.length ? (
+                  <ul className="lunch-package-card__thumbs" aria-hidden="true">
+                    {preview.map((component) => {
+                      const src = resolveProductMediaUrl(component.imageUrl);
+                      return (
+                        <li key={`${pkg.id}-thumb-${component.menuItemId}`}>
+                          {src ? (
+                            <img src={src} alt="" loading="lazy" />
+                          ) : (
+                            <span className="lunch-package-card__thumb-fallback">
+                              {component.name.slice(0, 1)}
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                    {pkg.components.length > preview.length ? (
+                      <li className="lunch-package-card__thumb-more">
+                        +{pkg.components.length - preview.length}
+                      </li>
+                    ) : null}
+                  </ul>
+                ) : null}
+                <div className="lunch-package-card__price-row">
+                  <span className="price-stack">
+                    {hasDiscount ? (
+                      <span className="price-list">{formatMoney(pkg.listPrice)}</span>
+                    ) : null}
+                    <strong className="price-final">{formatMoney(pkg.price)}</strong>
+                  </span>
+                  <span className="lunch-package-card__cta-label">{copy.openDetails}</span>
+                </div>
+              </button>
+            </article>
+          );
+        })}
+      </div>
+
+      {openPackage ? (
+        <Dialog
+          labelledBy="lunch-package-detail-title"
+          dismissLabel={copy.closeDetails}
+          onDismiss={() => setOpenId(null)}
+          footer={
+            <div className="lunch-package-detail__footer">
+              <div className="lunch-package-detail__footer-price">
+                {openPackage.discount.amountMinor > 0 ? (
+                  <span className="price-list">{formatMoney(openPackage.listPrice)}</span>
+                ) : null}
+                <strong className="price-final">{formatMoney(openPackage.price)}</strong>
+                {openPackage.discount.amountMinor > 0 ? (
+                  <span className="lunch-package-detail__save">
+                    {copy.savings}: {formatMoney(openPackage.discount)}
+                  </span>
+                ) : null}
+              </div>
+              <Button
+                onClick={() => {
+                  onAdd(openPackage);
+                  setOpenId(null);
+                }}
+              >
+                {copy.add}
+              </Button>
+            </div>
+          }
+        >
+          <div className="lunch-package-detail">
+            <p className="eyebrow">{copy.subtitle}</p>
+            <h2 id="lunch-package-detail-title">{openPackage.name}</h2>
+            {openPackage.dailyStartLocal && openPackage.dailyEndLocal ? (
+              <p className="lunch-package-detail__hours">
+                {copy.hours}: {openPackage.dailyStartLocal} – {openPackage.dailyEndLocal}
+              </p>
+            ) : null}
+            {openPackage.description ? <p className="lede">{openPackage.description}</p> : null}
+            <ul className="lunch-package-detail__items" aria-label={copy.includes}>
+              {openPackage.components.map((raw) => {
+                const component = resolveComponent(raw);
+                const src = resolveProductMediaUrl(component.imageUrl);
+                return (
+                  <li key={`${openPackage.id}-${component.menuItemId}-${component.slotLabel ?? ""}`}>
+                    <div className="lunch-package-detail__media">
+                      {src ? (
+                        <img src={src} alt={component.imageAlt || component.name} loading="lazy" />
+                      ) : (
+                        <span aria-hidden="true">{component.name.slice(0, 1)}</span>
+                      )}
+                    </div>
+                    <div className="lunch-package-detail__copy">
+                      {component.slotLabel ? (
+                        <span className="lunch-package-detail__slot">{component.slotLabel}</span>
+                      ) : null}
+                      <strong>{component.name}</strong>
+                      {component.description ? <p>{component.description}</p> : null}
+                    </div>
+                    <span className="lunch-package-detail__item-price">
+                      {formatMoney({
+                        amountMinor: component.listAmountMinor,
+                        currency: openPackage.price.currency,
+                      })}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </Dialog>
+      ) : null}
+    </section>
+  );
+}
+
 function CartDialog({
   session,
   lines,
@@ -405,9 +627,13 @@ function CartDialog({
   onRemove: (key: string) => void;
   onSubmit: () => void;
 }) {
+  const packageCopy = lunchPackageMessages[session.locale] ?? lunchPackageMessages.tr;
   const listSubtotal: Money = {
     amountMinor: lines.reduce((sum, line) => {
-      const unitList = line.product.listPrice?.amountMinor ?? line.product.price.amountMinor;
+      const unitList =
+        line.kind === "package"
+          ? line.package.listPrice.amountMinor
+          : (line.product.listPrice?.amountMinor ?? line.product.price.amountMinor);
       return sum + unitList * line.quantity;
     }, 0),
     currency: "TRY",
@@ -457,45 +683,131 @@ function CartDialog({
         {lines.length ? (
           <>
             <ul className="cart-lines">
-              {lines.map((line) => (
-                <li key={line.key}>
-                  <img src={resolveProductMediaUrl(line.product.imageUrl)} alt="" />
-                  <div>
-                    <h3>{line.product.name}</h3>
-                    {portionLabel(line.product, line.portionId) ? (
-                      <p className="cart-line__modifiers">{portionLabel(line.product, line.portionId)}</p>
-                    ) : null}
-                    {selectionLabels(line.product, line.selections).length ? (
-                      <p className="cart-line__modifiers">
-                        {selectionLabels(line.product, line.selections).join(" · ")}
-                      </p>
-                    ) : null}
-                    {line.note ? <p>{line.note}</p> : null}
-                    <div className="stepper stepper--small">
-                      <Button
-                        variant="ghost"
-                        aria-label={line.quantity === 1 ? t.remove : t.decrease}
-                        onClick={() =>
-                          line.quantity === 1
-                            ? onRemove(line.key)
-                            : onChangeQuantity(line.key, line.quantity - 1)
-                        }
-                      >
-                        {line.quantity === 1 ? "×" : "−"}
-                      </Button>
-                      <output>{line.quantity}</output>
-                      <Button
-                        variant="ghost"
-                        aria-label={t.increase}
-                        onClick={() => onChangeQuantity(line.key, line.quantity + 1)}
-                      >
-                        +
-                      </Button>
+              {lines.map((line) => {
+                if (line.kind === "package") {
+                  const hasPackageDiscount = line.package.discount.amountMinor > 0;
+                  const lineListTotal = {
+                    amountMinor: line.package.listPrice.amountMinor * line.quantity,
+                    currency: line.package.price.currency,
+                  };
+                  return (
+                    <li key={line.key}>
+                      <span className="cart-line__thumb cart-line__thumb--package" aria-hidden="true">
+                        {line.package.name.slice(0, 1)}
+                      </span>
+                      <div>
+                        <h3>{line.package.name}</h3>
+                        <p className="cart-line__promo">{packageCopy.title}</p>
+                        {line.package.components.length ? (
+                          <p className="cart-line__modifiers">
+                            {line.package.components
+                              .map((component) =>
+                                component.slotLabel
+                                  ? `${component.slotLabel}: ${component.name}`
+                                  : component.name,
+                              )
+                              .join(" · ")}
+                          </p>
+                        ) : null}
+                        {line.note ? <p>{line.note}</p> : null}
+                        <div className="stepper stepper--small">
+                          <Button
+                            variant="ghost"
+                            aria-label={line.quantity === 1 ? t.remove : t.decrease}
+                            onClick={() =>
+                              line.quantity === 1
+                                ? onRemove(line.key)
+                                : onChangeQuantity(line.key, line.quantity - 1)
+                            }
+                          >
+                            {line.quantity === 1 ? "×" : "−"}
+                          </Button>
+                          <output>{line.quantity}</output>
+                          <Button
+                            variant="ghost"
+                            aria-label={t.increase}
+                            onClick={() => onChangeQuantity(line.key, line.quantity + 1)}
+                          >
+                            +
+                          </Button>
+                        </div>
+                      </div>
+                      {hasPackageDiscount ? (
+                        <span className="price-stack price-stack--cart">
+                          <span className="price-list">{formatMoney(lineListTotal)}</span>
+                          <strong className="price-final">{formatMoney(lineTotal(line))}</strong>
+                        </span>
+                      ) : (
+                        <strong>{formatMoney(lineTotal(line))}</strong>
+                      )}
+                    </li>
+                  );
+                }
+
+                const lineHasPromo = productHasPromo(line.product);
+                const unitList = line.product.listPrice?.amountMinor;
+                const lineListTotal =
+                  unitList != null
+                    ? {
+                        amountMinor: unitList * line.quantity,
+                        currency: line.product.price.currency,
+                      }
+                    : null;
+                return (
+                  <li key={line.key}>
+                    <img src={resolveProductMediaUrl(line.product.imageUrl)} alt="" />
+                    <div>
+                      <h3>{line.product.name}</h3>
+                      {lineHasPromo ? (
+                        <p className="cart-line__promo">
+                          {promoPercentBadge(line.product) ?? t.promoBadge}
+                          {line.product.promotionLabel
+                            ? ` · ${line.product.promotionLabel}`
+                            : null}
+                        </p>
+                      ) : null}
+                      {portionLabel(line.product, line.portionId) ? (
+                        <p className="cart-line__modifiers">{portionLabel(line.product, line.portionId)}</p>
+                      ) : null}
+                      {selectionLabels(line.product, line.selections).length ? (
+                        <p className="cart-line__modifiers">
+                          {selectionLabels(line.product, line.selections).join(" · ")}
+                        </p>
+                      ) : null}
+                      {line.note ? <p>{line.note}</p> : null}
+                      <div className="stepper stepper--small">
+                        <Button
+                          variant="ghost"
+                          aria-label={line.quantity === 1 ? t.remove : t.decrease}
+                          onClick={() =>
+                            line.quantity === 1
+                              ? onRemove(line.key)
+                              : onChangeQuantity(line.key, line.quantity - 1)
+                          }
+                        >
+                          {line.quantity === 1 ? "×" : "−"}
+                        </Button>
+                        <output>{line.quantity}</output>
+                        <Button
+                          variant="ghost"
+                          aria-label={t.increase}
+                          onClick={() => onChangeQuantity(line.key, line.quantity + 1)}
+                        >
+                          +
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <strong>{formatMoney(lineTotal(line))}</strong>
-                </li>
-              ))}
+                    {lineHasPromo && lineListTotal ? (
+                      <span className="price-stack price-stack--cart">
+                        <span className="price-list">{formatMoney(lineListTotal)}</span>
+                        <strong className="price-final">{formatMoney(lineTotal(line))}</strong>
+                      </span>
+                    ) : (
+                      <strong>{formatMoney(lineTotal(line))}</strong>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
             <div className="cart-total">
               <div className="cart-total__row">
@@ -504,7 +816,10 @@ function CartDialog({
               </div>
               {hasDiscount ? (
                 <div className="cart-total__row cart-total__row--discount">
-                  <span>{t.discountSavings}</span>
+                  <span>
+                    {t.discountSavings}
+                    <span className="cart-total__hint">Kampanyalı ürünlerden</span>
+                  </span>
                   <strong>-{formatMoney(discountTotal)}</strong>
                 </div>
               ) : null}
@@ -523,33 +838,52 @@ function CartDialog({
   );
 }
 
-function OrderTracking({ order, onBack }: { order: Order; onBack: () => void }) {
-  const statuses = ["submitted", "accepted", "preparing", "ready", "completed"] as const;
-  const currentIndex = statuses.findIndex((status) => status === order.status);
+function orderStatusIndex(status: Order["status"]) {
+  const statuses = ["submitted", "accepted", "preparing", "ready", "served"] as const;
+  if (status === "completed") return statuses.length - 1;
+  return statuses.findIndex((item) => item === status);
+}
+
+function OrderTracking({ orders, onBack }: { orders: Order[]; onBack: () => void }) {
+  const statuses = ["submitted", "accepted", "preparing", "ready", "served"] as const;
+  const sorted = [...orders].sort((a, b) => a.displayNumber.localeCompare(b.displayNumber));
 
   return (
     <main className="tracking" id="main-content">
       <span className="tracking__mark" aria-hidden="true">
         ✓
       </span>
-      <p className="eyebrow">{order.displayNumber}</p>
+      <p className="eyebrow">{t.tableOrdersEyebrow(sorted.length)}</p>
       <h1>{t.orderReceived}</h1>
-      <p>{t.orderReceivedBody}</p>
-      <div className="eta-card">
-        <span>{t.estimatedReady}</span>
-        <strong>{formatClock(order.estimatedReadyAt)}</strong>
+      <p>{t.orderReceivedBodyMulti}</p>
+      <div className="tracking-rounds">
+        {sorted.map((order) => {
+          const currentIndex = orderStatusIndex(order.status);
+          return (
+            <section className="tracking-round" key={order.id}>
+              <div className="tracking-round__head">
+                <strong>{order.displayNumber}</strong>
+                <span>{(t.statuses as Record<string, string>)[order.status] ?? order.status}</span>
+              </div>
+              <div className="eta-card">
+                <span>{t.estimatedReady}</span>
+                <strong>{formatClock(order.estimatedReadyAt)}</strong>
+              </div>
+              <ol className="status-list">
+                {order.status === "cancelled" ? (
+                  <li className="is-active">{t.statuses.cancelled}</li>
+                ) : null}
+                {statuses.map((status, index) => (
+                  <li className={index <= currentIndex ? "is-active" : ""} key={status}>
+                    <span aria-hidden="true" />
+                    {t.statuses[status]}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          );
+        })}
       </div>
-      <ol className="status-list">
-        {order.status === "cancelled" ? (
-          <li className="is-active">{t.statuses.cancelled}</li>
-        ) : null}
-        {statuses.map((status, index) => (
-          <li className={index <= currentIndex ? "is-active" : ""} key={status}>
-            <span aria-hidden="true" />
-            {t.statuses[status]}
-          </li>
-        ))}
-      </ol>
       <Button variant="secondary" onClick={onBack}>
         {t.backToMenu}
       </Button>
@@ -558,11 +892,12 @@ function OrderTracking({ order, onBack }: { order: Order; onBack: () => void }) 
 }
 
 const activeOrderStorageKey = (qrToken: string) =>
+  `restaurant-os.customer.active-orders:qr:${normalizeQrToken(qrToken)}`;
+const legacyActiveOrderStorageKey = (qrToken: string) =>
   `restaurant-os.customer.active-order:qr:${normalizeQrToken(qrToken)}`;
 
-type StoredActiveOrder = {
-  orderId: string;
-  /** Session that owns the order (needed after QR re-resolve creates a new session). */
+type StoredActiveOrders = {
+  orderIds: string[];
   sessionToken: string;
 };
 
@@ -574,27 +909,46 @@ function normalizeQrToken(qrToken: string) {
   }
 }
 
-function readStoredActiveOrder(qrToken: string): StoredActiveOrder | null {
+function readStoredActiveOrders(qrToken: string): StoredActiveOrders | null {
   try {
     const raw = localStorage.getItem(activeOrderStorageKey(qrToken));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StoredActiveOrder>;
-    if (!parsed.orderId?.trim() || !parsed.sessionToken?.trim()) return null;
-    return { orderId: parsed.orderId.trim(), sessionToken: parsed.sessionToken.trim() };
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<StoredActiveOrders> & { orderId?: string };
+      const ids = Array.isArray(parsed.orderIds)
+        ? parsed.orderIds.map((id) => id.trim()).filter(Boolean)
+        : parsed.orderId?.trim()
+          ? [parsed.orderId.trim()]
+          : [];
+      if (ids.length && parsed.sessionToken?.trim()) {
+        return { orderIds: [...new Set(ids)], sessionToken: parsed.sessionToken.trim() };
+      }
+    }
+    const legacyRaw = localStorage.getItem(legacyActiveOrderStorageKey(qrToken));
+    if (!legacyRaw) return null;
+    const legacy = JSON.parse(legacyRaw) as { orderId?: string; sessionToken?: string };
+    if (!legacy.orderId?.trim() || !legacy.sessionToken?.trim()) return null;
+    return { orderIds: [legacy.orderId.trim()], sessionToken: legacy.sessionToken.trim() };
   } catch {
     return null;
   }
 }
 
-function writeStoredActiveOrder(qrToken: string, orderId: string, sessionToken: string) {
+function writeStoredActiveOrders(qrToken: string, orderIds: string[], sessionToken: string) {
+  const unique = [...new Set(orderIds.map((id) => id.trim()).filter(Boolean))];
+  if (unique.length === 0) {
+    clearStoredActiveOrders(qrToken);
+    return;
+  }
   localStorage.setItem(
     activeOrderStorageKey(qrToken),
-    JSON.stringify({ orderId, sessionToken } satisfies StoredActiveOrder),
+    JSON.stringify({ orderIds: unique, sessionToken } satisfies StoredActiveOrders),
   );
+  localStorage.removeItem(legacyActiveOrderStorageKey(qrToken));
 }
 
-function clearStoredActiveOrder(qrToken: string) {
+function clearStoredActiveOrders(qrToken: string) {
   localStorage.removeItem(activeOrderStorageKey(qrToken));
+  localStorage.removeItem(legacyActiveOrderStorageKey(qrToken));
 }
 
 function isActiveOrderStatus(status: Order["status"]) {
@@ -623,7 +977,7 @@ function Menu({
   const [cartOpen, setCartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [order, setOrder] = useState<Order | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [orderSessionToken, setOrderSessionToken] = useState(session.sessionToken);
   const [trackingOpen, setTrackingOpen] = useState(false);
   const [waiterBusy, setWaiterBusy] = useState(false);
@@ -662,32 +1016,29 @@ function Menu({
     let cancelled = false;
 
     const restore = async () => {
-      const stored = readStoredActiveOrder(qrToken);
+      const stored = readStoredActiveOrders(qrToken);
       const fromSession = (session.activeOrders ?? []).filter((item) =>
         isActiveOrderStatus(item.status),
       );
-      const candidateIds = [
-        ...new Set(
-          [stored?.orderId, ...fromSession.map((item) => item.id)].filter(
-            (id): id is string => Boolean(id?.trim()),
-          ),
-        ),
-      ];
 
-      // Prefer server-provided order payloads first (no extra round-trip).
-      const sessionMatch =
-        (stored?.orderId
-          ? fromSession.find((item) => item.id === stored.orderId)
-          : undefined) ?? fromSession[0];
-      if (sessionMatch) {
+      // Table-scoped: every open round on this QR should appear on every phone.
+      if (fromSession.length > 0) {
         if (cancelled) return;
-        setOrder(sessionMatch);
+        const merged = [...fromSession].sort((a, b) =>
+          a.displayNumber.localeCompare(b.displayNumber),
+        );
+        setOrders(merged);
         setOrderSessionToken(session.sessionToken);
-        writeStoredActiveOrder(qrToken, sessionMatch.id, session.sessionToken);
-        setTrackingOpen(false);
+        writeStoredActiveOrders(
+          qrToken,
+          merged.map((item) => item.id),
+          session.sessionToken,
+        );
         return;
       }
 
+      const candidateIds = [...new Set(stored?.orderIds ?? [])];
+      const restored: Order[] = [];
       for (const orderId of candidateIds) {
         try {
           const latest = await gateway.getOrder(
@@ -696,22 +1047,23 @@ function Menu({
             controller.signal,
           );
           if (cancelled) return;
-          if (!isActiveOrderStatus(latest.status)) {
-            if (stored?.orderId === orderId) clearStoredActiveOrder(qrToken);
-            continue;
-          }
-          setOrder(latest);
-          setOrderSessionToken(session.sessionToken);
-          writeStoredActiveOrder(qrToken, latest.id, session.sessionToken);
-          setTrackingOpen(false);
-          return;
+          if (isActiveOrderStatus(latest.status)) restored.push(latest);
         } catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") return;
         }
       }
 
-      if (!cancelled && stored && candidateIds.length === 0) {
-        clearStoredActiveOrder(qrToken);
+      if (cancelled) return;
+      setOrders(restored);
+      setOrderSessionToken(session.sessionToken);
+      if (restored.length > 0) {
+        writeStoredActiveOrders(
+          qrToken,
+          restored.map((item) => item.id),
+          session.sessionToken,
+        );
+      } else {
+        clearStoredActiveOrders(qrToken);
       }
     };
 
@@ -722,48 +1074,63 @@ function Menu({
     };
   }, [gateway, qrToken, session.activeOrders, session.sessionToken]);
 
-  useEffect(() => {
-    if (!order) return;
+  const orderIdsKey = orders.map((item) => item.id).sort().join(",");
 
+  useEffect(() => {
+    if (!orderIdsKey) return;
+
+    const ids = orderIdsKey.split(",").filter(Boolean);
     let disposed = false;
-    let stop: (() => Promise<void>) | undefined;
+    const stops: Array<() => Promise<void>> = [];
     const controller = new AbortController();
-    const resync = () =>
-      gateway
-        .getOrder(order.id, orderSessionToken, controller.signal)
-        .then((latest) => {
-          if (!disposed) {
-            setOrder(latest);
-            if (latest.status === "completed" || latest.status === "cancelled") {
-              clearStoredActiveOrder(qrToken);
-            }
-          }
+
+    const upsertLatest = (latest: Order) => {
+      setOrders((current) => {
+        const without = current.filter((item) => item.id !== latest.id);
+        const next = isActiveOrderStatus(latest.status) ? [...without, latest] : without;
+        writeStoredActiveOrders(
+          qrToken,
+          next.map((item) => item.id),
+          orderSessionToken,
+        );
+        if (next.length === 0) clearStoredActiveOrders(qrToken);
+        return next.sort((a, b) => a.displayNumber.localeCompare(b.displayNumber));
+      });
+    };
+
+    const resyncAll = () => {
+      for (const orderId of ids) {
+        void gateway
+          .getOrder(orderId, orderSessionToken, controller.signal)
+          .then((latest) => {
+            if (!disposed) upsertLatest(latest);
+          })
+          .catch(() => {});
+      }
+    };
+
+    void resyncAll();
+    const pollId = window.setInterval(resyncAll, 4000);
+
+    for (const orderId of ids) {
+      void gateway
+        .watchOrder(orderId, orderSessionToken, (latest) => {
+          if (!disposed) upsertLatest(latest);
+        }, resyncAll)
+        .then(async (unsubscribe) => {
+          if (disposed) await unsubscribe();
+          else stops.push(unsubscribe);
         })
         .catch(() => {});
-
-    void resync();
-    // SignalR may fail on some phones/LAN setups; polling keeps status moving.
-    const pollId = window.setInterval(resync, 4000);
-    void gateway
-      .watchOrder(order.id, orderSessionToken, (latest) => {
-        setOrder(latest);
-        if (latest.status === "completed" || latest.status === "cancelled") {
-          clearStoredActiveOrder(qrToken);
-        }
-      }, resync)
-      .then(async (unsubscribe) => {
-        if (disposed) await unsubscribe();
-        else stop = unsubscribe;
-      })
-      .catch(() => {});
+    }
 
     return () => {
       disposed = true;
       window.clearInterval(pollId);
       controller.abort();
-      if (stop) void stop();
+      for (const stop of stops) void stop();
     };
-  }, [gateway, order?.id, orderSessionToken, qrToken]);
+  }, [gateway, orderIdsKey, orderSessionToken, qrToken]);
 
   const filteredProducts = useMemo(
     () =>
@@ -828,6 +1195,16 @@ function Menu({
     });
   };
 
+  const addPackage = (pkg: LunchPackage) => {
+    addLine({
+      kind: "package",
+      key: packageCartLineKey(pkg),
+      package: pkg,
+      quantity: 1,
+      note: "",
+    });
+  };
+
   const submitOrder = async () => {
     setSubmitting(true);
     setSubmitError(null);
@@ -835,15 +1212,30 @@ function Menu({
       const submitted = await gateway.submitOrder({
         sessionToken: session.sessionToken,
         idempotencyKey: idempotencyKey.current,
-        lines: lines.map((line) => ({
-          productId: line.product.id,
-          quantity: line.quantity,
-          modifierOptionIds: modifierOptionIds(line.selections),
-          note: line.note || undefined,
-        })),
+        lines: lines.map((line) =>
+          line.kind === "package"
+            ? {
+                packageId: line.package.id,
+                quantity: line.quantity,
+                note: line.note || undefined,
+              }
+            : {
+                productId: line.product.id,
+                quantity: line.quantity,
+                modifierOptionIds: modifierOptionIds(line.selections),
+                note: line.note || undefined,
+              },
+        ),
       });
-      writeStoredActiveOrder(qrToken, submitted.id, session.sessionToken);
-      setOrder(submitted);
+      setOrders((current) => {
+        const next = [...current.filter((item) => item.id !== submitted.id), submitted];
+        writeStoredActiveOrders(
+          qrToken,
+          next.map((item) => item.id),
+          session.sessionToken,
+        );
+        return next;
+      });
       setOrderSessionToken(session.sessionToken);
       setTrackingOpen(true);
       setCartOpen(false);
@@ -864,17 +1256,27 @@ function Menu({
     }
   };
 
-  if (order && trackingOpen) {
-    return <OrderTracking order={order} onBack={() => setTrackingOpen(false)} />;
+  if (orders.length > 0 && trackingOpen) {
+    return <OrderTracking orders={orders} onBack={() => setTrackingOpen(false)} />;
   }
 
   return (
     <>
       <header className="site-header">
         <div className="restaurant-lockup">
-          <span className="restaurant-mark" aria-hidden="true">
-            {session.restaurantName?.slice(0, 1) ?? "R"}
-          </span>
+          {session.customerMenu?.logoUrl ? (
+            <img
+              className="restaurant-mark restaurant-mark--logo"
+              src={resolveProductMediaUrl(session.customerMenu.logoUrl)}
+              alt={session.customerMenu.logoAlt || session.restaurantName || ""}
+            />
+          ) : (
+            <img
+              className="restaurant-mark restaurant-mark--logo restaurant-mark--platform"
+              src="/pasa-mark.svg"
+              alt="Pasa"
+            />
+          )}
           <div>
             <strong>{session.restaurantName ?? "Restoran"}</strong>
             <span>
@@ -883,11 +1285,11 @@ function Menu({
           </div>
         </div>
         <div className="header-actions">
-          {order ? (
+          {orders.length > 0 ? (
             <Button
               variant="secondary"
               className="header-track"
-              aria-label={t.trackOrderAria(order.displayNumber)}
+              aria-label={t.trackOrdersAria(orders.length)}
               onClick={() => setTrackingOpen(true)}
             >
               {t.trackOrder}
@@ -910,7 +1312,7 @@ function Menu({
           <h1>{t.menuTitle}</h1>
           <div className="staff-actions">
             <Button
-              variant="secondary"
+              variant="primary"
               disabled={waiterBusy || openServiceTypes.has("waiter")}
               onClick={() => void callStaff("waiter")}
             >
@@ -921,7 +1323,7 @@ function Menu({
                   : t.callWaiter}
             </Button>
             <Button
-              variant="ghost"
+              variant="secondary"
               disabled={waiterBusy || openServiceTypes.has("bill")}
               onClick={() => void callStaff("bill")}
             >
@@ -943,6 +1345,12 @@ function Menu({
             />
           </label>
         </section>
+        <LunchPackagesSection
+          packages={session.packages}
+          products={session.products}
+          locale={session.locale}
+          onAdd={addPackage}
+        />
         <nav className="categories" aria-label={t.menuEyebrow}>
           {session.categories.map((item) => (
             <Button
@@ -1028,6 +1436,7 @@ function Menu({
                       alt={product.imageAlt}
                       loading="lazy"
                     />
+                    {productHasPromo(product) ? <PromoDeal product={product} compact /> : null}
                     {displayBadge(product) ? (
                       <span className="badge badge--brand">{displayBadge(product)}</span>
                     ) : null}
@@ -1083,11 +1492,11 @@ function Menu({
           ) : null}
         </footer>
       </main>
-      {order && !cartCount ? (
+      {orders.length > 0 && !cartCount ? (
         <div className="sticky-cart">
           <Button fullWidth onClick={() => setTrackingOpen(true)}>
             <span>{t.trackOrder}</span>
-            <strong>{order.displayNumber}</strong>
+            <strong>{t.tableOrdersEyebrow(orders.length)}</strong>
           </Button>
         </div>
       ) : null}
@@ -1210,10 +1619,32 @@ export function App({ gateway, qrToken }: AppProps) {
   }, [activeGateway, token]);
 
   return (
-    <div className="app-shell">
-      <a className="skip-link" href="#main-content">
-        {t.skipToContent}
-      </a>
+    <div
+      className="app-shell"
+      data-menu-theme={
+        state.status === "ready"
+          ? state.session.customerMenu?.themeId?.trim() || "modern"
+          : "modern"
+      }
+      data-brand-watermark={
+        state.status === "ready" &&
+        state.session.customerMenu?.showBrandWatermark &&
+        state.session.customerMenu?.logoUrl
+          ? state.session.customerMenu.brandWatermarkIntensity === "medium"
+            ? "medium"
+            : "soft"
+          : "off"
+      }
+      style={
+        state.status === "ready" &&
+        state.session.customerMenu?.showBrandWatermark &&
+        state.session.customerMenu?.logoUrl
+          ? ({
+              ["--brand-watermark-url" as string]: `url("${resolveProductMediaUrl(state.session.customerMenu.logoUrl)}")`,
+            } as CSSProperties)
+          : undefined
+      }
+    >
       {!online ? (
         <div className="offline-banner" role="status">
           {t.offline}
@@ -1222,9 +1653,9 @@ export function App({ gateway, qrToken }: AppProps) {
       {state.status === "required" ? (
         <main className="entry-state" id="main-content">
           <span className="entry-state__mark" aria-hidden="true">
-            R
+            <img src="/pasa-mark.svg" alt="" width={56} height={56} />
           </span>
-          <p className="eyebrow">Restaurant OS</p>
+          <p className="eyebrow">Pasa</p>
           <h1>{t.qrRequiredTitle}</h1>
           <p>{t.qrRequiredBody}</p>
           <Button

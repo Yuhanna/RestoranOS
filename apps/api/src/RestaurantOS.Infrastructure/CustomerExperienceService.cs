@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,8 @@ public sealed class CustomerExperienceService(
     TimeProvider timeProvider,
     IOrderStatusNotifier orderStatusNotifier,
     IManagementOrderNotifier managementOrderNotifier,
-    ICustomerOrderGuard customerOrderGuard) : ICustomerExperienceService
+    ICustomerOrderGuard customerOrderGuard,
+    IFeatureEntitlementService entitlements) : ICustomerExperienceService
 {
     private static readonly TimeSpan DefaultPrepTime = TimeSpan.FromMinutes(18);
 
@@ -120,13 +122,28 @@ public sealed class CustomerExperienceService(
             .ToListAsync(cancellationToken);
         var activePromotions = PromotionPricingService.FilterActivePromotions(promotions, now);
 
-        await TableSessionSettlement.SupersedeActiveTableSessionsAsync(
-            dbContext,
-            qr.TenantId,
-            qr.BranchId,
-            qr.TableId,
-            now,
-            cancellationToken);
+        // Keep sibling phone sessions alive while the table still has open rounds.
+        // Otherwise device Y scanning the same QR kills device X's poll/SignalR token.
+        var hasOpenRounds = await dbContext.CustomerOrders
+            .AsNoTracking()
+            .AnyAsync(
+                x =>
+                    x.TenantId == qr.TenantId
+                    && x.BranchId == qr.BranchId
+                    && x.TableId == qr.TableId
+                    && x.Status != OrderStatus.Completed
+                    && x.Status != OrderStatus.Cancelled,
+                cancellationToken);
+        if (!hasOpenRounds)
+        {
+            await TableSessionSettlement.SupersedeActiveTableSessionsAsync(
+                dbContext,
+                qr.TenantId,
+                qr.BranchId,
+                qr.TableId,
+                now,
+                cancellationToken);
+        }
 
         var sessionToken = OpaqueToken.Create();
         var tableSessionId = Guid.NewGuid();
@@ -170,8 +187,8 @@ public sealed class CustomerExperienceService(
                 && x.TableId == qr.TableId
                 && x.Status != OrderStatus.Completed
                 && x.Status != OrderStatus.Cancelled)
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .Take(5)
+            .OrderBy(x => x.CreatedAtUtc)
+            .Take(20)
             .ToListAsync(cancellationToken);
 
         return new CustomerSessionResult(
@@ -209,11 +226,88 @@ public sealed class CustomerExperienceService(
                     pricing.ListAmountMinor,
                     pricing.DiscountAmountMinor,
                     promotion?.Name,
-                    MenuCatalogJson.ParseItem(item.CatalogJson));
+                    MenuCatalogJson.ParseItem(item.CatalogJson),
+                    promotion?.DiscountKind,
+                    promotion?.DiscountValue,
+                    promotion?.EffectiveEndsAtUtc(now, PromotionPricingService.DefaultBranchTimeZone));
             }).ToArray(),
             openTypes.Select(ServiceRequest.ToApiCode).ToArray(),
             activeOrders.Select(MapOrder).ToArray(),
-            MenuCatalogJson.ParseSettings(qr.Table.Branch.CustomerMenuSettingsJson));
+            await ResolveCustomerMenuSettingsAsync(
+                qr.TenantId,
+                qr.Table.Branch.CustomerMenuSettingsJson,
+                cancellationToken),
+            await LoadOfferPackagesAsync(qr.TenantId, qr.BranchId, now, cancellationToken));
+    }
+
+    private async Task<CustomerMenuSettingsData> ResolveCustomerMenuSettingsAsync(
+        Guid tenantId,
+        string? settingsJson,
+        CancellationToken cancellationToken)
+    {
+        var settings = MenuCatalogJson.ParseSettings(settingsJson);
+        var plan = await entitlements.GetEntitlementsAsync(tenantId, cancellationToken);
+        var themeId = CustomerMenuThemes.ResolveEffective(settings.ThemeId, plan.CanUseMenuThemes);
+        var showWatermark = settings.ShowBrandWatermark && plan.CanUseBrandWatermark;
+        if (themeId == settings.ThemeId && showWatermark == settings.ShowBrandWatermark)
+        {
+            return settings;
+        }
+
+        return settings with { ThemeId = themeId, ShowBrandWatermark = showWatermark };
+    }
+
+    private async Task<IReadOnlyList<CustomerMenuPackageResult>> LoadOfferPackagesAsync(
+        Guid tenantId,
+        Guid branchId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var packages = await dbContext.MenuPackages
+            .AsNoTracking()
+            .Include(x => x.Components)
+            .ThenInclude(x => x.MenuItem)
+            .Where(x => x.TenantId == tenantId && x.BranchId == branchId && x.IsActive)
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+        var tz = PromotionPricingService.DefaultBranchTimeZone;
+        return packages
+            .Where(package => package.IsOfferActiveAt(now, tz))
+            .Where(package => package.Components.All(c =>
+                c.MenuItem is not null && c.MenuItem.IsAvailable))
+            .Select(package =>
+            {
+                var components = package.Components
+                    .OrderBy(x => x.SortOrder)
+                    .Select(x => new CustomerMenuPackageComponentResult(
+                        x.MenuItemId,
+                        x.MenuItem!.Name,
+                        x.SlotLabel,
+                        x.MenuItem.PriceAmountMinor,
+                        x.MenuItem.ImageUrl ?? string.Empty,
+                        string.IsNullOrWhiteSpace(x.MenuItem.ImageAlt)
+                            ? x.MenuItem.Name
+                            : x.MenuItem.ImageAlt,
+                        x.MenuItem.Description ?? string.Empty))
+                    .ToArray();
+                var listTotal = components.Sum(x => x.ListAmountMinor);
+                var packagePrice = package.PriceAmountMinor;
+                var discount = Math.Max(0, listTotal - packagePrice);
+                return new CustomerMenuPackageResult(
+                    package.Id,
+                    package.Name,
+                    package.Description ?? string.Empty,
+                    packagePrice,
+                    package.PriceCurrency,
+                    listTotal,
+                    discount,
+                    components,
+                    package.DailyStartLocal?.ToString("HH\\:mm", CultureInfo.InvariantCulture),
+                    package.DailyEndLocal?.ToString("HH\\:mm", CultureInfo.InvariantCulture));
+            })
+            .ToArray();
     }
 
     public async Task<CustomerOrderResult> CreateOrderAsync(
@@ -234,7 +328,11 @@ public sealed class CustomerExperienceService(
             throw new CustomerExperienceException("INVALID_IDEMPOTENCY_KEY", "A valid idempotency key is required.");
         }
 
-        if (lines.Count is < 1 or > 50 || lines.Any(x => x.Quantity is < 1 or > 50 || x.Note?.Length > 160))
+        if (lines.Count is < 1 or > 50
+            || lines.Any(x =>
+                x.Quantity is < 1 or > 50
+                || x.Note?.Length > 160
+                || (x.PackageId is null) == (x.ProductId == Guid.Empty)))
         {
             throw new CustomerExperienceException("INVALID_ORDER", "Order lines are invalid.");
         }
@@ -281,24 +379,58 @@ public sealed class CustomerExperienceService(
             .Select(branch => branch.Id)
             .ToListAsync(cancellationToken);
 
-        var productIds = lines.Select(x => x.ProductId).Distinct().ToArray();
-        var products = await dbContext.MenuItems
-            .AsNoTracking()
-            .Where(x => productIds.Contains(x.Id)
-                && x.TenantId == session.TenantId
-                && restaurantBranchIds.Contains(x.BranchId)
-                && x.IsAvailable
-                && dbContext.Menus.Any(menu =>
-                    menu.Id == x.MenuId
-                    && menu.TenantId == session.TenantId
-                    && restaurantBranchIds.Contains(menu.BranchId)
-                    && menu.PublishedAtUtc != null
-                    && menu.ArchivedAtUtc == null))
-            .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var productLines = lines.Where(x => x.PackageId is null).ToArray();
+        var packageLines = lines.Where(x => x.PackageId is not null).ToArray();
+
+        var productIds = productLines.Select(x => x.ProductId).Distinct().ToArray();
+        var products = productIds.Length == 0
+            ? new Dictionary<Guid, MenuItem>()
+            : await dbContext.MenuItems
+                .AsNoTracking()
+                .Where(x => productIds.Contains(x.Id)
+                    && x.TenantId == session.TenantId
+                    && restaurantBranchIds.Contains(x.BranchId)
+                    && x.IsAvailable
+                    && dbContext.Menus.Any(menu =>
+                        menu.Id == x.MenuId
+                        && menu.TenantId == session.TenantId
+                        && restaurantBranchIds.Contains(menu.BranchId)
+                        && menu.PublishedAtUtc != null
+                        && menu.ArchivedAtUtc == null))
+                .ToDictionaryAsync(x => x.Id, cancellationToken);
         if (products.Count != productIds.Length)
         {
             throw new CustomerExperienceException("ORDER_REJECTED", "One or more products are unavailable.");
         }
+
+        var packageIds = packageLines.Select(x => x.PackageId!.Value).Distinct().ToArray();
+        var packages = packageIds.Length == 0
+            ? new List<MenuPackage>()
+            : await dbContext.MenuPackages
+                .AsNoTracking()
+                .Include(x => x.Components)
+                .ThenInclude(x => x.MenuItem)
+                .Where(x => packageIds.Contains(x.Id)
+                    && x.TenantId == session.TenantId
+                    && x.BranchId == session.BranchId)
+                .ToListAsync(cancellationToken);
+        if (packages.Count != packageIds.Length)
+        {
+            throw new CustomerExperienceException("ORDER_REJECTED", "One or more lunch packages are unavailable.");
+        }
+
+        var tz = PromotionPricingService.DefaultBranchTimeZone;
+        foreach (var package in packages)
+        {
+            if (!package.IsOfferActiveAt(now, tz)
+                || package.Components.Count < 2
+                || package.Components.Any(c => c.MenuItem is null || !c.MenuItem.IsAvailable))
+            {
+                throw new CustomerExperienceException("ORDER_REJECTED", "One or more lunch packages are unavailable.");
+            }
+        }
+
+        var packageById = packages.ToDictionary(x => x.Id);
 
         var promotions = await dbContext.MenuPromotions
             .AsNoTracking()
@@ -310,7 +442,9 @@ public sealed class CustomerExperienceService(
         long subtotalMinor = 0;
         long discountMinor = 0;
         var orderLines = new List<CustomerOrderItem>();
-        foreach (var line in lines)
+        var prepCandidates = new List<int>();
+
+        foreach (var line in productLines)
         {
             var product = products[line.ProductId];
             var promotion = PromotionPricingService.ResolveBestPromotion(
@@ -331,15 +465,52 @@ public sealed class CustomerExperienceService(
                 Money.Try(pricing.FinalAmountMinor),
                 line.Quantity,
                 line.Note));
+            prepCandidates.Add(product.PrepTimeSeconds is > 0
+                ? product.PrepTimeSeconds.Value
+                : (int)DefaultPrepTime.TotalSeconds);
+        }
+
+        foreach (var line in packageLines)
+        {
+            var package = packageById[line.PackageId!.Value];
+            var components = package.Components.OrderBy(x => x.SortOrder).ToArray();
+            var listPrices = components.Select(c => Math.Max(0, c.MenuItem!.PriceAmountMinor)).ToArray();
+            var listTotal = listPrices.Sum();
+            var packagePrice = package.PriceAmountMinor;
+            var packageDiscount = Math.Max(0, listTotal - packagePrice);
+            var allocatedFinals = AllocateProportionally(packagePrice, listPrices);
+            var allocatedDiscounts = AllocateProportionally(packageDiscount, listPrices);
+
+            subtotalMinor = checked(subtotalMinor + listTotal * line.Quantity);
+            discountMinor = checked(discountMinor + packageDiscount * line.Quantity);
+
+            for (var i = 0; i < components.Length; i++)
+            {
+                var component = components[i];
+                var item = component.MenuItem!;
+                var note = string.IsNullOrWhiteSpace(line.Note)
+                    ? $"Paket: {package.Name}"
+                    : $"{line.Note.Trim()} · Paket: {package.Name}";
+                orderLines.Add(new CustomerOrderItem(
+                    Guid.NewGuid(),
+                    orderId,
+                    item.Id,
+                    item.Name,
+                    Money.Try(listPrices[i]),
+                    Money.Try(allocatedDiscounts[i]),
+                    Money.Try(allocatedFinals[i]),
+                    line.Quantity,
+                    note.Length > 160 ? note[..160] : note,
+                    package.Id,
+                    package.Name));
+                prepCandidates.Add(item.PrepTimeSeconds is > 0
+                    ? item.PrepTimeSeconds.Value
+                    : (int)DefaultPrepTime.TotalSeconds);
+            }
         }
 
         var totalMinor = checked(subtotalMinor - discountMinor);
-        var prepSeconds = lines
-            .Select(line => products[line.ProductId].PrepTimeSeconds is > 0
-                ? products[line.ProductId].PrepTimeSeconds!.Value
-                : (int)DefaultPrepTime.TotalSeconds)
-            .DefaultIfEmpty((int)DefaultPrepTime.TotalSeconds)
-            .Max();
+        var prepSeconds = prepCandidates.DefaultIfEmpty((int)DefaultPrepTime.TotalSeconds).Max();
         var order = new CustomerOrder(
             orderId,
             session.TenantId,
@@ -637,7 +808,7 @@ public sealed class CustomerExperienceService(
             {
                 order.SetEstimatedReadyAt(estimatedReadyAtUtc.Value);
             }
-            else if (nextStatus is OrderStatus.Ready or OrderStatus.Completed)
+            else if (nextStatus is OrderStatus.Ready or OrderStatus.Served or OrderStatus.Completed)
             {
                 order.SetEstimatedReadyAt(changedAt);
             }
@@ -680,7 +851,8 @@ public sealed class CustomerExperienceService(
                 dbContext,
                 order.CustomerSessionId,
                 changedAt,
-                cancellationToken);
+                cancellationToken,
+                excludingOrderId: order.Id);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
@@ -759,8 +931,40 @@ public sealed class CustomerExperienceService(
     {
         var canonical = string.Join(
             '\n',
-            lines.Select(x => $"{x.ProductId:N}|{x.Quantity}|{x.Note?.Trim() ?? string.Empty}"));
+            lines.Select(x =>
+                x.PackageId is Guid packageId
+                    ? $"pkg:{packageId:N}|{x.Quantity}|{x.Note?.Trim() ?? string.Empty}"
+                    : $"{x.ProductId:N}|{x.Quantity}|{x.Note?.Trim() ?? string.Empty}"));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+    }
+
+    /// <summary>Largest-remainder allocation so shares sum exactly to <paramref name="totalMinor"/>.</summary>
+    private static long[] AllocateProportionally(long totalMinor, long[] weights)
+    {
+        if (weights.Length == 0)
+        {
+            return [];
+        }
+
+        var weightSum = weights.Sum();
+        if (totalMinor <= 0 || weightSum <= 0)
+        {
+            return weights.Select(_ => 0L).ToArray();
+        }
+
+        var raw = weights.Select(w => (decimal)totalMinor * w / weightSum).ToArray();
+        var floors = raw.Select(x => (long)Math.Floor(x)).ToArray();
+        var remainder = totalMinor - floors.Sum();
+        var order = Enumerable.Range(0, weights.Length)
+            .OrderByDescending(i => raw[i] - floors[i])
+            .ThenBy(i => i)
+            .ToArray();
+        for (var i = 0; i < remainder; i++)
+        {
+            floors[order[i]]++;
+        }
+
+        return floors;
     }
 }
 

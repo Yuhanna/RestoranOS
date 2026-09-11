@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Button } from "@restaurant-os/design-system";
 import { AnalyticsPanel } from "./AnalyticsPanel";
 import { DashboardPanel } from "./DashboardPanel";
@@ -35,13 +35,18 @@ import {
 import { realtime as defaultRealtime, type RealtimeClient, type RealtimeState } from "./realtime";
 import { ServiceRequestsPanel } from "./ServiceRequestsPanel";
 import { ThemePicker } from "./ThemePicker";
+import { formatOrderMoney, groupOrdersByTable, roundLabel } from "./tableOrders";
+import { resolveManagementMediaUrl } from "./resolveManagementMediaUrl";
+
+const managementApiBase = import.meta.env.VITE_MANAGEMENT_API_BASE_URL ?? "";
 
 const statusLabel: Record<OrderStatus, string> = {
   submitted: "YENİ",
   accepted: "ONAYLANDI",
   preparing: "HAZIRLANIYOR",
   ready: "PASA ÇIKTI",
-  completed: "SERVİS EDİLDİ",
+  served: "SERVİS EDİLDİ",
+  completed: "HESAP KAPANDI",
   cancelled: "İPTAL",
 };
 
@@ -50,21 +55,19 @@ const actionLabel: Record<OrderStatus, string> = {
   accepted: "Siparişe al",
   preparing: "Hazırlamaya başla",
   ready: "Pasa çıkar",
-  completed: "Servis edildi",
+  served: "Servis edildi",
+  completed: "Hesap kapandı",
   cancelled: "İptal",
 };
 
 const stationFor = (status: OrderStatus) =>
-  status === "submitted" ? "Giriş" : status === "ready" ? "Pas" : "Mutfak";
+  status === "submitted" ? "Giriş" : status === "ready" || status === "served" ? "Pas" : "Mutfak";
 
 const tableStatusLabel: Record<string, string> = {
   available: "MÜSAİT",
   occupied: "DOLU",
   has_pending_order: "BEKLEYEN SİPARİŞ",
 };
-
-const formatOrderMoney = (minor: number, currency: string) =>
-  (minor / 100).toLocaleString("tr-TR", { style: "currency", currency });
 
 const errorMessage = (error: unknown) => {
   if (!(error instanceof ApiError)) return "Beklenmeyen bir hata oluştu.";
@@ -124,7 +127,14 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
     notifications: AudienceNotification[];
     subscriptionOffers: SubscriptionOffer[];
   }>({ notifications: [], subscriptionOffers: [] });
+  const [branding, setBranding] = useState<{
+    logoUrl?: string;
+    logoAlt?: string;
+    showWatermark: boolean;
+    intensity: "soft" | "medium";
+  }>({ showWatermark: false, intensity: "soft" });
   const previousOrderIds = useRef<Set<string>>(new Set());
+  const [recentOrderIds, setRecentOrderIds] = useState<string[]>([]);
 
   const loadOrders = useCallback(async () => {
     setLoadingOrders(true);
@@ -173,7 +183,12 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
           setOrders((current) => {
             const merged = mergeOrder(current, incoming);
             const isNew = incoming.status === "submitted" && !previousOrderIds.current.has(incoming.id);
-            if (isNew) playAlertChime("order");
+            if (isNew) {
+              playAlertChime("order");
+              setRecentOrderIds((current) =>
+                current.includes(incoming.id) ? current : [...current, incoming.id],
+              );
+            }
             previousOrderIds.current = new Set(merged.map((order) => order.id));
             return merged;
           });
@@ -188,6 +203,13 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
         },
         onServiceRequest: (request) => setIncomingServiceRequest(request),
         onAudienceNotification: (notification) => notifyAudience(notification),
+        onLivePanelDenied: (payload) => {
+          setError(
+            payload.message ??
+              "Canlı panel oturum limiti doldu. Diğer cihazı kapatın veya Pro’ya geçin.",
+          );
+          setRealtimeState("offline");
+        },
       })
       .then((stopClient) => {
         if (cancelled) void stopClient();
@@ -206,8 +228,15 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
   }, []);
 
   useEffect(() => {
+    if (recentOrderIds.length === 0) return;
+    const timer = window.setTimeout(() => setRecentOrderIds([]), 45_000);
+    return () => window.clearTimeout(timer);
+  }, [recentOrderIds]);
+
+  useEffect(() => {
     if (!session) {
       setWorkspaceMessages({ notifications: [], subscriptionOffers: [] });
+      setBranding({ showWatermark: false, intensity: "soft" });
       return;
     }
     let active = true;
@@ -219,9 +248,21 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
           notifications: workspace.notifications ?? [],
           subscriptionOffers: workspace.subscriptionOffers ?? [],
         });
+        const logoUrl = workspace.brandLogoUrl
+          ? resolveManagementMediaUrl(workspace.brandLogoUrl, managementApiBase)
+          : undefined;
+        setBranding({
+          logoUrl,
+          logoAlt: workspace.brandLogoAlt ?? workspace.restaurantName,
+          showWatermark: Boolean(workspace.showBrandWatermark && logoUrl),
+          intensity: workspace.brandWatermarkIntensity === "medium" ? "medium" : "soft",
+        });
       })
       .catch(() => {
-        if (active) setWorkspaceMessages({ notifications: [], subscriptionOffers: [] });
+        if (active) {
+          setWorkspaceMessages({ notifications: [], subscriptionOffers: [] });
+          setBranding({ showWatermark: false, intensity: "soft" });
+        }
       });
     return () => {
       active = false;
@@ -279,23 +320,17 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
     }
   };
 
-  const visibleOrders = useMemo(
-    () =>
-      orders
-        .filter((order) => statusFilter === "all" || order.status === statusFilter)
-        .filter((order) => stationFilter === "Tümü" || stationFor(order.status) === stationFilter)
-        .sort(
-          (left, right) =>
-            new Date(left.createdAtUtc ?? left.statusChangedAtUtc).getTime() -
-            new Date(right.createdAtUtc ?? right.statusChangedAtUtc).getTime(),
-        ),
-    [orders, stationFilter, statusFilter],
-  );
+  const visibleTableGroups = useMemo(() => {
+    const filtered = orders
+      .filter((order) => statusFilter === "all" || order.status === statusFilter)
+      .filter((order) => stationFilter === "Tümü" || stationFor(order.status) === stationFilter);
+    return groupOrdersByTable(filtered, new Set(recentOrderIds));
+  }, [orders, recentOrderIds, stationFilter, statusFilter]);
 
   if (booting) {
     return (
       <main className="center-state" aria-live="polite">
-        <span className="brand-mark">R</span>
+        <img className="brand-mark brand-mark--logo brand-mark--platform" src="/pasa-mark-light.svg" alt="Pasa" />
         <p>Güvenli oturum geri yükleniyor…</p>
       </main>
     );
@@ -304,12 +339,32 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
   if (!session) return <LoginScreen onLogin={login} error={error} />;
 
   return (
-    <main className="operations">
+    <main
+      className="operations"
+      data-brand-watermark={branding.showWatermark ? branding.intensity : "off"}
+      style={
+        branding.showWatermark && branding.logoUrl
+          ? ({ ["--brand-watermark-url" as string]: `url("${branding.logoUrl}")` } as CSSProperties)
+          : undefined
+      }
+    >
       <header className="topbar">
         <div className="identity">
-          <span className="brand-mark brand-mark--small">R</span>
+          {branding.logoUrl ? (
+            <img
+              className="brand-mark brand-mark--small brand-mark--logo"
+              src={branding.logoUrl}
+              alt={branding.logoAlt || ""}
+            />
+          ) : (
+            <img
+              className="brand-mark brand-mark--small brand-mark--logo brand-mark--platform"
+              src="/pasa-mark-light.svg"
+              alt="Pasa"
+            />
+          )}
           <div>
-            <p className="eyebrow">RESTAURANT OS</p>
+            <p className="eyebrow">PASA</p>
             <h1>Operasyon Merkezi</h1>
           </div>
         </div>
@@ -474,18 +529,55 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
         </Button>
       </section>
 
-      <section className="order-grid" aria-live="polite" aria-busy={loadingOrders}>
-        {visibleOrders.map((order) => (
-          <OrderCard
-            key={order.id}
-            order={order}
-            now={now}
-            pending={pendingOrder === order.id}
-            onStatus={changeStatus}
-            onDetail={openOrderDetail}
-          />
+      <section className="order-board" aria-live="polite" aria-busy={loadingOrders}>
+        {visibleTableGroups.map((group) => (
+          <section
+            key={group.tableId}
+            className={`table-order-group${group.roundCount > 1 ? " table-order-group--multi" : ""}${
+              group.hasSubmittedRound ? " table-order-group--attention" : ""
+            }`}
+            aria-label={`${group.tableLabel}, ${group.roundCount} sipariş`}
+          >
+            <header className="table-order-group__head">
+              <div>
+                <p className="eyebrow">MASA</p>
+                <h2>{group.tableLabel}</h2>
+                <p className="muted">
+                  {group.roundCount > 1
+                    ? `${group.roundCount} tur · son turu kaçırmayın`
+                    : "Tek aktif sipariş"}
+                </p>
+              </div>
+              <div className="table-order-group__totals">
+                {group.roundCount > 1 ? (
+                  <span className="table-order-group__badge">Çoklu sipariş</span>
+                ) : null}
+                {group.hasSubmittedRound ? (
+                  <span className="table-order-group__badge table-order-group__badge--new">
+                    Yeni tur
+                  </span>
+                ) : null}
+                <strong>{formatOrderMoney(group.totalMinor, group.currency)}</strong>
+                <span className="muted">masa toplamı</span>
+              </div>
+            </header>
+            <div className="table-order-group__grid">
+              {group.orders.map((order, index) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  roundTitle={roundLabel(index, group.roundCount)}
+                  isNewRound={recentOrderIds.includes(order.id) || order.status === "submitted"}
+                  now={now}
+                  pending={pendingOrder === order.id}
+                  onStatus={changeStatus}
+                  onDetail={openOrderDetail}
+                />
+              ))}
+            </div>
+          </section>
         ))}
-        {!loadingOrders && visibleOrders.length === 0 ? (
+        {!loadingOrders && visibleTableGroups.length === 0 ? (
           <div className="all-clear">
             <span>✓</span>
             <h2>İSTASYON TEMİZ</h2>
@@ -532,10 +624,10 @@ function LoginScreen({
       <section className="login-copy">
         <p className="eyebrow">CANLI RESTORAN OPERASYONU</p>
         <h1>Servisin ritmini tek ekrandan yönetin.</h1>
-        <p>Yeni siparişten pasa, pastan servise; yetkiniz ve şubeniz sınırları içinde.</p>
+        <p>Pasa — masadan mutfağa restoran işletim sistemi. Yeni siparişten pasa, pastan servise.</p>
       </section>
       <form className="login-card" onSubmit={submit}>
-        <span className="brand-mark">R</span>
+        <img className="brand-mark brand-mark--logo brand-mark--platform" src="/pasa-mark-light.svg" alt="Pasa" />
         <div>
           <p className="eyebrow">YÖNETİM GİRİŞİ</p>
           <h2>Vardiyaya bağlan</h2>
@@ -585,12 +677,16 @@ function Metric({ value, label }: { value: number; label: string }) {
 
 function OrderCard({
   order,
+  roundTitle,
+  isNewRound,
   now,
   pending,
   onStatus,
   onDetail,
 }: {
   order: Order;
+  roundTitle: string;
+  isNewRound: boolean;
   now: number;
   pending: boolean;
   onStatus: (order: Order, status: OrderStatus) => void;
@@ -602,10 +698,15 @@ function OrderCard({
   );
   const late = new Date(order.estimatedReadyAtUtc).getTime() < now && order.status !== "ready";
   return (
-    <article className={`order-card order-card--${order.status}${late ? " is-late" : ""}`}>
+    <article
+      className={`order-card order-card--${order.status}${late ? " is-late" : ""}${
+        isNewRound ? " is-new-round" : ""
+      }`}
+    >
       <header>
         <div>
           <span className="status">{late ? "GECİKTİ" : statusLabel[order.status]}</span>
+          <p className="order-card__round">{roundTitle}</p>
           <h2>{order.displayNumber}</h2>
         </div>
         <time>{ageMinutes} dk</time>

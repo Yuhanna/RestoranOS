@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 72" fill="none" role="img" aria-label="Pasa — masadan mutfağa restoran işletim sistemi">
+  <!-- Unified lockup: V8 architectural P + wordmark -->
+  <g transform="translate(0 6) scale(0.92)">
+    <path fill="#171310" fill-rule="evenodd" d="
+      M18 8
+      H38.5
+      C52.4 8 61 16.2 61 26.5
+      C61 36.8 52.4 45 38.5 45
+      H24
+      V56
+      H18.5
+      L10 48
+      V16
+      Z
+      M24 18.5
+      H36.2
+      C43.6 18.5 48.5 22.3 48.5 26.5
+      C48.5 30.7 43.6 34.5 36.2 34.5
+      H24
+      Z"/>
+    <rect x="10" y="29.2" width="44" height="7.2" rx="3.6" fill="#E39A4A"/>
+  </g>
+  <text x="72" y="34" fill="#171310" font-family="Outfit, Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="-0.03em">Pasa</text>
+  <text x="72" y="54" fill="#7A6E64" font-family="Outfit, Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="12" font-weight="500">masadan mutfağa restoran işletim sistemi</text>
+</svg>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Pasa">
+  <rect width="64" height="64" rx="14" fill="#FFF7F0" stroke="#E8D9C8" stroke-width="1.5"/>
+  <path fill="#171310" fill-rule="evenodd" d="
+    M22 11.5
+    H36.5
+    C48.2 11.5 55.5 18.4 55.5 27.2
+    C55.5 36 48.2 42.9 36.5 42.9
+    H26.2
+    V52.5
+    H22
+    L15.5 46
+    V18
+    Z
+    M26.2 19.8
+    H34.8
+    C41.1 19.8 45.2 23.1 45.2 27.2
+    C45.2 31.3 41.1 34.6 34.8 34.6
+    H26.2
+    Z"/>
+  <rect x="15.5" y="29.6" width="34.5" height="6.6" rx="3.3" fill="#E39A4A"/>
+</svg>

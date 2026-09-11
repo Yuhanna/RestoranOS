@@ -5,6 +5,7 @@ export const orderStatuses = [
   "accepted",
   "preparing",
   "ready",
+  "served",
   "completed",
   "cancelled",
 ] as const;

@@ -15,7 +15,8 @@
         "accepted" => "Onaylandı",
         "preparing" => "Hazırlanıyor",
         "ready" => "Hazır / pasa çıktı",
-        "completed" => "Tamamlandı",
+        "served" => "Servis edildi",
+        "completed" => "Hesap kapandı",
         "cancelled" => "İptal",
         _ => status ?? "—"
     };
@@ -26,7 +27,8 @@
         "accepted" => 1,
         "preparing" => 2,
         "ready" => 3,
-        "completed" => 4,
+        "served" => 4,
+        "completed" => 5,
         _ => -1,
     };
 
@@ -37,6 +39,12 @@
         if (candidate == "cancelled")
         {
             return current is "submitted" or "accepted" or "preparing";
+        }
+
+        // Completed is reserved for close-check settlement, not manual kitchen steps.
+        if (candidate == "completed")
+        {
+            return false;
         }
 
         return StatusRank(candidate) > StatusRank(current);
@@ -60,7 +68,7 @@
                     ("accepted", "Onaylandı"),
                     ("preparing", "Hazırlanıyor"),
                     ("ready", "Hazır / pasa çıktı"),
-                    ("completed", "Tamamlandı"),
+                    ("served", "Servis edildi"),
                     ("cancelled", "İptal"),
                 };
             }
@@ -83,9 +91,10 @@
     </label>
     <p class="muted">
         Dakika yazın (<strong>15</strong> = 15 dk sonra) veya saat yazın (<strong>9:23</strong> / <strong>09:23</strong>).
-        Saat geçmişse ertesi güne alınır. Boş bırakırsanız mevcut ETA korunur (Hazır/Tamamlandı’da şu an).
+        Saat geçmişse ertesi güne alınır. Boş bırakırsanız mevcut ETA korunur (Hazır/Servis’te şu an).
         Mevcut ETA: @currentEta
     </p>
+    <p class="muted">Hesap kapanışı bu ekrandan değil; masa kartındaki <strong>Hesabı kapat</strong> ile yapılır.</p>
     <button type="submit" class="btn">Kaydet</button>
     <a asp-action="Index">İptal</a>
 </form>

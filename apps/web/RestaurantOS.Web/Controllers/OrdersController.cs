@@ -34,6 +34,45 @@ public sealed class OrdersController(IWebApiExecuter api) : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> History(int hours = 24, CancellationToken cancellationToken = default)
+    {
+        if (!EnsureAuthenticated())
+        {
+            return ChallengeLogin();
+        }
+
+        var workspace = await api.GetWorkspaceAsync(cancellationToken);
+        var maxHours = workspace?.Entitlements?.MaxOrderHistoryHours ?? 72;
+        if (maxHours < 1)
+        {
+            maxHours = 72;
+        }
+
+        var requested = hours < 1 ? 24 : hours;
+        var windowHours = Math.Clamp(requested, 1, maxHours);
+        ViewBag.Hours = windowHours;
+        ViewBag.MaxOrderHistoryHours = maxHours;
+        ViewBag.PlanDisplayName = workspace?.Entitlements?.PlanDisplayName ?? "Free";
+        ViewBag.PlanCode = workspace?.Entitlements?.PlanCode ?? "Free";
+        ViewBag.IsTrial = workspace?.Entitlements?.IsTrial == true;
+        ViewBag.WasClamped = requested > maxHours;
+        ViewBag.CanManageSubscription = workspace?.CanManageSubscription == true;
+
+        try
+        {
+            var orders = await api.InvokeGetAsync<List<OrderListItemViewModel>>(
+                $"/api/v1/management/orders/history?hours={windowHours}&take=100",
+                cancellationToken) ?? [];
+            return View(orders);
+        }
+        catch (WebApiException exception)
+        {
+            TempData["Error"] = exception.Message;
+            return View(new List<OrderListItemViewModel>());
+        }
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Detail(Guid id, CancellationToken cancellationToken)
     {
         if (!EnsureAuthenticated())
@@ -213,7 +252,8 @@ public sealed class OrdersController(IWebApiExecuter api) : Controller
         "accepted" => "Onaylandı",
         "preparing" => "Hazırlanıyor",
         "ready" => "Hazır",
-        "completed" => "Tamamlandı",
+        "served" => "Servis edildi",
+        "completed" => "Hesap kapandı",
         "cancelled" => "İptal",
         _ => status,
     };
@@ -228,7 +268,8 @@ public sealed class OrdersController(IWebApiExecuter api) : Controller
         "submitted" => "accepted",
         "accepted" => "preparing",
         "preparing" => "ready",
-        "ready" => "completed",
+        "ready" => "served",
+        "served" => "served",
         _ => "accepted",
     };
 

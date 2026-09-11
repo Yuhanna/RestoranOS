@@ -1,0 +1,146 @@
+@model IReadOnlyList<RestaurantOS.Web.Models.OrderListItemViewModel>
+@{
+    ViewData["Title"] = "Sipariş geçmişi";
+    var hours = ViewBag.Hours as int? ?? 24;
+    var maxHours = ViewBag.MaxOrderHistoryHours as int? ?? 72;
+    var planName = ViewBag.PlanDisplayName as string ?? "Free";
+    var planCode = (ViewBag.PlanCode as string ?? "Free").ToLowerInvariant();
+    var isTrial = ViewBag.IsTrial as bool? == true;
+    var wasClamped = ViewBag.WasClamped as bool? == true;
+    var canManageSubscription = ViewBag.CanManageSubscription as bool? == true;
+    var windowText = hours switch
+    {
+        6 => "son 6 saat",
+        24 => "son 24 saat",
+        72 => "son 3 gün",
+        168 => "son 7 gün",
+        720 => "son 30 gün",
+        2160 => "son 90 gün",
+        _ when hours % 24 == 0 => $"son {hours / 24} gün",
+        _ => $"son {hours} saat"
+    };
+    string StatusTr(string status) => status?.ToLowerInvariant() switch
+    {
+        "completed" => "Hesap kapandı",
+        "cancelled" => "İptal",
+        _ => status ?? "—"
+    };
+    string WindowLabel(int h) => h switch
+    {
+        6 => "Son 6 saat",
+        24 => "Son 24 saat",
+        72 => "Son 3 gün",
+        168 => "Son 7 gün",
+        720 => "Son 30 gün",
+        2160 => "Son 90 gün",
+        _ when h % 24 == 0 => $"Son {h / 24} gün",
+        _ => $"Son {h} saat"
+    };
+}
+
+<div class="page-head">
+    <div>
+        <h1>Sipariş geçmişi</h1>
+        <p class="muted">@windowText içinde tamamlanan veya iptal edilen siparişler (bu şube).</p>
+    </div>
+    <div class="page-head-actions">
+        <a class="btn btn-ghost" asp-action="Index">Aktif siparişler</a>
+    </div>
+</div>
+
+@if (TempData["Error"] is string error)
+{
+    <div class="alert" role="alert">@error</div>
+}
+@if (wasClamped)
+{
+    <div class="alert" role="status">
+        Seçtiğiniz aralık plan limitinin üzerindeydi; @WindowLabel(maxHours) ile gösteriliyor.
+    </div>
+}
+
+<form method="get" class="panel" style="margin-bottom:1rem;display:flex;gap:0.75rem;align-items:end;flex-wrap:wrap">
+    <label>
+        <span>Zaman aralığı</span>
+        <select name="hours">
+            @if (6 <= maxHours)
+            {
+                if (hours == 6) { <option value="6" selected>Son 6 saat</option> } else { <option value="6">Son 6 saat</option> }
+            }
+            @if (24 <= maxHours)
+            {
+                if (hours == 24) { <option value="24" selected>Son 24 saat</option> } else { <option value="24">Son 24 saat</option> }
+            }
+            @if (72 <= maxHours)
+            {
+                if (hours == 72) { <option value="72" selected>Son 3 gün</option> } else { <option value="72">Son 3 gün</option> }
+            }
+            @if (168 <= maxHours)
+            {
+                if (hours == 168) { <option value="168" selected>Son 7 gün</option> } else { <option value="168">Son 7 gün</option> }
+            }
+            @if (720 <= maxHours)
+            {
+                if (hours == 720) { <option value="720" selected>Son 30 gün</option> } else { <option value="720">Son 30 gün</option> }
+            }
+            @if (2160 <= maxHours)
+            {
+                if (hours == 2160) { <option value="2160" selected>Son 90 gün</option> } else { <option value="2160">Son 90 gün</option> }
+            }
+        </select>
+    </label>
+    <button type="submit" class="btn">Göster</button>
+</form>
+
+@if (maxHours <= 72 && planCode is "free")
+{
+    <p class="muted" style="margin:-0.25rem 0 1rem">
+        Free planda geçmiş en fazla <strong>72 saat</strong> (3 gün) görünür.
+        <strong>7–30 gün</strong> için Pro gerekir; Enterprise’ta <strong>90 gün</strong> dahildir, anlaşmaya göre uzatılabilir.
+        @if (canManageSubscription)
+        {
+            <a asp-controller="Subscription" asp-action="Index">Paketi yükselt</a>
+        }
+    </p>
+}
+else if (maxHours < 2160 && (planCode is "pro" || isTrial))
+{
+    <p class="muted" style="margin:-0.25rem 0 1rem">
+        @(isTrial ? "Deneme / Pro" : "Pro") planda geçmiş en fazla <strong>30 gün</strong>.
+        Enterprise’ta <strong>90 gün</strong> dahildir; daha uzun saklama anlaşmaya göre eklenebilir.
+    </p>
+}
+else if (maxHours >= 2160)
+{
+    <p class="muted" style="margin:-0.25rem 0 1rem">
+        Enterprise pakette <strong>90 gün</strong> geçmiş dahildir. Daha uzun saklama ihtiyacı için anlaşmanıza göre ek süre tanımlanabilir.
+    </p>
+}
+
+@if (Model.Count == 0)
+{
+    <p class="muted">Bu aralıkta kapanmış sipariş yok.</p>
+}
+else
+{
+    <div class="item-grid">
+        @foreach (var order in Model)
+        {
+            <article class="item-card">
+                <div class="item-card-top">
+                    <h3>@order.DisplayNumber</h3>
+                    <span class="price">₺@((order.AmountMinor / 100m).ToString("N2"))</span>
+                </div>
+                <p class="item-desc">
+                    Masa: <strong>@(string.IsNullOrWhiteSpace(order.TableLabel) ? "—" : order.TableLabel)</strong><br />
+                    Durum: <strong>@StatusTr(order.Status)</strong><br />
+                    Kapanış: @order.StatusChangedAtUtc.ToLocalTime().ToString("g")
+                </p>
+                <div class="item-meta">
+                    <span class="badge">@order.Status</span>
+                    <a class="linkish" asp-action="Detail" asp-route-id="@order.Id">Detay</a>
+                </div>
+            </article>
+        }
+    </div>
+}
