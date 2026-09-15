@@ -82,10 +82,21 @@ const getAudioContext = () => {
   return audioContext;
 };
 
+const playKeepAlive = (media: HTMLAudioElement) => {
+  try {
+    const result = media.play();
+    if (result && typeof result.catch === "function") {
+      void result.catch(() => undefined);
+    }
+  } catch {
+    /* ignore */
+  }
+};
+
 const ensureMediaKeepAlive = () => {
   if (typeof window === "undefined") return;
   if (mediaKeepAlive) {
-    if (mediaKeepAlive.paused) void mediaKeepAlive.play().catch(() => undefined);
+    if (mediaKeepAlive.paused) playKeepAlive(mediaKeepAlive);
     return;
   }
   try {
@@ -93,7 +104,7 @@ const ensureMediaKeepAlive = () => {
     mediaKeepAlive.loop = true;
     mediaKeepAlive.volume = 0.001;
     mediaKeepAlive.setAttribute("playsinline", "true");
-    void mediaKeepAlive.play().catch(() => undefined);
+    playKeepAlive(mediaKeepAlive);
   } catch {
     /* ignore */
   }
