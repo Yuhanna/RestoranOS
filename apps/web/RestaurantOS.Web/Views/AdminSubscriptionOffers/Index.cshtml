@@ -1,6 +1,6 @@
-@model RestaurantOS.Web.Models.PlatformSubscriptionOffersPageViewModel
+@model RestaurantOS.Web.Models.AdminSubscriptionOffersPageViewModel
 @{
-    Layout = "_PlatformLayout";
+    Layout = "_AdminLayout";
     ViewData["Title"] = "Üyelik kampanyaları";
     var audienceLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -32,7 +32,7 @@
 
 <section class="panel">
     <h2>Yeni kampanya</h2>
-    <form action="/platform/subscription-offers" method="post" class="form-grid-wide">
+    <form action="/admin/subscription-offers" method="post" class="form-grid-wide">
         @Html.AntiForgeryToken()
         <label>
             Hedef kitle
@@ -109,7 +109,7 @@
                         </span>
                     </td>
                     <td>
-                        <form action="/platform/subscription-offers/toggle" method="post" class="inline">
+                        <form action="/admin/subscription-offers/toggle" method="post" class="inline">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="id" value="@offer.Id" />
                             <input type="hidden" name="isActive" value="@offer.IsActive.ToString().ToLowerInvariant()" />

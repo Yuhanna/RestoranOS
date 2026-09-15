@@ -1,7 +1,7 @@
-@model RestaurantOS.Web.Models.PlatformNotificationsPageViewModel
+@model RestaurantOS.Web.Models.AdminNotificationsPageViewModel
 @{
-    Layout = "_PlatformLayout";
-    ViewData["Title"] = "Platform bildirimleri";
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Admin bildirimleri";
     var audienceLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["all"] = "Tüm üyeler",
@@ -14,7 +14,7 @@
 
 <div class="page-head">
     <div>
-        <h1>Platform bildirimleri</h1>
+        <h1>Admin bildirimleri</h1>
         <p class="muted">Tüm restoranlara hedef kitleye göre e-posta ve push bildirimi gönderin.</p>
     </div>
 </div>
@@ -35,8 +35,8 @@
 <div asp-validation-summary="All" class="alert"></div>
 
 <section class="panel">
-    <h2>Yeni platform bildirimi</h2>
-    <form action="/platform/notifications" method="post" class="stack">
+    <h2>Yeni admin bildirimi</h2>
+    <form action="/admin/notifications" method="post" class="stack">
         @Html.AntiForgeryToken()
         <label>
             Hedef kitle
@@ -67,7 +67,7 @@
     <h2>Kayıtlı bildirimler</h2>
     @if (Model.Notifications.Count == 0)
     {
-        <p class="muted">Henüz platform bildirimi yok.</p>
+        <p class="muted">Henüz admin bildirimi yok.</p>
     }
     else
     {
@@ -91,7 +91,7 @@
                     <td>@(audienceLabels.GetValueOrDefault(notification.Audience) ?? notification.Audience)</td>
                     <td>@(notification.LastDispatchedAtUtc?.ToLocalTime().ToString("g") ?? "—")</td>
                     <td>
-                        <form action="/platform/notifications/dispatch" method="post" class="inline">
+                        <form action="/admin/notifications/dispatch" method="post" class="inline">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="id" value="@notification.Id" />
                             <button type="submit" class="linkish" @(notification.IsActive ? null : "disabled")>

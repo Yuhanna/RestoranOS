@@ -1,12 +1,12 @@
-@model RestaurantOS.Web.Models.PlatformLoginViewModel
+@model RestaurantOS.Web.Models.AdminLoginViewModel
 @inject IHostEnvironment HostEnvironment
 @{
-    Layout = "_PlatformLayout";
-    ViewData["Title"] = "Platform girişi";
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Pasa Admin girişi";
 }
 
 <section class="auth-card">
-    <p class="eyebrow">RESTAURANT OS · PLATFORM</p>
+    <p class="eyebrow">PASA ADMIN</p>
     <h1>Site yönetimi girişi</h1>
     <p class="lede">Bu sayfa geçici MVC iskeletidir. Pasa Admin ayrı alt alandadır: <strong>admin.pasa.app</strong>.</p>
 
@@ -29,7 +29,7 @@
         <div class="alert" role="alert">@Model.ErrorMessage</div>
     }
 
-    <form action="/platform/account/login" method="post" class="stack" autocomplete="on">
+    <form action="/admin/account/login" method="post" class="stack" autocomplete="on">
         @Html.AntiForgeryToken()
         <input type="hidden" name="returnUrl" value="@Context.Request.Query["returnUrl"]" />
         <label>
@@ -42,7 +42,7 @@
             <input asp-for="Password" autocomplete="current-password" />
             <span asp-validation-for="Password" class="field-error"></span>
         </label>
-        <button type="submit" class="btn">Platform girişi</button>
+        <button type="submit" class="btn">Admin girişi</button>
     </form>
 
     <p class="auth-switch muted">

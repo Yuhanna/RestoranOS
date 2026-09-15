@@ -5,7 +5,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@(ViewData["Title"] ?? "Platform") · Pasa</title>
+    <title>@(ViewData["Title"] ?? "Admin") · Pasa</title>
     <link rel="icon" type="image/svg+xml" href="~/img/pasa-mark.svg" asp-append-version="true" />
     <link rel="apple-touch-icon" href="~/img/pasa-mark.png" asp-append-version="true" />
     <script>
@@ -32,19 +32,19 @@
 </head>
 <body>
     <header class="topbar topbar-platform">
-        <a class="brand" href="/platform">
+        <a class="brand" href="/admin">
             <img src="~/img/pasa-mark.svg" alt="" width="28" height="28" asp-append-version="true" />
-            <span>Pasa · Platform</span>
+            <span>Pasa Admin</span>
         </a>
         @if (PlatformApi.IsAuthenticated)
         {
-            <nav aria-label="Platform menü">
-                <a href="/platform">Özet</a>
-                <a href="/platform/notifications">Bildirimler</a>
-                <a href="/platform/subscription-offers">Üyelik kampanyaları</a>
+            <nav aria-label="Admin menü">
+                <a href="/admin">Özet</a>
+                <a href="/admin/notifications">Bildirimler</a>
+                <a href="/admin/subscription-offers">Üyelik kampanyaları</a>
             </nav>
             <span class="scope-chip">Site yönetimi</span>
-            <form action="/platform/account/logout" method="post" class="inline">
+            <form action="/admin/account/logout" method="post" class="inline">
                 @Html.AntiForgeryToken()
                 <button type="submit" class="linkish">Çıkış yap</button>
             </form>

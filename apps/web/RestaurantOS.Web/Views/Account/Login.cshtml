@@ -18,7 +18,8 @@
         @{
             var safeReturnUrl = Context.Request.Query["returnUrl"].ToString();
             if (!string.IsNullOrWhiteSpace(safeReturnUrl)
-                && safeReturnUrl.StartsWith("/platform", StringComparison.OrdinalIgnoreCase))
+                && (safeReturnUrl.StartsWith("/platform", StringComparison.OrdinalIgnoreCase)
+                    || safeReturnUrl.StartsWith("/admin", StringComparison.OrdinalIgnoreCase)))
             {
                 safeReturnUrl = string.Empty;
             }

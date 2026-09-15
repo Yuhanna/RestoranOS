@@ -636,7 +636,7 @@ public sealed class NotificationDispatchResultViewModel
     public IReadOnlyList<string> RecipientEmails { get; set; } = [];
 }
 
-public sealed class PlatformLoginViewModel
+public sealed class AdminLoginViewModel
 {
     [Required(ErrorMessage = "E-posta gerekli.")]
     [EmailAddress(ErrorMessage = "Geçerli bir e-posta girin.")]
@@ -649,14 +649,14 @@ public sealed class PlatformLoginViewModel
     public string? ErrorMessage { get; set; }
 }
 
-public sealed class PlatformNotificationsPageViewModel
+public sealed class AdminNotificationsPageViewModel
 {
     public IReadOnlyList<ManagedNotificationListItemViewModel> Notifications { get; set; } = [];
-    public CreatePlatformNotificationViewModel Create { get; set; } = new();
+    public CreateAdminNotificationViewModel Create { get; set; } = new();
     public string? LastDispatchSummary { get; set; }
 }
 
-public sealed class CreatePlatformNotificationViewModel
+public sealed class CreateAdminNotificationViewModel
 {
     [Display(Name = "Hedef kitle")]
     public string Audience { get; set; } = "non_pro";
@@ -670,13 +670,13 @@ public sealed class CreatePlatformNotificationViewModel
     public string? ActionUrl { get; set; }
 }
 
-public sealed class PlatformSubscriptionOffersPageViewModel
+public sealed class AdminSubscriptionOffersPageViewModel
 {
-    public IReadOnlyList<PlatformSubscriptionOfferListItemViewModel> Offers { get; set; } = [];
-    public CreatePlatformSubscriptionOfferViewModel Create { get; set; } = new();
+    public IReadOnlyList<AdminSubscriptionOfferListItemViewModel> Offers { get; set; } = [];
+    public CreateAdminSubscriptionOfferViewModel Create { get; set; } = new();
 }
 
-public sealed class PlatformSubscriptionOfferListItemViewModel
+public sealed class AdminSubscriptionOfferListItemViewModel
 {
     public Guid Id { get; set; }
     public string Audience { get; set; } = string.Empty;
@@ -690,7 +690,7 @@ public sealed class PlatformSubscriptionOfferListItemViewModel
     public bool IsActive { get; set; }
 }
 
-public sealed class CreatePlatformSubscriptionOfferViewModel
+public sealed class CreateAdminSubscriptionOfferViewModel
 {
     [Display(Name = "Hedef kitle")]
     public string Audience { get; set; } = "non_pro";
