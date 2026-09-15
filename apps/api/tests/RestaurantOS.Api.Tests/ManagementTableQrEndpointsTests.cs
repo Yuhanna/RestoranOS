@@ -77,7 +77,28 @@ public sealed class ManagementTableQrEndpointsTests
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<RestaurantOsDbContext>();
-            db.Menus.Add(new PublishedMenu(Guid.NewGuid(), SeedIds.TenantA, SeedIds.BranchA, "Live", SeedIds.CreatedAtUtc));
+            var menuId = Guid.NewGuid();
+            var categoryId = Guid.NewGuid();
+            var itemId = Guid.NewGuid();
+            db.Menus.Add(new PublishedMenu(menuId, SeedIds.TenantA, SeedIds.BranchA, "Live", SeedIds.CreatedAtUtc));
+            db.MenuCategories.Add(new MenuCategory(
+                categoryId,
+                SeedIds.TenantA,
+                SeedIds.BranchA,
+                menuId,
+                "İçecek",
+                0));
+            db.MenuItems.Add(new MenuItem(
+                itemId,
+                SeedIds.TenantA,
+                SeedIds.BranchA,
+                menuId,
+                categoryId,
+                "Su",
+                "Su",
+                Money.Try(1500),
+                true,
+                0));
             await db.SaveChangesAsync();
         }
 

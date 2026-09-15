@@ -96,6 +96,7 @@ const products: Product[] = [
     nutrition: { weightGrams: 220, caloriesKcal: 285, fatGrams: 18, sugarGrams: 6 },
     prepTimeMinutes: 8,
     servingNote: "Paylaşımlık tabak",
+    modifierGroups: [],
   },
   {
     id: "d1",
@@ -114,6 +115,7 @@ const products: Product[] = [
     ingredients: ["Bitter çikolata", "tereyağı", "yumurta", "un", "karamel", "dondurma"],
     nutrition: { weightGrams: 140, caloriesKcal: 520, sugarGrams: 38, fatGrams: 29 },
     prepTimeMinutes: 12,
+    modifierGroups: [],
   },
   {
     id: "b1",
@@ -177,6 +179,7 @@ const session: CustomerSession = {
     { id: "drinks", name: "İçecekler" },
   ],
   products,
+  packages: [],
   customerMenu: {
     showDietaryFilters: true,
     dietaryFilterOptions: ["vegan", "vegetarian", "glutenFree", "halal", "dairyFree"],
@@ -209,6 +212,11 @@ const delay = (signal?: AbortSignal) =>
 
 export const DEMO_QR_TOKEN = "demo-marea-table-7";
 
+export function resetMockCustomerGateway() {
+  openServiceRequests.clear();
+  submittedOrders.clear();
+}
+
 export const mockCustomerGateway: CustomerGateway = {
   async resolveQr(qrToken, signal) {
     await delay(signal);
@@ -237,7 +245,7 @@ export const mockCustomerGateway: CustomerGateway = {
         throw new CustomerGatewayError("ORDER_REJECTED", "Product is unavailable");
       }
       const selections: Record<string, string[]> = {};
-      for (const optionId of line.modifierOptionIds) {
+      for (const optionId of line.modifierOptionIds ?? []) {
         const group = product.modifierGroups.find((entry) =>
           entry.options.some((option) => option.id === optionId),
         );

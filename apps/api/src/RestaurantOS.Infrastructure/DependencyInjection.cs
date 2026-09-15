@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IPromotionManagementService, PromotionManagementService>();
         services.AddScoped<INotificationManagementService, NotificationManagementService>();
         services.AddScoped<IPlatformSubscriptionOfferService, PlatformSubscriptionOfferService>();
+        services.AddScoped<IPlatformCatalogService, PlatformCatalogService>();
         services.AddScoped<ICustomerMenuSettingsService, CustomerMenuSettingsService>();
         services.AddSingleton<IStockPhotoLibrary, StockPhotoLibrary>();
 

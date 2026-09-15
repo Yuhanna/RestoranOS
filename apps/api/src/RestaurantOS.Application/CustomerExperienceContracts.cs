@@ -72,7 +72,29 @@ public sealed record CustomerSessionResult(
     IReadOnlyList<MenuItemResult> Products,
     IReadOnlyList<string> OpenServiceRequestTypes,
     IReadOnlyList<CustomerOrderResult> ActiveOrders,
-    CustomerMenuSettingsData CustomerMenuSettings);
+    CustomerMenuSettingsData CustomerMenuSettings,
+    IReadOnlyList<CustomerMenuPackageResult> OfferPackages);
+
+public sealed record CustomerMenuPackageComponentResult(
+    Guid MenuItemId,
+    string Name,
+    string? SlotLabel,
+    long ListAmountMinor,
+    string ImageUrl,
+    string ImageAlt,
+    string Description);
+
+public sealed record CustomerMenuPackageResult(
+    Guid Id,
+    string Name,
+    string Description,
+    long PriceAmountMinor,
+    string Currency,
+    long ListTotalAmountMinor,
+    long DiscountAmountMinor,
+    IReadOnlyList<CustomerMenuPackageComponentResult> Components,
+    string? DailyStartLocal,
+    string? DailyEndLocal);
 
 public sealed record MenuCategoryResult(Guid Id, string Name);
 
@@ -89,13 +111,17 @@ public sealed record MenuItemResult(
     long ListAmountMinor = 0,
     long DiscountAmountMinor = 0,
     string? PromotionLabel = null,
-    MenuItemCatalogData Catalog = default!);
+    MenuItemCatalogData Catalog = default!,
+    string? PromotionDiscountKind = null,
+    int? PromotionDiscountValue = null,
+    DateTimeOffset? PromotionEndsAtUtc = null);
 
 public sealed record CreateOrderLine(
     Guid ProductId,
     int Quantity,
     string? Note,
-    IReadOnlyList<string> ModifierOptionIds);
+    IReadOnlyList<string> ModifierOptionIds,
+    Guid? PackageId = null);
 
 public sealed record CustomerOrderResult(
     Guid Id,

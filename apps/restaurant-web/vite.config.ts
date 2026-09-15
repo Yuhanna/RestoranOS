@@ -15,6 +15,10 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      "/media": {
+        target: process.env.VITE_DEV_API_PROXY_TARGET ?? "http://127.0.0.1:5183",
+        changeOrigin: true,
+      },
     },
   },
   test: {

@@ -133,7 +133,8 @@ public sealed class ManagementRefreshSession
         Guid branchId,
         string tokenHash,
         DateTimeOffset createdAtUtc,
-        DateTimeOffset expiresAtUtc)
+        DateTimeOffset expiresAtUtc,
+        string realm = AuthRealms.Management)
     {
         if (expiresAtUtc <= createdAtUtc)
         {
@@ -148,6 +149,7 @@ public sealed class ManagementRefreshSession
         TokenHash = Required(tokenHash);
         CreatedAtUtc = createdAtUtc.ToUniversalTime();
         ExpiresAtUtc = expiresAtUtc.ToUniversalTime();
+        Realm = AuthRealms.Normalize(realm);
     }
 
     public Guid Id { get; private set; }
@@ -155,6 +157,7 @@ public sealed class ManagementRefreshSession
     public Guid UserId { get; private set; }
     public Guid TenantId { get; private set; }
     public Guid BranchId { get; private set; }
+    public string Realm { get; private set; } = AuthRealms.Management;
     public string TokenHash { get; private set; } = null!;
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset ExpiresAtUtc { get; private set; }

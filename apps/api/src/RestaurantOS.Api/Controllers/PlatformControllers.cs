@@ -1,14 +1,19 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using RestaurantOS.Api.Models.Dto;
 using RestaurantOS.Application;
+using RestaurantOS.Domain;
+using RestaurantOS.Infrastructure;
 
 namespace RestaurantOS.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/platform/auth")]
-public sealed class PlatformAuthController(IManagementAuthService authService) : ControllerBase
+public sealed class PlatformAuthController(
+    IManagementAuthService authService,
+    RestaurantOsDbContext dbContext) : ControllerBase
 {
     private const string RefreshCookiePath = "/api/v1/platform/auth";
 
@@ -51,6 +56,64 @@ public sealed class PlatformAuthController(IManagementAuthService authService) :
         }
     }
 
+    [HttpPost("refresh")]
+    [EnableRateLimiting("management-refresh")]
+    [ProducesResponseType(typeof(ManagementAccessTokenResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RefreshAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await authService.RefreshAsync(
+                AuthRefreshCookie.Read(Request, platform: true) ?? string.Empty,
+                AuthRealms.Platform,
+                cancellationToken);
+            if (!string.Equals(result.Realm, AuthRealms.Platform, StringComparison.Ordinal))
+            {
+                DeleteRefreshCookie();
+                return ApiProblem.Create(
+                    StatusCodes.Status401Unauthorized,
+                    "INVALID_REFRESH_TOKEN",
+                    "Platform session is invalid.");
+            }
+
+            SetRefreshCookie(result);
+            return Ok(ToAccessTokenResponse(result));
+        }
+        catch (ManagementAuthException exception)
+        {
+            DeleteRefreshCookie();
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, exception.Code, exception.Message);
+        }
+    }
+
+    [HttpGet("session")]
+    [Authorize(Policy = ManagementPolicies.PlatformManage)]
+    [ProducesResponseType(typeof(PlatformSessionResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SessionAsync(CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetPlatformActor(User, out var userId, out _))
+        {
+            return ApiProblem.Create(
+                StatusCodes.Status401Unauthorized,
+                "INVALID_ACCESS_TOKEN",
+                "Access token is invalid.");
+        }
+
+        var user = await dbContext.ManagementUsers.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        var staff = await dbContext.PlatformStaff.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.UserId == userId && x.IsActive, cancellationToken);
+        if (user is null || staff is null)
+        {
+            return ApiProblem.Create(
+                StatusCodes.Status403Forbidden,
+                "PLATFORM_ACCESS_DENIED",
+                "This account is not authorized for platform management.");
+        }
+
+        return Ok(new PlatformSessionResponse(user.Id, user.Email, staff.RoleCode, AuthRealms.Platform));
+    }
+
     [HttpPost("logout")]
     [EnableRateLimiting("management-refresh")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -69,7 +132,10 @@ public sealed class PlatformAuthController(IManagementAuthService authService) :
             result.AccessTokenExpiresAtUtc,
             result.UserId,
             result.TenantId,
-            result.BranchId);
+            result.BranchId,
+            result.Realm,
+            result.RoleCode,
+            result.Email);
 
     private void SetRefreshCookie(ManagementTokenResult result) =>
         AuthRefreshCookie.Append(
@@ -96,7 +162,9 @@ public sealed class PlatformAccessController : ControllerBase
 
 [ApiController]
 [Route("api/v1/platform/notifications")]
-public sealed class PlatformNotificationsController(INotificationManagementService notifications) : ControllerBase
+public sealed class PlatformNotificationsController(
+    INotificationManagementService notifications,
+    RestaurantOsDbContext dbContext) : ControllerBase
 {
     [HttpGet]
     [Authorize(Policy = ManagementPolicies.PlatformManage)]
@@ -117,6 +185,11 @@ public sealed class PlatformNotificationsController(INotificationManagementServi
         if (request is null || string.IsNullOrWhiteSpace(request.Title) || string.IsNullOrWhiteSpace(request.Body))
         {
             return ApiProblem.Create(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "Title and body are required.");
+        }
+
+        if (await PlatformGate.ForbidCampaignWriteAsync(User, dbContext, cancellationToken) is { } denied)
+        {
+            return denied;
         }
 
         try
@@ -144,6 +217,11 @@ public sealed class PlatformNotificationsController(INotificationManagementServi
     [ProducesResponseType(typeof(ManagementNotificationDispatchResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> DispatchAsync(Guid notificationId, CancellationToken cancellationToken)
     {
+        if (await PlatformGate.ForbidCampaignWriteAsync(User, dbContext, cancellationToken) is { } denied)
+        {
+            return denied;
+        }
+
         try
         {
             var result = await notifications.DispatchPlatformAsync(notificationId, cancellationToken);
@@ -164,7 +242,9 @@ public sealed class PlatformNotificationsController(INotificationManagementServi
 
 [ApiController]
 [Route("api/v1/platform/subscription-offers")]
-public sealed class PlatformSubscriptionOffersController(IPlatformSubscriptionOfferService offers) : ControllerBase
+public sealed class PlatformSubscriptionOffersController(
+    IPlatformSubscriptionOfferService offers,
+    RestaurantOsDbContext dbContext) : ControllerBase
 {
     [HttpGet]
     [Authorize(Policy = ManagementPolicies.PlatformManage)]
@@ -187,6 +267,11 @@ public sealed class PlatformSubscriptionOffersController(IPlatformSubscriptionOf
             || string.IsNullOrWhiteSpace(request.Body))
         {
             return ApiProblem.Create(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "Title and body are required.");
+        }
+
+        if (await PlatformGate.ForbidCampaignWriteAsync(User, dbContext, cancellationToken) is { } denied)
+        {
+            return denied;
         }
 
         try
@@ -226,6 +311,11 @@ public sealed class PlatformSubscriptionOffersController(IPlatformSubscriptionOf
             return ApiProblem.Create(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "isActive is required.");
         }
 
+        if (await PlatformGate.ForbidCampaignWriteAsync(User, dbContext, cancellationToken) is { } denied)
+        {
+            return denied;
+        }
+
         try
         {
             var updated = await offers.SetActiveAsync(offerId, isActive, cancellationToken);
@@ -238,6 +328,137 @@ public sealed class PlatformSubscriptionOffersController(IPlatformSubscriptionOf
                 : StatusCodes.Status400BadRequest;
             return ApiProblem.Create(status, exception.Code, exception.Message);
         }
+    }
+}
+
+[ApiController]
+[Route("api/v1/platform/catalog")]
+public sealed class PlatformCatalogController(IPlatformCatalogService catalog) : ControllerBase
+{
+    [HttpGet]
+    [Authorize(Policy = ManagementPolicies.PlatformManage)]
+    [ProducesResponseType(typeof(ManagementCatalogResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAsync(CancellationToken cancellationToken)
+    {
+        var snapshot = await catalog.GetCatalogAsync(cancellationToken);
+        return Ok(PlatformCatalogMapper.ToResponse(snapshot));
+    }
+
+    [HttpPost("prices")]
+    [Authorize(Policy = ManagementPolicies.PlatformManage)]
+    [ProducesResponseType(typeof(ManagementPlanPriceResponse), StatusCodes.Status201Created)]
+    public async Task<IActionResult> CreateDraftAsync(
+        [FromBody] ManagementCreatePlanPriceRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetPlatformActor(User, out var userId, out var role))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        if (request is null)
+        {
+            return ApiProblem.Create(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "Request body is required.");
+        }
+
+        try
+        {
+            var created = await catalog.CreateDraftAsync(
+                userId,
+                role,
+                new CreatePlanPriceCommand(
+                    request.ProductCode,
+                    request.Interval,
+                    request.AmountMinor,
+                    request.Currency,
+                    request.TaxInclusive),
+                cancellationToken);
+            return Created($"/api/v1/platform/catalog/prices/{created.Id}", PlatformCatalogMapper.ToPrice(created));
+        }
+        catch (CustomerExperienceException exception)
+        {
+            var status = exception.Code is "PLATFORM_ROLE_DENIED" or "PLATFORM_ACCESS_DENIED"
+                ? StatusCodes.Status403Forbidden
+                : StatusCodes.Status400BadRequest;
+            return ApiProblem.Create(status, exception.Code, exception.Message);
+        }
+    }
+
+    [HttpPost("prices/{priceId:guid}/publish")]
+    [Authorize(Policy = ManagementPolicies.PlatformManage)]
+    [ProducesResponseType(typeof(ManagementPlanPriceResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> PublishAsync(Guid priceId, CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetPlatformActor(User, out var userId, out var role))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            var published = await catalog.PublishAsync(userId, role, priceId, cancellationToken);
+            return Ok(PlatformCatalogMapper.ToPrice(published));
+        }
+        catch (CustomerExperienceException exception)
+        {
+            var status = exception.Code switch
+            {
+                "PLATFORM_ROLE_DENIED" or "PLATFORM_ACCESS_DENIED" => StatusCodes.Status403Forbidden,
+                "PRICE_NOT_FOUND" => StatusCodes.Status404NotFound,
+                _ => StatusCodes.Status400BadRequest,
+            };
+            return ApiProblem.Create(status, exception.Code, exception.Message);
+        }
+    }
+
+    [HttpPost("prices/{priceId:guid}/archive")]
+    [Authorize(Policy = ManagementPolicies.PlatformManage)]
+    [ProducesResponseType(typeof(ManagementPlanPriceResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ArchiveAsync(Guid priceId, CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetPlatformActor(User, out var userId, out var role))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            var archived = await catalog.ArchiveAsync(userId, role, priceId, cancellationToken);
+            return Ok(PlatformCatalogMapper.ToPrice(archived));
+        }
+        catch (CustomerExperienceException exception)
+        {
+            var status = exception.Code switch
+            {
+                "PLATFORM_ROLE_DENIED" or "PLATFORM_ACCESS_DENIED" => StatusCodes.Status403Forbidden,
+                "PRICE_NOT_FOUND" => StatusCodes.Status404NotFound,
+                _ => StatusCodes.Status400BadRequest,
+            };
+            return ApiProblem.Create(status, exception.Code, exception.Message);
+        }
+    }
+}
+
+file static class PlatformGate
+{
+    public static async Task<IActionResult?> ForbidCampaignWriteAsync(
+        System.Security.Claims.ClaimsPrincipal user,
+        RestaurantOsDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var actor = await PermissionAuthorizationHandler.TryGetLivePlatformActorAsync(
+            user,
+            dbContext,
+            cancellationToken);
+        if (actor is null || !PlatformStaffRoles.CanManageCampaigns(actor.Value.RoleCode))
+        {
+            return ApiProblem.Create(
+                StatusCodes.Status403Forbidden,
+                "PLATFORM_ROLE_DENIED",
+                "Kampanya yazmak için Owner, Billing veya Support rolü gerekir.");
+        }
+
+        return null;
     }
 }
 
@@ -271,4 +492,40 @@ file static class PlatformOfferMapper
             offer.StartsAtUtc,
             offer.EndsAtUtc,
             offer.IsActive);
+}
+
+file static class PlatformCatalogMapper
+{
+    public static ManagementCatalogResponse ToResponse(PlatformCatalogSnapshot snapshot) =>
+        new(
+            snapshot.Products.Select(ToProduct).ToArray(),
+            snapshot.Note);
+
+    public static ManagementPlanPriceResponse ToPrice(ManagedPlanPriceResult price) =>
+        new(
+            price.Id,
+            price.ProductCode,
+            price.ProductKind,
+            price.DisplayName,
+            price.Interval,
+            price.Currency,
+            price.AmountMinor,
+            price.TaxInclusive,
+            price.Status,
+            price.CreatedAtUtc,
+            price.PublishedAtUtc,
+            price.ArchivedAtUtc);
+
+    private static ManagementCatalogProductResponse ToProduct(PlatformCatalogPlanResult product) =>
+        new(
+            product.ProductCode,
+            product.ProductKind,
+            product.DisplayName,
+            product.Entitlements?.MaxBranches,
+            product.Entitlements?.MaxTablesPerBranch,
+            product.Entitlements?.MaxActiveUsers,
+            product.Entitlements?.CanUseLiveOrderPanel,
+            product.Entitlements?.CanUseMultiBranch,
+            product.Entitlements?.HasPrioritySupport,
+            product.Prices.Select(ToPrice).ToArray());
 }

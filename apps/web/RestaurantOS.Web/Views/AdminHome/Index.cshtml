@@ -1,0 +1,30 @@
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Pasa Admin özeti";
+}
+
+<div class="page-head">
+    <div>
+        <h1>Pasa Admin (MVC iskelet)</h1>
+        <p class="muted">Tüm restoranlara bildirim ve üyelik kampanyaları. Yeni özellikler apps/admin-web üzerinedir.</p>
+    </div>
+</div>
+
+<section class="panel-grid">
+    <a class="panel panel-link" href="/admin/notifications">
+        <h2>Bildirimler</h2>
+        <p class="muted">Tüm restoranlara e-posta ve push bildirimi oluşturun ve gönderin.</p>
+    </a>
+    <a class="panel panel-link" href="/admin/subscription-offers">
+        <h2>Üyelik kampanyaları</h2>
+        <p class="muted">Pro yükseltme ve abonelik tekliflerini yönetin; müşteri uygulamasında görünür.</p>
+    </a>
+</section>
+
+<p class="muted">
+    Pasa Admin canlıda <strong>admin.pasa.app</strong> alt alanında, yerelde
+    <a href="http://localhost:5175">localhost:5175</a> adresinde ayrı uygulamadır.
+    Bu MVC <code>/admin</code> iskeleti restoran paneliyle aynı hosttadır (<code>app.pasa.app</code>).
+    Eski <code>/platform</code> adresleri buraya yönlenir. Restoran operasyonu için
+    <a href="/">ana giriş</a> kullanın.
+</p>

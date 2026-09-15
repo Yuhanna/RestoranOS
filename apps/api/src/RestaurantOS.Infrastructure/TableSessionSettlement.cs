@@ -80,8 +80,21 @@ internal static class TableSessionSettlement
         RestaurantOsDbContext dbContext,
         Guid customerSessionId,
         DateTimeOffset now,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? excludingOrderId = null)
     {
+        var hasOtherActiveRound = await dbContext.CustomerOrders.AnyAsync(
+            order =>
+                order.CustomerSessionId == customerSessionId
+                && (excludingOrderId == null || order.Id != excludingOrderId)
+                && order.Status != OrderStatus.Completed
+                && order.Status != OrderStatus.Cancelled,
+            cancellationToken);
+        if (hasOtherActiveRound)
+        {
+            return;
+        }
+
         var session = await dbContext.CustomerSessions
             .SingleOrDefaultAsync(entry => entry.Id == customerSessionId, cancellationToken);
         if (session is null)

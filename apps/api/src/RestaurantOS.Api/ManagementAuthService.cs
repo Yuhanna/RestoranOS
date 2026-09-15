@@ -16,6 +16,7 @@ public sealed class ManagementAuthOptions
     public const string SectionName = "ManagementAuth";
     public string Issuer { get; init; } = "restaurant-os";
     public string Audience { get; init; } = "restaurant-os-management";
+    public string PlatformAudience { get; init; } = "restaurant-os-platform";
     public string SigningKey { get; init; } = string.Empty;
     public int AccessTokenMinutes { get; init; } = 10;
     public int RefreshTokenDays { get; init; } = 7;
@@ -27,6 +28,8 @@ public static class ManagementClaimTypes
 {
     public const string TenantId = "tenant_id";
     public const string BranchId = "branch_id";
+    public const string Realm = "realm";
+    public const string PlatformRole = "platform_role";
 }
 
 public sealed class ManagementAuthService(
@@ -75,8 +78,8 @@ public sealed class ManagementAuthService(
                     TenantSubscription.CreateProTrial(tenantId, now));
 
                 await ManagementRolePermissionSync.SyncBuiltInRolesAsync(dbContext, cancellationToken);
-                var role = await dbContext.ManagementRoles
-                    .SingleAsync(x => x.Name == "RestaurantOwner", cancellationToken);
+                var role = dbContext.ManagementRoles.Local
+                    .Single(x => x.Name == "RestaurantOwner");
                 var user = new ManagementUser(
                     Guid.NewGuid(),
                     email.Trim(),
@@ -254,31 +257,17 @@ public sealed class ManagementAuthService(
             throw InvalidCredentials();
         }
 
-        var platformMembership = await dbContext.ManagementMemberships
-            .AsNoTracking()
-            .Where(membership =>
-                membership.UserId == user.Id
-                && membership.IsActive
-                && dbContext.ManagementRolePermissions.Any(grant =>
-                    grant.RoleId == membership.RoleId
-                    && grant.Permission == ManagementPermissions.PlatformManage)
-                && dbContext.Branches.Any(branch =>
-                    branch.Id == membership.BranchId && branch.TenantId == membership.TenantId))
-            .OrderBy(membership => membership.Id)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (platformMembership is null)
+        var staff = await dbContext.PlatformStaff
+            .SingleOrDefaultAsync(x => x.UserId == user.Id && x.IsActive, cancellationToken);
+        if (staff is null)
         {
-            user.RecordFailedLogin(
-                now,
-                _options.MaxFailedAttempts,
-                TimeSpan.FromMinutes(_options.LockoutMinutes));
             dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
                 Guid.NewGuid(),
                 "FailedPlatformLogin",
                 false,
                 now,
-                user.Id));
+                user.Id,
+                detail: "not-platform-staff"));
             await dbContext.SaveChangesAsync(cancellationToken);
             throw new ManagementAuthException(
                 "PLATFORM_ACCESS_DENIED",
@@ -294,10 +283,13 @@ public sealed class ManagementAuthService(
         user.RecordSuccessfulLogin(now);
         var result = CreateTokenPair(
             user.Id,
-            platformMembership.TenantId,
-            platformMembership.BranchId,
+            Guid.Empty,
+            Guid.Empty,
             Guid.NewGuid(),
-            now);
+            now,
+            AuthRealms.Platform,
+            staff.RoleCode,
+            user.Email);
         dbContext.ManagementRefreshSessions.Add(result.Session);
         dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
             Guid.NewGuid(),
@@ -305,8 +297,7 @@ public sealed class ManagementAuthService(
             true,
             now,
             user.Id,
-            platformMembership.TenantId,
-            platformMembership.BranchId));
+            detail: staff.RoleCode));
         await dbContext.SaveChangesAsync(cancellationToken);
         return result.Result;
     }
@@ -349,6 +340,7 @@ public sealed class ManagementAuthService(
 
     public async Task<ManagementTokenResult> RefreshAsync(
         string refreshToken,
+        string expectedRealm,
         CancellationToken cancellationToken)
     {
         ValidateOpaqueToken(refreshToken);
@@ -357,6 +349,10 @@ public sealed class ManagementAuthService(
         var session = await dbContext.ManagementRefreshSessions
             .SingleOrDefaultAsync(x => x.TokenHash == tokenHash, cancellationToken)
             ?? throw InvalidRefreshToken();
+        if (AuthRealms.Normalize(session.Realm) != AuthRealms.Normalize(expectedRealm))
+        {
+            throw InvalidRefreshToken();
+        }
 
         if (session.RevokedAtUtc is not null)
         {
@@ -377,8 +373,35 @@ public sealed class ManagementAuthService(
             throw InvalidRefreshToken();
         }
 
-        if (session.ExpiresAtUtc <= now
-            || !await HasActiveMembershipAsync(
+        if (session.ExpiresAtUtc <= now)
+        {
+            session.Revoke(now);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            throw InvalidRefreshToken();
+        }
+
+        string? roleCode = null;
+        string? email = null;
+        var realm = AuthRealms.Normalize(session.Realm);
+        if (realm == AuthRealms.Platform)
+        {
+            var staff = await dbContext.PlatformStaff
+                .AsNoTracking()
+                .SingleOrDefaultAsync(x => x.UserId == session.UserId && x.IsActive, cancellationToken);
+            var user = await dbContext.ManagementUsers
+                .AsNoTracking()
+                .SingleOrDefaultAsync(x => x.Id == session.UserId && x.IsActive, cancellationToken);
+            if (staff is null || user is null)
+            {
+                session.Revoke(now);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                throw InvalidRefreshToken();
+            }
+
+            roleCode = staff.RoleCode;
+            email = user.Email;
+        }
+        else if (!await HasActiveMembershipAsync(
                 session.UserId,
                 session.TenantId,
                 session.BranchId,
@@ -394,7 +417,10 @@ public sealed class ManagementAuthService(
             session.TenantId,
             session.BranchId,
             session.FamilyId,
-            now);
+            now,
+            realm,
+            roleCode,
+            email);
         session.Rotate(now, pair.Session.TokenHash);
         dbContext.ManagementRefreshSessions.Add(pair.Session);
         try
@@ -572,23 +598,46 @@ public sealed class ManagementAuthService(
         Guid tenantId,
         Guid branchId,
         Guid familyId,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        string realm = AuthRealms.Management,
+        string? roleCode = null,
+        string? email = null)
     {
+        var normalizedRealm = AuthRealms.Normalize(realm);
         var accessExpires = now.AddMinutes(_options.AccessTokenMinutes);
         var refreshExpires = now.AddDays(_options.RefreshTokenDays);
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SigningKey)),
             SecurityAlgorithms.HmacSha256);
+        var platformAudience = string.IsNullOrWhiteSpace(_options.PlatformAudience)
+            ? "restaurant-os-platform"
+            : _options.PlatformAudience;
+        var audience = normalizedRealm == AuthRealms.Platform
+            ? platformAudience
+            : _options.Audience;
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(ManagementClaimTypes.Realm, normalizedRealm),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        };
+        if (normalizedRealm == AuthRealms.Platform)
+        {
+            claims.Add(new Claim(
+                ManagementClaimTypes.PlatformRole,
+                PlatformStaffRoles.Normalize(roleCode)));
+        }
+        else
+        {
+            claims.Add(new Claim(ManagementClaimTypes.TenantId, tenantId.ToString()));
+            claims.Add(new Claim(ManagementClaimTypes.BranchId, branchId.ToString()));
+        }
+
         var token = new JwtSecurityToken(
             _options.Issuer,
-            _options.Audience,
-            [
-                new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-                new Claim(ManagementClaimTypes.TenantId, tenantId.ToString()),
-                new Claim(ManagementClaimTypes.BranchId, branchId.ToString()),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            ],
+            audience,
+            claims,
             now.UtcDateTime,
             accessExpires.UtcDateTime,
             credentials);
@@ -602,7 +651,8 @@ public sealed class ManagementAuthService(
             branchId,
             OpaqueToken.Hash(refreshToken),
             now,
-            refreshExpires);
+            refreshExpires,
+            normalizedRealm);
         return (
             new ManagementTokenResult(
                 accessToken,
@@ -611,7 +661,10 @@ public sealed class ManagementAuthService(
                 refreshExpires,
                 userId,
                 tenantId,
-                branchId),
+                branchId,
+                normalizedRealm,
+                normalizedRealm == AuthRealms.Platform ? PlatformStaffRoles.Normalize(roleCode) : null,
+                email),
             session);
     }
 

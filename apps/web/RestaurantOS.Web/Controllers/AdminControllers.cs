@@ -4,23 +4,25 @@ using RestaurantOS.Web.Models;
 
 namespace RestaurantOS.Web.Controllers;
 
+[Route("admin")]
 [Route("platform")]
-public sealed class PlatformHomeController(IPlatformWebApiExecuter api) : Controller
+public sealed class AdminHomeController(IPlatformWebApiExecuter api) : Controller
 {
     [HttpGet("")]
     public IActionResult Index()
     {
         if (!api.IsAuthenticated)
         {
-            return Redirect("/platform/account/login");
+            return Redirect(AdminAuth.LoginPath);
         }
 
         return View();
     }
 }
 
+[Route("admin/account")]
 [Route("platform/account")]
-public sealed class PlatformAccountController(IPlatformWebApiExecuter api) : Controller
+public sealed class AdminAccountController(IPlatformWebApiExecuter api) : Controller
 {
     [HttpGet("login")]
     public IActionResult Login(string? returnUrl = null)
@@ -30,13 +32,13 @@ public sealed class PlatformAccountController(IPlatformWebApiExecuter api) : Con
             return RedirectToLocal(returnUrl);
         }
 
-        return View(new PlatformLoginViewModel());
+        return View(new AdminLoginViewModel());
     }
 
     [HttpPost("login")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(
-        PlatformLoginViewModel model,
+        AdminLoginViewModel model,
         string? returnUrl = null,
         CancellationToken cancellationToken = default)
     {
@@ -75,7 +77,7 @@ public sealed class PlatformAccountController(IPlatformWebApiExecuter api) : Con
     public async Task<IActionResult> Logout(CancellationToken cancellationToken)
     {
         await api.LogoutAsync(cancellationToken);
-        return Redirect("/platform/account/login");
+        return Redirect(AdminAuth.LoginPath);
     }
 
     private static string MapAuthError(WebApiException exception) =>
@@ -89,20 +91,21 @@ public sealed class PlatformAccountController(IPlatformWebApiExecuter api) : Con
         };
 
     private RedirectResult RedirectToLocal(string? returnUrl) =>
-        PlatformAuth.IsSafePlatformReturnUrl(Url, returnUrl)
+        AdminAuth.IsSafeAdminReturnUrl(Url, returnUrl)
             ? Redirect(returnUrl!)
-            : Redirect("/platform");
+            : Redirect("/admin");
 }
 
+[Route("admin/notifications")]
 [Route("platform/notifications")]
-public sealed class PlatformNotificationsController(IPlatformWebApiExecuter api) : Controller
+public sealed class AdminNotificationsController(IPlatformWebApiExecuter api) : Controller
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         if (!EnsureAuthenticated())
         {
-            return PlatformAuth.RedirectToLogin("/platform/notifications");
+            return AdminAuth.RedirectToLogin("/admin/notifications");
         }
 
         try
@@ -110,29 +113,29 @@ public sealed class PlatformNotificationsController(IPlatformWebApiExecuter api)
             var notifications = await api.InvokeGetAsync<List<ManagedNotificationListItemViewModel>>(
                 "/api/v1/platform/notifications",
                 cancellationToken) ?? [];
-            return View(new PlatformNotificationsPageViewModel
+            return View(new AdminNotificationsPageViewModel
             {
                 Notifications = notifications,
-                Create = new CreatePlatformNotificationViewModel(),
+                Create = new CreateAdminNotificationViewModel(),
                 LastDispatchSummary = TempData["DispatchSummary"] as string,
             });
         }
         catch (WebApiException exception)
         {
             TempData["Error"] = exception.Message;
-            return View(new PlatformNotificationsPageViewModel());
+            return View(new AdminNotificationsPageViewModel());
         }
     }
 
     [HttpPost("")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(
-        [Bind(Prefix = "Create")] CreatePlatformNotificationViewModel model,
+        [Bind(Prefix = "Create")] CreateAdminNotificationViewModel model,
         CancellationToken cancellationToken)
     {
         if (!EnsureAuthenticated())
         {
-            return PlatformAuth.RedirectToLogin("/platform/notifications");
+            return AdminAuth.RedirectToLogin("/admin/notifications");
         }
 
         if (!ModelState.IsValid)
@@ -170,7 +173,7 @@ public sealed class PlatformNotificationsController(IPlatformWebApiExecuter api)
     {
         if (!EnsureAuthenticated())
         {
-            return PlatformAuth.RedirectToLogin("/platform/notifications");
+            return AdminAuth.RedirectToLogin("/admin/notifications");
         }
 
         try
@@ -198,14 +201,14 @@ public sealed class PlatformNotificationsController(IPlatformWebApiExecuter api)
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task<PlatformNotificationsPageViewModel> BuildPageModelAsync(
-        CreatePlatformNotificationViewModel create,
+    private async Task<AdminNotificationsPageViewModel> BuildPageModelAsync(
+        CreateAdminNotificationViewModel create,
         CancellationToken cancellationToken)
     {
         var notifications = await api.InvokeGetAsync<List<ManagedNotificationListItemViewModel>>(
             "/api/v1/platform/notifications",
             cancellationToken) ?? [];
-        return new PlatformNotificationsPageViewModel
+        return new AdminNotificationsPageViewModel
         {
             Notifications = notifications,
             Create = create,
@@ -215,37 +218,38 @@ public sealed class PlatformNotificationsController(IPlatformWebApiExecuter api)
     private bool EnsureAuthenticated() => api.IsAuthenticated;
 }
 
+[Route("admin/subscription-offers")]
 [Route("platform/subscription-offers")]
-public sealed class PlatformSubscriptionOffersController(IPlatformWebApiExecuter api) : Controller
+public sealed class AdminSubscriptionOffersController(IPlatformWebApiExecuter api) : Controller
 {
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         if (!EnsureAuthenticated())
         {
-            return PlatformAuth.RedirectToLogin("/platform/subscription-offers");
+            return AdminAuth.RedirectToLogin("/admin/subscription-offers");
         }
 
         try
         {
-            return View(await BuildPageModelAsync(new CreatePlatformSubscriptionOfferViewModel(), cancellationToken));
+            return View(await BuildPageModelAsync(new CreateAdminSubscriptionOfferViewModel(), cancellationToken));
         }
         catch (WebApiException exception)
         {
             TempData["Error"] = exception.Message;
-            return View(new PlatformSubscriptionOffersPageViewModel());
+            return View(new AdminSubscriptionOffersPageViewModel());
         }
     }
 
     [HttpPost("")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(
-        [Bind(Prefix = "Create")] CreatePlatformSubscriptionOfferViewModel model,
+        [Bind(Prefix = "Create")] CreateAdminSubscriptionOfferViewModel model,
         CancellationToken cancellationToken)
     {
         if (!EnsureAuthenticated())
         {
-            return PlatformAuth.RedirectToLogin("/platform/subscription-offers");
+            return AdminAuth.RedirectToLogin("/admin/subscription-offers");
         }
 
         if (!ModelState.IsValid)
@@ -255,7 +259,7 @@ public sealed class PlatformSubscriptionOffersController(IPlatformWebApiExecuter
 
         try
         {
-            await api.InvokePostAsync<PlatformSubscriptionOfferListItemViewModel>(
+            await api.InvokePostAsync<AdminSubscriptionOfferListItemViewModel>(
                 "/api/v1/platform/subscription-offers",
                 new
                 {
@@ -286,12 +290,12 @@ public sealed class PlatformSubscriptionOffersController(IPlatformWebApiExecuter
     {
         if (!EnsureAuthenticated())
         {
-            return PlatformAuth.RedirectToLogin("/platform/subscription-offers");
+            return AdminAuth.RedirectToLogin("/admin/subscription-offers");
         }
 
         try
         {
-            await api.InvokePatchAsync<PlatformSubscriptionOfferListItemViewModel>(
+            await api.InvokePatchAsync<AdminSubscriptionOfferListItemViewModel>(
                 $"/api/v1/platform/subscription-offers/{id}",
                 new { isActive = !isActive },
                 cancellationToken);
@@ -305,14 +309,14 @@ public sealed class PlatformSubscriptionOffersController(IPlatformWebApiExecuter
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task<PlatformSubscriptionOffersPageViewModel> BuildPageModelAsync(
-        CreatePlatformSubscriptionOfferViewModel create,
+    private async Task<AdminSubscriptionOffersPageViewModel> BuildPageModelAsync(
+        CreateAdminSubscriptionOfferViewModel create,
         CancellationToken cancellationToken)
     {
-        var offers = await api.InvokeGetAsync<List<PlatformSubscriptionOfferListItemViewModel>>(
+        var offers = await api.InvokeGetAsync<List<AdminSubscriptionOfferListItemViewModel>>(
             "/api/v1/platform/subscription-offers",
             cancellationToken) ?? [];
-        return new PlatformSubscriptionOffersPageViewModel
+        return new AdminSubscriptionOffersPageViewModel
         {
             Offers = offers,
             Create = create,

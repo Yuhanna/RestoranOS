@@ -25,6 +25,7 @@ public interface IManagementAuthService
 
     Task<ManagementTokenResult> RefreshAsync(
         string refreshToken,
+        string expectedRealm,
         CancellationToken cancellationToken);
 
     Task RevokeAsync(string refreshToken, CancellationToken cancellationToken);
@@ -64,6 +65,14 @@ public interface IManagementOrderService
         DateTimeOffset expectedStatusChangedAtUtc,
         CancellationToken cancellationToken,
         DateTimeOffset? estimatedReadyAtUtc = null);
+
+    Task<IReadOnlyList<ManagementOrderResult>> GetHistoryOrdersAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        int hours,
+        int take,
+        CancellationToken cancellationToken);
 }
 
 public interface IManagementTableService
@@ -125,7 +134,35 @@ public interface IManagementTableService
         Guid branchId,
         Guid tableId,
         CancellationToken cancellationToken);
+
+    Task<ManagementTableCheckResult> GetTableCheckAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        CancellationToken cancellationToken);
+
+    Task<ManagementTableCheckCloseResult> CloseTableCheckAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        string tender,
+        bool confirmIncompleteKitchen,
+        string? note,
+        CancellationToken cancellationToken);
 }
+
+public sealed record ManagementTableCheckResult(
+    int RoundCount,
+    long TotalAmountMinor,
+    bool HasIncompleteKitchen);
+
+public sealed record ManagementTableCheckCloseResult(
+    int ClosedOrderCount,
+    long TotalAmountMinor,
+    string Tender,
+    bool ForcedIncompleteKitchen);
 
 public sealed record ManagementTableResult(
     Guid Id,
@@ -405,7 +442,10 @@ public sealed record ManagementTokenResult(
     DateTimeOffset RefreshTokenExpiresAtUtc,
     Guid UserId,
     Guid TenantId,
-    Guid BranchId);
+    Guid BranchId,
+    string Realm = AuthRealms.Management,
+    string? RoleCode = null,
+    string? Email = null);
 
 public sealed record ManagementMembershipScopeResult(
     Guid MembershipId,
@@ -834,6 +874,67 @@ public sealed record CreatePlatformNotificationCommand(
     DateTimeOffset? EndsAtUtc,
     string? ActionUrl,
     bool IsActive = true);
+
+public interface IPlatformCatalogService
+{
+    Task<PlatformCatalogSnapshot> GetCatalogAsync(CancellationToken cancellationToken);
+
+    Task<ManagedPlanPriceResult> CreateDraftAsync(
+        Guid actorUserId,
+        string actorRole,
+        CreatePlanPriceCommand command,
+        CancellationToken cancellationToken);
+
+    Task<ManagedPlanPriceResult> PublishAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid priceId,
+        CancellationToken cancellationToken);
+
+    Task<ManagedPlanPriceResult> ArchiveAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid priceId,
+        CancellationToken cancellationToken);
+
+    Task<long?> GetPublishedAmountMinorAsync(
+        string productCode,
+        string interval,
+        string currency,
+        CancellationToken cancellationToken);
+}
+
+public sealed record CreatePlanPriceCommand(
+    string ProductCode,
+    string Interval,
+    long AmountMinor,
+    string Currency = "TRY",
+    bool TaxInclusive = true);
+
+public sealed record ManagedPlanPriceResult(
+    Guid Id,
+    string ProductCode,
+    string ProductKind,
+    string DisplayName,
+    string Interval,
+    string Currency,
+    long AmountMinor,
+    bool TaxInclusive,
+    string Status,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset? PublishedAtUtc,
+    DateTimeOffset? ArchivedAtUtc);
+
+public sealed record PlatformCatalogPlanResult(
+    string ProductCode,
+    string ProductKind,
+    string DisplayName,
+    FeatureEntitlements? Entitlements,
+    IReadOnlyList<ManagedPlanPriceResult> Prices);
+
+public sealed record PlatformCatalogSnapshot(
+    IReadOnlyList<PlatformCatalogPlanResult> Products,
+    string Note);
 
 public interface IPlatformSubscriptionOfferService
 {

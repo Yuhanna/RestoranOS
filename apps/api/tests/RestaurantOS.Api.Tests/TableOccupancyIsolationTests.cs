@@ -213,13 +213,12 @@ public sealed class TableOccupancyIsolationTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<RestaurantOsDbContext>();
-        if (await db.Menus.AnyAsync(menu => menu.TenantId == TenantId && menu.PublishedAtUtc != null))
+        if (!await db.Menus.AnyAsync(menu => menu.TenantId == TenantId && menu.PublishedAtUtc != null))
         {
-            return;
+            db.Menus.Add(new PublishedMenu(Guid.NewGuid(), TenantId, BranchId, "Live", SeedNow));
+            await db.SaveChangesAsync();
         }
-
-        db.Menus.Add(new PublishedMenu(Guid.NewGuid(), TenantId, BranchId, "Live", SeedNow));
-        await db.SaveChangesAsync();
+        await SeedMenuItemAsync(factory);
     }
 
     private static async Task<string> LoginAsync(HttpClient client)

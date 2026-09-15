@@ -30,7 +30,10 @@ internal static class MenuCatalogMapper
             item.Catalog?.PriceLabel,
             item.Catalog?.CertificationNotes,
             BuildPricing(item),
-            item.PromotionLabel);
+            item.PromotionLabel,
+            item.PromotionDiscountKind,
+            item.PromotionDiscountValue,
+            item.PromotionEndsAtUtc);
 
     public static CustomerMenuSettingsResponse ToSettingsResponse(CustomerMenuSettingsData settings) =>
         new(

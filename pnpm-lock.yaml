@@ -8,6 +8,55 @@ importers:
 
   .: {}
 
+  apps/admin-web:
+    dependencies:
+      react:
+        specifier: ^19.0.0
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@testing-library/jest-dom':
+        specifier: ^6.6.0
+        version: 6.10.0(@testing-library/dom@10.4.1)
+      '@testing-library/react':
+        specifier: ^16.1.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@testing-library/user-event':
+        specifier: ^14.5.0
+        version: 14.6.6(@testing-library/dom@10.4.1)
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.5(@types/react@19.2.18)
+      '@vitejs/plugin-react':
+        specifier: ^5.0.0
+        version: 5.2.0(vite@7.3.6(@types/node@22.20.1))
+      jsdom:
+        specifier: ^26.0.0
+        version: 26.1.0
+      oxfmt:
+        specifier: ^0.17.0
+        version: 0.17.0
+      oxlint:
+        specifier: ^1.12.0
+        version: 1.80.0
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+      vite:
+        specifier: ^7.1.0
+        version: 7.3.6(@types/node@22.20.1)
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@22.20.1)(jsdom@26.1.0)
+
   apps/customer-web:
     dependencies:
       '@microsoft/signalr':
@@ -117,6 +166,8 @@ importers:
       vitest:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@22.20.1)(jsdom@26.1.0)
+
+  packages/contracts: {}
 
   packages/design-system:
     dependencies:

@@ -176,6 +176,8 @@ public sealed class MenuPromotion
 
     public long DiscountAmount(long listAmountMinor) => Math.Max(0, listAmountMinor - ApplyDiscount(listAmountMinor));
 
+    public DateTimeOffset? EffectiveEndsAtUtc(DateTimeOffset utcNow, TimeZoneInfo? branchTimeZone) => EndsAtUtc;
+
     private void Validate()
     {
         if (Scope == PromotionScopes.Category && CategoryId is null)

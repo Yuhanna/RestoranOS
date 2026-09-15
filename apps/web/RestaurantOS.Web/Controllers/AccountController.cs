@@ -123,5 +123,6 @@ public sealed class AccountController(IWebApiExecuter api) : Controller
     private bool IsSafeRestaurantReturnUrl(string? returnUrl) =>
         !string.IsNullOrWhiteSpace(returnUrl)
         && Url.IsLocalUrl(returnUrl)
-        && !returnUrl.StartsWith("/platform", StringComparison.OrdinalIgnoreCase);
+        && !returnUrl.StartsWith("/platform", StringComparison.OrdinalIgnoreCase)
+        && !returnUrl.StartsWith("/admin", StringComparison.OrdinalIgnoreCase);
 }

@@ -17,7 +17,16 @@ public sealed record ManagementAccessTokenResponse(
     DateTimeOffset ExpiresAtUtc,
     Guid UserId,
     Guid TenantId,
-    Guid BranchId);
+    Guid BranchId,
+    string Realm = "management",
+    string? RoleCode = null,
+    string? Email = null);
+
+public sealed record PlatformSessionResponse(
+    Guid UserId,
+    string Email,
+    string RoleCode,
+    string Realm);
 
 public sealed record ManagementWorkspaceResponse(
     Guid TenantId,
@@ -43,6 +52,18 @@ public sealed record ManagementSubscriptionOfferResponse(
     int DurationMonths,
     string Title,
     string Body);
+
+public sealed record ManagementSubscriptionOfferAdminResponse(
+    Guid Id,
+    string Audience,
+    string TargetPlanCode,
+    int DiscountPercent,
+    int DurationMonths,
+    string Title,
+    string Body,
+    DateTimeOffset StartsAtUtc,
+    DateTimeOffset? EndsAtUtc,
+    bool IsActive);
 
 public sealed record ManagementEntitlementUsageResponse(
     string PlanCode,
@@ -70,6 +91,22 @@ public sealed record ManagementEntitlementUsageResponse(
     long ExtraBranchMonthlyPriceMinor = 0,
     string BillingCurrency = "TRY",
     bool NextBranchRequiresAddon = false);
+
+public sealed record ManagementCloseTableCheckRequest(
+    string Tender,
+    bool ConfirmIncompleteKitchen = false,
+    string? Note = null);
+
+public sealed record ManagementTableCheckResponse(
+    int RoundCount,
+    long TotalAmountMinor,
+    bool HasIncompleteKitchen);
+
+public sealed record ManagementTableCheckCloseResponse(
+    int ClosedOrderCount,
+    long TotalAmountMinor,
+    string Tender,
+    bool ForcedIncompleteKitchen);
 
 public sealed record ManagementChangeOrderStatusRequest(
     string Status,
@@ -413,17 +450,42 @@ public sealed record ManagementCreateSubscriptionOfferRequest(
 
 public sealed record ManagementSetSubscriptionOfferActiveRequest(bool IsActive);
 
-public sealed record ManagementSubscriptionOfferAdminResponse(
+public sealed record ManagementCreatePlanPriceRequest(
+    string ProductCode,
+    string Interval,
+    long AmountMinor,
+    string Currency = "TRY",
+    bool TaxInclusive = true);
+
+public sealed record ManagementPlanPriceResponse(
     Guid Id,
-    string Audience,
-    string TargetPlanCode,
-    int DiscountPercent,
-    int DurationMonths,
-    string Title,
-    string Body,
-    DateTimeOffset StartsAtUtc,
-    DateTimeOffset? EndsAtUtc,
-    bool IsActive);
+    string ProductCode,
+    string ProductKind,
+    string DisplayName,
+    string Interval,
+    string Currency,
+    long AmountMinor,
+    bool TaxInclusive,
+    string Status,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset? PublishedAtUtc,
+    DateTimeOffset? ArchivedAtUtc);
+
+public sealed record ManagementCatalogProductResponse(
+    string ProductCode,
+    string ProductKind,
+    string DisplayName,
+    int? MaxBranches,
+    int? MaxTablesPerBranch,
+    int? MaxActiveUsers,
+    bool? CanUseLiveOrderPanel,
+    bool? CanUseMultiBranch,
+    bool? HasPrioritySupport,
+    IReadOnlyList<ManagementPlanPriceResponse> Prices);
+
+public sealed record ManagementCatalogResponse(
+    IReadOnlyList<ManagementCatalogProductResponse> Products,
+    string Note);
 
 public sealed record ManagementCreateBranchRequest(string Name, bool ConfirmAddonPurchase = false);
 

@@ -2,13 +2,14 @@ import { StrictMode } from "react";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import { DEMO_QR_TOKEN, mockCustomerGateway } from "../data/mockCustomerGateway";
+import { DEMO_QR_TOKEN, mockCustomerGateway, resetMockCustomerGateway } from "../data/mockCustomerGateway";
 import { App } from "./App";
 
 afterEach(() => {
   cleanup();
   sessionStorage.clear();
   localStorage.clear();
+  resetMockCustomerGateway();
 });
 
 describe("customer experience", () => {
@@ -16,7 +17,7 @@ describe("customer experience", () => {
     render(<App gateway={mockCustomerGateway} qrToken={null} />);
 
     expect(screen.getByRole("heading", { name: "Menüye masanızdan ulaşın" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Özenle hazırlandı." })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Keyifle seçin." })).not.toBeInTheDocument();
   });
 
   it("rejects an invalid QR token", async () => {
@@ -25,14 +26,14 @@ describe("customer experience", () => {
     expect(
       await screen.findByRole("heading", { name: "Bu QR kodu kullanılamıyor" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Özenle hazırlandı." })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Keyifle seçin." })).not.toBeInTheDocument();
   });
 
   it("loads the demo menu through the default gateway wiring", async () => {
     render(<App qrToken={DEMO_QR_TOKEN} />);
 
     expect(await screen.findByText(/Masa 7/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Özenle hazırlandı." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Keyifle seçin." })).toBeInTheDocument();
   });
 
   it("resolves a valid QR and filters the menu", async () => {
@@ -63,8 +64,8 @@ describe("customer experience", () => {
     expect(screen.getByText("#1042")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Menüye dön" }));
-    expect(screen.getByRole("heading", { name: "Özenle hazırlandı." })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Siparişi takip et: #1042" }));
+    expect(screen.getByRole("heading", { name: "Keyifle seçin." })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Siparişi takip et" }));
     expect(await screen.findByRole("heading", { name: "Siparişiniz alındı" })).toBeInTheDocument();
   });
 
@@ -104,11 +105,11 @@ describe("customer experience", () => {
     );
     expect(await screen.findByRole("heading", { name: "Siparişiniz alındı" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Menüye dön" }));
-    expect(screen.getByRole("button", { name: "Siparişi takip et: #1042" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Siparişi takip et" })).toBeInTheDocument();
 
     unmount();
     render(<App gateway={mockCustomerGateway} qrToken={DEMO_QR_TOKEN} />);
 
-    expect(await screen.findByRole("button", { name: "Siparişi takip et: #1042" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Siparişi takip et" })).toBeInTheDocument();
   });
 });

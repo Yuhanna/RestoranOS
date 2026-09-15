@@ -4,6 +4,7 @@ import {
   type CustomerGateway,
   type CustomerMenuSettings,
   type CustomerSession,
+  type LunchPackage,
   type Order,
   type Product,
   type ServiceRequest,
@@ -139,6 +140,11 @@ const mapProduct = (raw: Record<string, unknown>): Product => {
     listPrice: discountMinor > 0 ? { amountMinor: listMinor, currency } : undefined,
     discount: discountMinor > 0 ? { amountMinor: discountMinor, currency } : undefined,
     promotionLabel: typeof raw.promotionLabel === "string" ? raw.promotionLabel : undefined,
+    discountKind: typeof raw.discountKind === "string" ? raw.discountKind : undefined,
+    discountValue: typeof raw.discountValue === "number" ? raw.discountValue : undefined,
+    discountPercent: typeof raw.discountPercent === "number" ? raw.discountPercent : undefined,
+    promotionEndsAtUtc:
+      typeof raw.promotionEndsAtUtc === "string" ? raw.promotionEndsAtUtc : undefined,
     imageUrl: resolveProductMediaUrl(String(raw.imageUrl ?? "")),
     imageAlt: String(raw.imageAlt ?? raw.name ?? ""),
     available: raw.available !== false,
@@ -212,6 +218,40 @@ const mapProduct = (raw: Record<string, unknown>): Product => {
   };
 };
 
+const mapPackage = (raw: Record<string, unknown>): LunchPackage => {
+  const price = (raw.price as { amountMinor?: number; currency?: string } | undefined) ?? {};
+  const listPrice = (raw.listPrice as { amountMinor?: number; currency?: string } | undefined) ?? {};
+  const discount = (raw.discount as { amountMinor?: number; currency?: string } | undefined) ?? {};
+  const currency = (price.currency as "TRY") ?? "TRY";
+  const priceMinor = Number(price.amountMinor ?? 0);
+  const listMinor = Number(listPrice.amountMinor ?? priceMinor);
+  const discountMinor = Number(discount.amountMinor ?? Math.max(0, listMinor - priceMinor));
+  return {
+    id: String(raw.id ?? ""),
+    name: String(raw.name ?? ""),
+    description: String(raw.description ?? ""),
+    price: { amountMinor: priceMinor, currency },
+    listPrice: { amountMinor: listMinor, currency },
+    discount: { amountMinor: discountMinor, currency },
+    components: Array.isArray(raw.components)
+      ? raw.components.map((item) => {
+          const component = item as Record<string, unknown>;
+          return {
+            menuItemId: String(component.menuItemId ?? ""),
+            name: String(component.name ?? ""),
+            slotLabel: typeof component.slotLabel === "string" ? component.slotLabel : null,
+            listAmountMinor: Number(component.listAmountMinor ?? 0),
+            imageUrl: typeof component.imageUrl === "string" ? component.imageUrl : undefined,
+            imageAlt: typeof component.imageAlt === "string" ? component.imageAlt : undefined,
+            description: typeof component.description === "string" ? component.description : undefined,
+          };
+        })
+      : [],
+    dailyStartLocal: typeof raw.dailyStartLocal === "string" ? raw.dailyStartLocal : null,
+    dailyEndLocal: typeof raw.dailyEndLocal === "string" ? raw.dailyEndLocal : null,
+  };
+};
+
 const mapOrder = (raw: Record<string, unknown>): Order => {
   const total = raw.total as { amountMinor?: number; currency?: string } | undefined;
   const subtotal = raw.subtotal as { amountMinor?: number; currency?: string } | undefined;
@@ -266,29 +306,34 @@ export const createHttpCustomerGateway = (baseUrl: string): CustomerGateway => {
         );
       }
 
-      const session = payload as CustomerSession & {
-        activeOrders?: Record<string, unknown>[];
-        customerMenu?: unknown;
-      };
-      const products = (session.products ?? []).map((item) =>
+      const body = payload as Record<string, unknown>;
+      const products = (Array.isArray(body.products) ? body.products : []).map((item) =>
         mapProduct(item as Record<string, unknown>),
       );
+      const packages = (Array.isArray(body.packages) ? body.packages : []).map((item) =>
+        mapPackage(item as Record<string, unknown>),
+      );
       return {
-        sessionToken: String(session.sessionToken ?? ""),
-        restaurantName: String(session.restaurantName ?? "Restoran"),
-        branchName: String(session.branchName ?? ""),
-        tableLabel: String(session.tableLabel ?? ""),
-        locale: session.locale === "en" ? "en" : "tr",
+        sessionToken: String(body.sessionToken ?? ""),
+        restaurantName: String(body.restaurantName ?? "Restoran"),
+        branchName: String(body.branchName ?? ""),
+        tableLabel: String(body.tableLabel ?? ""),
+        locale: body.locale === "en" ? "en" : "tr",
         categories: [
-          { id: "all", name: session.locale === "en" ? "All" : "Tümü" },
-          ...(session.categories ?? []),
+          { id: "all", name: body.locale === "en" ? "All" : "Tümü" },
+          ...((Array.isArray(body.categories)
+            ? body.categories
+            : []) as CustomerSession["categories"]),
         ],
         products,
-        customerMenu: mapCustomerMenu(session.customerMenu),
-        activeOrders: (session.activeOrders ?? []).map((item) =>
+        packages,
+        customerMenu: mapCustomerMenu(body.customerMenu),
+        activeOrders: (Array.isArray(body.activeOrders) ? body.activeOrders : []).map((item) =>
           mapOrder(item as Record<string, unknown>),
         ),
-        openServiceRequestTypes: session.openServiceRequestTypes ?? [],
+        openServiceRequestTypes: Array.isArray(body.openServiceRequestTypes)
+          ? (body.openServiceRequestTypes as CustomerSession["openServiceRequestTypes"])
+          : [],
       };
     },
 

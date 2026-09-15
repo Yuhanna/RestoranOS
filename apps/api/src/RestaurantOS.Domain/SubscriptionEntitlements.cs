@@ -81,7 +81,9 @@ public sealed record FeatureEntitlements(
     bool CanManageAdditionalRoles,
     bool CanUseLiveOrderPanel,
     bool CanUseMultiBranch,
-    bool HasPrioritySupport)
+    bool HasPrioritySupport,
+    bool CanUseMenuThemes = false,
+    bool CanUseBrandWatermark = false)
 {
     public bool IsUnlimitedTables => MaxTablesPerBranch is null;
     public bool IsUnlimitedBranches => MaxBranches is null;
@@ -101,7 +103,9 @@ public static class PlanCatalog
         CanManageAdditionalRoles: false,
         CanUseLiveOrderPanel: false,
         CanUseMultiBranch: false,
-        HasPrioritySupport: false);
+        HasPrioritySupport: false,
+        CanUseMenuThemes: false,
+        CanUseBrandWatermark: false);
 
     public static FeatureEntitlements Pro { get; } = new(
         SubscriptionPlanCodes.Pro,
@@ -114,7 +118,9 @@ public static class PlanCatalog
         CanManageAdditionalRoles: true,
         CanUseLiveOrderPanel: true,
         CanUseMultiBranch: true,
-        HasPrioritySupport: false);
+        HasPrioritySupport: false,
+        CanUseMenuThemes: true,
+        CanUseBrandWatermark: true);
 
     public static FeatureEntitlements Enterprise { get; } = new(
         SubscriptionPlanCodes.Enterprise,
@@ -127,7 +133,9 @@ public static class PlanCatalog
         CanManageAdditionalRoles: true,
         CanUseLiveOrderPanel: true,
         CanUseMultiBranch: true,
-        HasPrioritySupport: true);
+        HasPrioritySupport: true,
+        CanUseMenuThemes: true,
+        CanUseBrandWatermark: true);
 
     public static FeatureEntitlements Resolve(string? planCode) =>
         Normalize(planCode) switch

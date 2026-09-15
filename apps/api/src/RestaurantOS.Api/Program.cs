@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -58,13 +59,49 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
                 return Task.CompletedTask;
             },
+            OnTokenValidated = context =>
+            {
+                var path = context.HttpContext.Request.Path;
+                if (IsAnonymousAuthRoute(path, context.HttpContext.Request.Method))
+                {
+                    return Task.CompletedTask;
+                }
+
+                var realm = AuthRealms.Normalize(
+                    context.Principal?.FindFirst(ManagementClaimTypes.Realm)?.Value);
+                var hasPlatformAudience = HasJwtAudience(
+                    context.Principal,
+                    string.IsNullOrWhiteSpace(managementAuth.PlatformAudience)
+                        ? "restaurant-os-platform"
+                        : managementAuth.PlatformAudience);
+                var hasManagementAudience = HasJwtAudience(context.Principal, managementAuth.Audience);
+                if (path.StartsWithSegments("/api/v1/platform")
+                    && (realm != AuthRealms.Platform || !hasPlatformAudience))
+                {
+                    context.Fail("Platform API requires a platform access token.");
+                }
+                else if ((path.StartsWithSegments("/api/v1/management")
+                        || path.StartsWithSegments("/hubs/v1/management-orders"))
+                    && (realm == AuthRealms.Platform || hasPlatformAudience || !hasManagementAudience))
+                {
+                    context.Fail("Management API rejects platform access tokens.");
+                }
+
+                return Task.CompletedTask;
+            },
         };
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidIssuer = managementAuth.Issuer,
             ValidateAudience = true,
-            ValidAudience = managementAuth.Audience,
+            ValidAudiences =
+            [
+                managementAuth.Audience,
+                string.IsNullOrWhiteSpace(managementAuth.PlatformAudience)
+                    ? "restaurant-os-platform"
+                    : managementAuth.PlatformAudience,
+            ],
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(managementAuth.SigningKey)),
             ValidateLifetime = true,
@@ -214,9 +251,13 @@ if (app.Environment.IsDevelopment())
 
     await using (var bootstrapScope = app.Services.CreateAsyncScope())
     {
-        await bootstrapScope.ServiceProvider
-            .GetRequiredService<DevelopmentManagementBootstrapper>()
-            .RunAsync(CancellationToken.None);
+        var bootstrapPassword = app.Configuration["BootstrapAdmin:Password"];
+        if (!string.IsNullOrWhiteSpace(bootstrapPassword) && bootstrapPassword.Length >= 12)
+        {
+            await bootstrapScope.ServiceProvider
+                .GetRequiredService<DevelopmentManagementBootstrapper>()
+                .RunAsync(CancellationToken.None);
+        }
     }
 }
 
@@ -230,5 +271,21 @@ if (args.Contains("--bootstrap-management-admin", StringComparer.Ordinal))
 }
 
 app.Run();
+
+static bool IsAnonymousAuthRoute(PathString path, string method) =>
+    HttpMethods.IsPost(method)
+    && (path.Equals("/api/v1/management/auth/login", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/api/v1/management/auth/register", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/api/v1/management/auth/refresh", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/api/v1/management/auth/logout", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/api/v1/platform/auth/login", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/api/v1/platform/auth/refresh", StringComparison.OrdinalIgnoreCase)
+        || path.Equals("/api/v1/platform/auth/logout", StringComparison.OrdinalIgnoreCase));
+
+static bool HasJwtAudience(System.Security.Claims.ClaimsPrincipal? principal, string audience) =>
+    principal is not null
+    && principal.Claims.Any(claim =>
+        (claim.Type == JwtRegisteredClaimNames.Aud || claim.Type == "aud")
+        && string.Equals(claim.Value, audience, StringComparison.Ordinal));
 
 public partial class Program;

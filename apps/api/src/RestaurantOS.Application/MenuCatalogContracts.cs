@@ -84,6 +84,8 @@ public sealed record CustomerMenuSettingsData
     public bool ShowProductModifiers { get; init; }
     public string? AllergenDisclaimer { get; init; }
     public string? AllergenMatrixUrl { get; init; }
+    public string? ThemeId { get; init; }
+    public bool ShowBrandWatermark { get; init; }
 }
 
 public interface ICustomerMenuSettingsService

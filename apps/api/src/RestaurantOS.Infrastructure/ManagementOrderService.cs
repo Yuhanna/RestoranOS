@@ -7,7 +7,8 @@ namespace RestaurantOS.Infrastructure;
 public sealed class ManagementOrderService(
     RestaurantOsDbContext dbContext,
     ICustomerExperienceService customerExperienceService,
-    IManagementOrderNotifier notifier) : IManagementOrderService
+    IManagementOrderNotifier notifier,
+    TimeProvider timeProvider) : IManagementOrderService
 {
     public async Task<IReadOnlyList<ManagementOrderResult>> GetActiveOrdersAsync(
         Guid userId,
@@ -31,6 +32,49 @@ public sealed class ManagementOrderService(
                 && order.Status != OrderStatus.Cancelled
             orderby order.CreatedAtUtc
             select new { order, table.Label })
+            .ToListAsync(cancellationToken);
+        return orders.Select(entry => new ManagementOrderResult(
+                entry.order.Id,
+                entry.order.DisplayNumber,
+                entry.order.Status.ToString().ToLowerInvariant(),
+                entry.order.CreatedAtUtc,
+                entry.order.StatusChangedAtUtc,
+                entry.order.EstimatedReadyAtUtc,
+                entry.order.TotalAmountMinor,
+                entry.order.TotalCurrency,
+                entry.order.TableId,
+                entry.Label))
+            .ToArray();
+    }
+
+    public async Task<IReadOnlyList<ManagementOrderResult>> GetHistoryOrdersAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        int hours,
+        int take,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(
+            userId,
+            tenantId,
+            branchId,
+            ManagementPermissions.OrderView,
+            cancellationToken);
+
+        var windowHours = Math.Clamp(hours < 1 ? 24 : hours, 1, 168);
+        var takeCount = Math.Clamp(take < 1 ? 100 : take, 1, 200);
+        var since = timeProvider.GetUtcNow().AddHours(-windowHours);
+        var orders = await (
+            from order in dbContext.CustomerOrders.AsNoTracking()
+            join table in dbContext.DiningTables.AsNoTracking() on order.TableId equals table.Id
+            where order.TenantId == tenantId
+                && order.BranchId == branchId
+                && order.Status == OrderStatus.Completed
+                && order.StatusChangedAtUtc >= since
+            orderby order.StatusChangedAtUtc descending
+            select new { order, table.Label })
+            .Take(takeCount)
             .ToListAsync(cancellationToken);
         return orders.Select(entry => new ManagementOrderResult(
                 entry.order.Id,

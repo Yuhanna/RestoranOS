@@ -28,12 +28,15 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
     public DbSet<ManagementRolePermissionGrant> ManagementRolePermissions => Set<ManagementRolePermissionGrant>();
     public DbSet<ManagementMembership> ManagementMemberships => Set<ManagementMembership>();
     public DbSet<ManagementRefreshSession> ManagementRefreshSessions => Set<ManagementRefreshSession>();
+    public DbSet<PlatformStaff> PlatformStaff => Set<PlatformStaff>();
     public DbSet<ManagementAuditLog> ManagementAuditLogs => Set<ManagementAuditLog>();
     public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
     public DbSet<EnterpriseQuoteRequest> EnterpriseQuoteRequests => Set<EnterpriseQuoteRequest>();
     public DbSet<MenuPromotion> MenuPromotions => Set<MenuPromotion>();
     public DbSet<TenantNotification> TenantNotifications => Set<TenantNotification>();
     public DbSet<SubscriptionOffer> SubscriptionOffers => Set<SubscriptionOffer>();
+    public DbSet<PlanPrice> PlanPrices => Set<PlanPrice>();
+    public DbSet<MenuPackage> MenuPackages => Set<MenuPackage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -172,6 +175,7 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(160);
             entity.Property(x => x.Note).HasMaxLength(160);
+            entity.Property(x => x.SourcePackageName).HasMaxLength(160);
             entity.Ignore(x => x.ListUnitPrice);
             entity.Ignore(x => x.DiscountUnitAmount);
             entity.Ignore(x => x.UnitPrice);
@@ -231,9 +235,18 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.TokenHash).HasMaxLength(64).IsFixedLength();
             entity.Property(x => x.ReplacedByTokenHash).HasMaxLength(64).IsFixedLength();
+            entity.Property(x => x.Realm).HasMaxLength(16).HasDefaultValue(AuthRealms.Management);
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasIndex(x => x.TokenHash).IsUnique();
             entity.HasIndex(x => new { x.FamilyId, x.RevokedAtUtc });
+            entity.HasOne<ManagementUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<PlatformStaff>(entity =>
+        {
+            entity.ToTable("PlatformStaff", ManagementAuthSchema);
+            entity.HasKey(x => x.UserId);
+            entity.Property(x => x.RoleCode).HasMaxLength(32);
+            entity.HasIndex(x => new { x.IsActive, x.RoleCode });
             entity.HasOne<ManagementUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<ManagementAuditLog>(entity =>
@@ -293,6 +306,39 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.Property(x => x.Title).HasMaxLength(160);
             entity.Property(x => x.Body).HasMaxLength(2000);
             entity.HasIndex(x => new { x.Audience, x.IsActive, x.StartsAtUtc });
+        });
+        modelBuilder.Entity<PlanPrice>(entity =>
+        {
+            entity.ToTable("PlanPrices", "billing");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ProductCode).HasMaxLength(32);
+            entity.Property(x => x.ProductKind).HasMaxLength(16);
+            entity.Property(x => x.Interval).HasMaxLength(16);
+            entity.Property(x => x.Currency).HasMaxLength(3).IsFixedLength();
+            entity.Property(x => x.Status).HasMaxLength(16);
+            entity.Property(x => x.RowVersion).IsRowVersion();
+            entity.HasIndex(x => new { x.ProductCode, x.Interval, x.Currency, x.Status, x.CreatedAtUtc });
+            entity.HasIndex(x => new { x.ProductCode, x.Interval, x.Currency })
+                .IsUnique()
+                .HasFilter("[Status] = N'published'")
+                .HasDatabaseName("UX_PlanPrices_Published");
+            entity.HasOne<ManagementUser>().WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<MenuPackage>(entity =>
+        {
+            entity.ToTable("MenuPackages");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(160);
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.PriceCurrency).HasMaxLength(3);
+            entity.HasMany(x => x.Components).WithOne().HasForeignKey(x => x.MenuPackageId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<MenuPackageComponent>(entity =>
+        {
+            entity.ToTable("MenuPackageComponents");
+            entity.HasKey(x => new { x.MenuPackageId, x.MenuItemId });
+            entity.Property(x => x.SlotLabel).HasMaxLength(80);
+            entity.HasOne(x => x.MenuItem).WithMany().HasForeignKey(x => x.MenuItemId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

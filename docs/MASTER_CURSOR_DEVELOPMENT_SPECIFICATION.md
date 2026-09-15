@@ -209,7 +209,8 @@ restaurant-os/
 │   ├── api/
 │   ├── customer-web/
 │   ├── restaurant-web/
-│   ├── platform-web/
+│   ├── platform-web/   (interim README → apps/admin-web)
+│   ├── admin-web/      (Pasa Admin, admin.pasa.app)
 │   ├── staff-mobile/
 │   └── edge-agent/
 │

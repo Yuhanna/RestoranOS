@@ -50,7 +50,7 @@ export class ManagementApi {
 
   constructor(
     private readonly baseUrl: string,
-    private readonly fetcher: FetchLike = fetch,
+    private readonly fetcher: FetchLike = fetch.bind(globalThis),
   ) {}
 
   getSession = () => this.session;
@@ -303,7 +303,7 @@ export class ManagementApi {
     );
   }
 
-  private async authorized<T>(path: string, init: RequestInit, retried = false): Promise<T> {
+  private async authorized<T>(path: string, init: RequestInit = {}, retried = false): Promise<T> {
     if (!this.session) throw new ApiError(401, "NO_SESSION", fallbackMessages[401]!);
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${this.session.accessToken}`);
