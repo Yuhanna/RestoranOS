@@ -24,7 +24,7 @@ export class AdminApi {
 
   constructor(
     private readonly baseUrl: string,
-    private readonly fetcher: FetchLike = fetch,
+    private readonly fetcher: FetchLike = fetch.bind(globalThis),
   ) {}
 
   getSession = () => this.session;
