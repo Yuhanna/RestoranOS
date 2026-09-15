@@ -452,7 +452,7 @@ function LunchPackagesSection({
     return map;
   }, [products]);
 
-  if (!packages.length) return null;
+  if (!packages?.length) return null;
 
   const openPackage = openId ? packages.find((item) => item.id === openId) ?? null : null;
 

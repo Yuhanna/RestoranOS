@@ -85,7 +85,10 @@ public sealed record MenuProductResponse(
     string? PriceLabel,
     string? CertificationNotes,
     PriceBreakdownResponse? Pricing = null,
-    string? PromotionLabel = null);
+    string? PromotionLabel = null,
+    string? DiscountKind = null,
+    int? DiscountValue = null,
+    DateTimeOffset? PromotionEndsAtUtc = null);
 
 public sealed record CreateCustomerOrderRequest(
     string SessionToken,

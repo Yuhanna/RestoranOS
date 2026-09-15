@@ -1,4 +1,4 @@
-import type { CartLine, ModifierOption, Product } from "../domain/customer";
+import type { CartLine, LunchPackage, ModifierOption, Product } from "../domain/customer";
 
 export type ModifierSelections = Record<string, string[]>;
 
@@ -64,6 +64,10 @@ export function unitPriceMinor(
 }
 
 export function lineTotalMinor(line: CartLine): number {
+  if (line.kind === "package") {
+    return line.package.price.amountMinor * line.quantity;
+  }
+
   return unitPriceMinor(line.product, line.selections, line.portionId) * line.quantity;
 }
 
@@ -105,4 +109,8 @@ export function portionLabel(product: Product, portionId?: string): string | und
     return undefined;
   }
   return product.portions?.find((portion) => portion.id === portionId)?.name;
+}
+
+export function packageCartLineKey(pkg: LunchPackage, note = ""): string {
+  return `package:${pkg.id}:${note.trim()}`;
 }

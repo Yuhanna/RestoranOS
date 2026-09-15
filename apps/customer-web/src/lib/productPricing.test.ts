@@ -4,6 +4,7 @@ import {
   cartLineKey,
   initialSelections,
   lineTotalMinor,
+  packageCartLineKey,
   unitPriceMinor,
 } from "./productPricing";
 
@@ -59,6 +60,7 @@ describe("productPricing", () => {
 
   it("multiplies configured unit price by quantity", () => {
     const line = {
+      kind: "product" as const,
       key: "x",
       product,
       quantity: 2,
@@ -66,5 +68,27 @@ describe("productPricing", () => {
       note: "",
     };
     expect(lineTotalMinor(line)).toBe(84_000);
+  });
+
+  it("prices lunch packages independently of product modifiers", () => {
+    const pkg = {
+      id: "lunch",
+      name: "Öğle menüsü",
+      description: "",
+      price: { amountMinor: 19_900, currency: "TRY" as const },
+      listPrice: { amountMinor: 24_900, currency: "TRY" as const },
+      discount: { amountMinor: 5_000, currency: "TRY" as const },
+      components: [],
+    };
+    expect(packageCartLineKey(pkg, "notsuz")).toBe("package:lunch:notsuz");
+    expect(
+      lineTotalMinor({
+        kind: "package",
+        key: "package:lunch:",
+        package: pkg,
+        quantity: 2,
+        note: "",
+      }),
+    ).toBe(39_800);
   });
 });
