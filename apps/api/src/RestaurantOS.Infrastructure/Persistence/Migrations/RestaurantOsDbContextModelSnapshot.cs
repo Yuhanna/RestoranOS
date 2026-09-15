@@ -1354,11 +1354,6 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                         .HasForeignKey("PublishedMenuId");
                 });
 
-            modelBuilder.Entity("RestaurantOS.Domain.MenuPackage", b =>
-                {
-                    b.Navigation("Components");
-                });
-
             modelBuilder.Entity("RestaurantOS.Domain.MenuPackageComponent", b =>
                 {
                     b.HasOne("RestaurantOS.Domain.MenuPackage", null)
@@ -1417,6 +1412,13 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.Navigation("Categories");
 
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("RestaurantOS.Domain.MenuPackage", b =>
+                {
+                    b.Navigation("Components")
+                        .HasField("_components")
+                        .UsePropertyAccessMode(PropertyAccessMode.Field);
                 });
 #pragma warning restore 612, 618
         }

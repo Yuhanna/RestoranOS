@@ -78,8 +78,8 @@ public sealed class ManagementAuthService(
                     TenantSubscription.CreateProTrial(tenantId, now));
 
                 await ManagementRolePermissionSync.SyncBuiltInRolesAsync(dbContext, cancellationToken);
-                var role = await dbContext.ManagementRoles
-                    .SingleAsync(x => x.Name == "RestaurantOwner", cancellationToken);
+                var role = dbContext.ManagementRoles.Local
+                    .Single(x => x.Name == "RestaurantOwner");
                 var user = new ManagementUser(
                     Guid.NewGuid(),
                     email.Trim(),
@@ -340,6 +340,7 @@ public sealed class ManagementAuthService(
 
     public async Task<ManagementTokenResult> RefreshAsync(
         string refreshToken,
+        string expectedRealm,
         CancellationToken cancellationToken)
     {
         ValidateOpaqueToken(refreshToken);
@@ -348,6 +349,10 @@ public sealed class ManagementAuthService(
         var session = await dbContext.ManagementRefreshSessions
             .SingleOrDefaultAsync(x => x.TokenHash == tokenHash, cancellationToken)
             ?? throw InvalidRefreshToken();
+        if (AuthRealms.Normalize(session.Realm) != AuthRealms.Normalize(expectedRealm))
+        {
+            throw InvalidRefreshToken();
+        }
 
         if (session.RevokedAtUtc is not null)
         {
@@ -604,8 +609,11 @@ public sealed class ManagementAuthService(
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SigningKey)),
             SecurityAlgorithms.HmacSha256);
+        var platformAudience = string.IsNullOrWhiteSpace(_options.PlatformAudience)
+            ? "restaurant-os-platform"
+            : _options.PlatformAudience;
         var audience = normalizedRealm == AuthRealms.Platform
-            ? _options.PlatformAudience
+            ? platformAudience
             : _options.Audience;
         var claims = new List<Claim>
         {

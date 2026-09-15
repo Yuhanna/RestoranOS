@@ -57,6 +57,9 @@ public static class PlatformStaffRoles
         var role = Normalize(roleCode);
         return role is Owner or Billing or Support;
     }
+
+    public static bool CanArchiveCatalog(string roleCode, bool isPublished) =>
+        isPublished ? CanPublishCatalog(roleCode) : CanWriteCatalog(roleCode);
 }
 
 public static class BillingIntervals

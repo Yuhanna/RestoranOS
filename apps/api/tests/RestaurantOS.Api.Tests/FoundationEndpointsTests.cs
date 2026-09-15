@@ -66,8 +66,11 @@ public sealed class FoundationEndpointsTests : IClassFixture<FoundationEndpoints
 
     public sealed class FoundationApiFactory : WebApplicationFactory<Program>
     {
-        protected override void ConfigureWebHost(IWebHostBuilder builder) =>
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder.UseEnvironment("Testing");
             builder.UseSetting("ManagementAuth:SigningKey", TestSigningKey);
+        }
     }
 
     private const string TestSigningKey = "test-only-signing-key-32-bytes-minimum-value";

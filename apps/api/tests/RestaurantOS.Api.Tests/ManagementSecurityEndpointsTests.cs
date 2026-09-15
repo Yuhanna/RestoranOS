@@ -357,7 +357,9 @@ public sealed class ManagementSecurityEndpointsTests
     private static Task<HttpResponseMessage> RefreshAsync(HttpClient client, string refreshToken)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/management/auth/refresh");
-        request.Headers.Add("Cookie", $"__Secure-restaurantos-refresh={refreshToken}");
+        request.Headers.Add(
+            "Cookie",
+            $"restaurantos-refresh={refreshToken}; __Secure-restaurantos-refresh={refreshToken}");
         return client.SendAsync(request);
     }
 
@@ -382,7 +384,9 @@ public sealed class ManagementSecurityEndpointsTests
     private static string ReadRefreshCookie(HttpResponseMessage response)
     {
         var header = response.Headers.GetValues("Set-Cookie")
-            .Single(x => x.StartsWith("__Secure-restaurantos-refresh=", StringComparison.Ordinal));
+            .Single(x =>
+                x.StartsWith("__Secure-restaurantos-refresh=", StringComparison.Ordinal)
+                || x.StartsWith("restaurantos-refresh=", StringComparison.Ordinal));
         return header.Split(';', 2)[0].Split('=', 2)[1];
     }
 

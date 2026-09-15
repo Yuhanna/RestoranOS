@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using RestaurantOS.Api.Models.Dto;
 using RestaurantOS.Application;
+using RestaurantOS.Domain;
 
 namespace RestaurantOS.Api.Controllers;
 
@@ -103,6 +104,7 @@ public sealed class ManagementAuthController(IManagementAuthService authService)
         {
             var result = await authService.RefreshAsync(
                 AuthRefreshCookie.Read(Request, platform: false) ?? string.Empty,
+                AuthRealms.Management,
                 cancellationToken);
             SetRefreshCookie(result);
             return Ok(ToAccessTokenResponse(result));

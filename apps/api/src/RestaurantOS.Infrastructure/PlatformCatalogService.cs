@@ -172,10 +172,18 @@ public sealed class PlatformCatalogService(
         CancellationToken cancellationToken)
     {
         _ = actorRole;
-        EnsureCanWrite(await RequireActiveStaffRoleAsync(actorUserId, cancellationToken));
+        var liveRole = await RequireActiveStaffRoleAsync(actorUserId, cancellationToken);
         var now = timeProvider.GetUtcNow();
         var entity = await dbContext.PlanPrices.SingleOrDefaultAsync(x => x.Id == priceId, cancellationToken)
             ?? throw new CustomerExperienceException("PRICE_NOT_FOUND", "Fiyat sürümü bulunamadı.");
+        if (!PlatformStaffRoles.CanArchiveCatalog(liveRole, entity.IsPublished))
+        {
+            throw new CustomerExperienceException(
+                "PLATFORM_ROLE_DENIED",
+                entity.IsPublished
+                    ? "Yayınlı fiyatı arşivlemek için Owner rolü gerekir."
+                    : "Katalog yazmak için Owner veya Billing rolü gerekir.");
+        }
         entity.Archive(now);
         dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
             Guid.NewGuid(),

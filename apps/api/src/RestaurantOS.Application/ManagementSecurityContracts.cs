@@ -25,6 +25,7 @@ public interface IManagementAuthService
 
     Task<ManagementTokenResult> RefreshAsync(
         string refreshToken,
+        string expectedRealm,
         CancellationToken cancellationToken);
 
     Task RevokeAsync(string refreshToken, CancellationToken cancellationToken);
@@ -64,6 +65,14 @@ public interface IManagementOrderService
         DateTimeOffset expectedStatusChangedAtUtc,
         CancellationToken cancellationToken,
         DateTimeOffset? estimatedReadyAtUtc = null);
+
+    Task<IReadOnlyList<ManagementOrderResult>> GetHistoryOrdersAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        int hours,
+        int take,
+        CancellationToken cancellationToken);
 }
 
 public interface IManagementTableService

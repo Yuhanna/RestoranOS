@@ -292,6 +292,9 @@ function CatalogScreen({
   const [amount, setAmount] = useState("2499");
   const [busy, setBusy] = useState(false);
 
+  const canArchive = (status: string) =>
+    status === "draft" ? canWrite : status === "published" ? canPublish : false;
+
   const create = async (event: FormEvent) => {
     event.preventDefault();
     const lira = Number(amount.replace(",", "."));
@@ -349,7 +352,14 @@ function CatalogScreen({
         <form className="form-row" onSubmit={(event) => void create(event)}>
           <label>
             Ürün
-            <select value={productCode} onChange={(event) => setProductCode(event.target.value)}>
+            <select
+              value={productCode}
+              onChange={(event) => {
+                const next = event.target.value;
+                setProductCode(next);
+                if (next === "Free") setAmount("0");
+              }}
+            >
               <option value="Free">Free</option>
               <option value="Pro">Pro</option>
               <option value="Enterprise">Enterprise</option>
@@ -365,7 +375,11 @@ function CatalogScreen({
           </label>
           <label>
             Tutar (KDV dahil, ₺)
-            <input value={amount} onChange={(event) => setAmount(event.target.value)} />
+            <input
+              value={amount}
+              disabled={productCode === "Free"}
+              onChange={(event) => setAmount(event.target.value)}
+            />
           </label>
           <button className="btn" type="submit" disabled={busy}>
             Taslak oluştur
@@ -410,7 +424,7 @@ function CatalogScreen({
                           Yayınla
                         </button>
                       ) : null}
-                      {canWrite && price.status !== "archived" ? (
+                      {canArchive(price.status) ? (
                         <button
                           className="btn secondary"
                           type="button"

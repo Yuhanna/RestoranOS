@@ -65,6 +65,7 @@ public sealed class PlatformAuthController(
         {
             var result = await authService.RefreshAsync(
                 AuthRefreshCookie.Read(Request, platform: true) ?? string.Empty,
+                AuthRealms.Platform,
                 cancellationToken);
             if (!string.Equals(result.Realm, AuthRealms.Platform, StringComparison.Ordinal))
             {

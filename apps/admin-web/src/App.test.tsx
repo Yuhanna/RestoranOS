@@ -57,8 +57,8 @@ const ok = (body: unknown, status = 200) =>
   });
 
 function createFetcher() {
-  return vi.fn(async (input: RequestInfo) => {
-    const url = typeof input === "string" ? input : input.url;
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.includes("/auth/refresh")) return ok(session);
     if (url.includes("/auth/login")) return ok(session);
     if (url.includes("/catalog")) return ok(catalog);
@@ -68,12 +68,12 @@ function createFetcher() {
 }
 
 test("login screen is visually a separate admin console", async () => {
-  const fetcher = vi.fn(async (input: RequestInfo) => {
-    const url = typeof input === "string" ? input : input.url;
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.includes("/auth/refresh")) return new Response("{}", { status: 401 });
     return new Response("{}", { status: 401 });
   });
-  render(<App api={new AdminApi("", fetcher)} />);
+  render(<App api={new AdminApi("", fetcher as typeof fetch)} />);
   expect(await screen.findByRole("heading", { name: "Bu restoran paneli değil." })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Admin girişi" })).toBeInTheDocument();
 });
@@ -81,7 +81,7 @@ test("login screen is visually a separate admin console", async () => {
 test("signed-in chrome shows Pasa Admin and catalog prices", async () => {
   const user = userEvent.setup();
   const fetcher = createFetcher();
-  render(<App api={new AdminApi("", fetcher)} />);
+  render(<App api={new AdminApi("", fetcher as typeof fetch)} />);
   expect(await screen.findByText("İç yönetim · admin.pasa.app")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Planlar ve fiyatlar" }));
   expect(await screen.findByText("2.499,00 TRY")).toBeInTheDocument();
@@ -90,8 +90,8 @@ test("signed-in chrome shows Pasa Admin and catalog prices", async () => {
 
 test("restaurant account is refused with a distinct admin message", async () => {
   const user = userEvent.setup();
-  const fetcher = vi.fn(async (input: RequestInfo) => {
-    const url = typeof input === "string" ? input : input.url;
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.includes("/auth/refresh")) return new Response("{}", { status: 401 });
     if (url.includes("/auth/login")) {
       return new Response(JSON.stringify({ code: "PLATFORM_ACCESS_DENIED", detail: "denied" }), {
@@ -101,7 +101,7 @@ test("restaurant account is refused with a distinct admin message", async () => 
     }
     return new Response("{}", { status: 401 });
   });
-  render(<App api={new AdminApi("", fetcher)} />);
+  render(<App api={new AdminApi("", fetcher as typeof fetch)} />);
   await screen.findByRole("heading", { name: "Bu restoran paneli değil." });
   await user.type(screen.getByLabelText("E-posta"), "owner@local.test");
   await user.type(screen.getByLabelText("Parola"), "password-12345");
@@ -123,8 +123,8 @@ test("billing role can draft but does not see publish", async () => {
       },
     ],
   };
-  const fetcher = vi.fn(async (input: RequestInfo) => {
-    const url = typeof input === "string" ? input : input.url;
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.includes("/auth/refresh")) {
       return new Response(JSON.stringify(billingSession), {
         status: 200,
@@ -135,9 +135,10 @@ test("billing role can draft but does not see publish", async () => {
     if (url.includes("/subscription-offers")) return ok(offers);
     return ok({}, 404);
   });
-  render(<App api={new AdminApi("", fetcher)} />);
+  render(<App api={new AdminApi("", fetcher as typeof fetch)} />);
   expect(await screen.findByText("Rol: Billing · platform")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Planlar ve fiyatlar" }));
   expect(await screen.findByRole("button", { name: "Taslak oluştur" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Yayınla" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Arşivle" })).toBeInTheDocument();
 });

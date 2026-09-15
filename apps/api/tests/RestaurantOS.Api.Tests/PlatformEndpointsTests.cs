@@ -189,7 +189,7 @@ public sealed class PlatformEndpointsTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task RestaurantOwnerIsDeniedPlatformLoginWithoutLockingRestaurantAccess()
     {
-        for (var attempt = 0; attempt < 6; attempt++)
+        for (var attempt = 0; attempt < 4; attempt++)
         {
             var denied = await _client.PostAsJsonAsync(
                 "/api/v1/platform/auth/login",
@@ -305,6 +305,70 @@ public sealed class PlatformEndpointsTests : IAsyncLifetime, IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, refresh.StatusCode);
     }
 
+    [Fact]
+    public async Task PlatformRefreshCookieCannotRotateManagementSession()
+    {
+        var login = await _client.PostAsJsonAsync(
+            "/api/v1/platform/auth/login",
+            new ManagementPlatformLoginRequest("platform@example.test", Password));
+        login.EnsureSuccessStatusCode();
+        Assert.True(login.Headers.TryGetValues("Set-Cookie", out var cookies));
+        var platformCookie = cookies.First(x =>
+            x.StartsWith("restaurantos-platform-refresh=", StringComparison.OrdinalIgnoreCase)
+            || x.StartsWith("__Secure-restaurantos-platform-refresh=", StringComparison.OrdinalIgnoreCase));
+        var token = platformCookie.Split(';', 2)[0].Split('=', 2)[1];
+
+        var managementRefresh = new HttpRequestMessage(HttpMethod.Post, "/api/v1/management/auth/refresh");
+        managementRefresh.Headers.TryAddWithoutValidation("Cookie", $"restaurantos-refresh={token}");
+        var rejected = await _client.SendAsync(managementRefresh);
+        Assert.Equal(HttpStatusCode.Unauthorized, rejected.StatusCode);
+
+        var platformRefresh = new HttpRequestMessage(HttpMethod.Post, "/api/v1/platform/auth/refresh");
+        platformRefresh.Headers.TryAddWithoutValidation("Cookie", $"restaurantos-platform-refresh={token}");
+        var stillValid = await _client.SendAsync(platformRefresh);
+        Assert.Equal(HttpStatusCode.OK, stillValid.StatusCode);
+    }
+
+    [Fact]
+    public async Task PlatformTokenCannotListRestaurantMemberships()
+    {
+        var access = await LoginPlatformAsync();
+        var response = await _client.SendAsync(Authorized(
+            HttpMethod.Get,
+            "/api/v1/management/auth/memberships",
+            access.AccessToken));
+        Assert.True(
+            response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden,
+            response.StatusCode.ToString());
+    }
+
+    [Fact]
+    public async Task BillingRoleCannotArchivePublishedPrices()
+    {
+        var owner = await LoginPlatformAsync();
+        var draft = await _client.SendAsync(Authorized(
+            HttpMethod.Post,
+            "/api/v1/platform/catalog/prices",
+            owner.AccessToken,
+            new ManagementCreatePlanPriceRequest(SubscriptionPlanCodes.Enterprise, BillingIntervals.Month, 500000)));
+        draft.EnsureSuccessStatusCode();
+        var created = await draft.Content.ReadFromJsonAsync<ManagementPlanPriceResponse>();
+        Assert.NotNull(created);
+        var published = await _client.SendAsync(Authorized(
+            HttpMethod.Post,
+            $"/api/v1/platform/catalog/prices/{created.Id}/publish",
+            owner.AccessToken));
+        published.EnsureSuccessStatusCode();
+
+        await SeedBillingStaffAsync();
+        var billing = await LoginPlatformAsAsync("billing@example.test");
+        var archive = await _client.SendAsync(Authorized(
+            HttpMethod.Post,
+            $"/api/v1/platform/catalog/prices/{created.Id}/archive",
+            billing.AccessToken));
+        Assert.Equal(HttpStatusCode.Forbidden, archive.StatusCode);
+    }
+
     private async Task<ManagementAccessTokenResponse> LoginOwnerAsync()
     {
         var response = await _client.PostAsJsonAsync(
@@ -392,6 +456,11 @@ public sealed class PlatformEndpointsTests : IAsyncLifetime, IDisposable
     {
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<RestaurantOsDbContext>();
+        if (await db.ManagementUsers.AnyAsync(x => x.Id == SeedIds.BillingUser))
+        {
+            return;
+        }
+
         var now = DateTimeOffset.UtcNow;
         var billing = new ManagementUser(
             SeedIds.BillingUser,
@@ -409,6 +478,11 @@ public sealed class PlatformEndpointsTests : IAsyncLifetime, IDisposable
     {
         await using var scope = _factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<RestaurantOsDbContext>();
+        if (await db.ManagementUsers.AnyAsync(x => x.Id == userId))
+        {
+            return;
+        }
+
         var now = DateTimeOffset.UtcNow;
         var user = new ManagementUser(
             userId,

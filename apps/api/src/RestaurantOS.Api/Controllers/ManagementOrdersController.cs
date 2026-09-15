@@ -29,6 +29,29 @@ public sealed class ManagementOrdersController(IManagementOrderService orderServ
         return Ok(orders.Select(ToOrderResponse).ToArray());
     }
 
+    [HttpGet("history")]
+    [Authorize(Policy = ManagementPolicies.OrderView)]
+    [ProducesResponseType(typeof(IReadOnlyList<ManagementOrderResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHistoryOrdersAsync(
+        [FromQuery] int hours = 24,
+        [FromQuery] int take = 100,
+        CancellationToken cancellationToken = default)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out var tenantId, out var branchId))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        var orders = await orderService.GetHistoryOrdersAsync(
+            userId,
+            tenantId,
+            branchId,
+            hours,
+            take,
+            cancellationToken);
+        return Ok(orders.Select(ToOrderResponse).ToArray());
+    }
+
     [HttpGet("{orderId:guid}")]
     [Authorize(Policy = ManagementPolicies.OrderView)]
     [ProducesResponseType(typeof(ManagementOrderDetailResponse), StatusCodes.Status200OK)]
