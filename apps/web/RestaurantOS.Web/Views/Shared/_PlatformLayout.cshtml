@@ -34,13 +34,12 @@
     <header class="topbar topbar-platform">
         <a class="brand" href="/platform">
             <img src="~/img/pasa-mark.svg" alt="" width="28" height="28" asp-append-version="true" />
-            <span>Pasa Admin</span>
+            <span>Pasa · Platform</span>
         </a>
         @if (PlatformApi.IsAuthenticated)
         {
             <nav aria-label="Platform menü">
                 <a href="/platform">Özet</a>
-                <a href="/platform/catalog">Planlar ve fiyatlar</a>
                 <a href="/platform/notifications">Bildirimler</a>
                 <a href="/platform/subscription-offers">Üyelik kampanyaları</a>
             </nav>
