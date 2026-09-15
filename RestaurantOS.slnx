@@ -13,4 +13,8 @@
   <Folder Name="/apps/web/">
     <Project Path="apps/web/RestaurantOS.Web/RestaurantOS.Web.csproj" />
   </Folder>
+  <Folder Name="/apps/admin-web (admin.pasa.app)/">
+    <File Path="apps/admin-web/README.md" />
+    <File Path="apps/admin-web/PasaAdmin.esproj" />
+  </Folder>
 </Solution>

@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Pasa Admin": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "http://localhost:5175",
+      "environmentVariables": {
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}
