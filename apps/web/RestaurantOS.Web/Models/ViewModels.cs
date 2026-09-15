@@ -715,6 +715,45 @@ public sealed class CreatePlatformSubscriptionOfferViewModel
     public DateTime? EndsAtLocal { get; set; }
 }
 
+public sealed class PlatformCatalogPageViewModel
+{
+    public string Note { get; set; } = string.Empty;
+    public IReadOnlyList<PlatformCatalogProductViewModel> Products { get; set; } = [];
+    public CreatePlatformPlanPriceViewModel Create { get; set; } = new();
+}
+
+public sealed class PlatformCatalogProductViewModel
+{
+    public string ProductCode { get; set; } = string.Empty;
+    public string ProductKind { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public int? MaxBranches { get; set; }
+    public IReadOnlyList<PlatformPlanPriceViewModel> Prices { get; set; } = [];
+}
+
+public sealed class PlatformPlanPriceViewModel
+{
+    public Guid Id { get; set; }
+    public string ProductCode { get; set; } = string.Empty;
+    public string Interval { get; set; } = string.Empty;
+    public string Currency { get; set; } = "TRY";
+    public long AmountMinor { get; set; }
+    public bool TaxInclusive { get; set; }
+    public string Status { get; set; } = string.Empty;
+}
+
+public sealed class CreatePlatformPlanPriceViewModel
+{
+    [Display(Name = "Ürün")]
+    public string ProductCode { get; set; } = "Pro";
+
+    [Display(Name = "Aralık")]
+    public string Interval { get; set; } = "month";
+
+    [Display(Name = "Tutar (KDV dahil, ₺)")]
+    public string Amount { get; set; } = "2499";
+}
+
 public sealed class BranchesPageViewModel
 {
     public WorkspaceViewModel? Workspace { get; set; }
