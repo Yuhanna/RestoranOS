@@ -58,13 +58,43 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
                 return Task.CompletedTask;
             },
+            OnTokenValidated = context =>
+            {
+                var path = context.HttpContext.Request.Path;
+                if (path.StartsWithSegments("/api/v1/platform/auth")
+                    || path.StartsWithSegments("/api/v1/management/auth"))
+                {
+                    return Task.CompletedTask;
+                }
+
+                var realm = AuthRealms.Normalize(
+                    context.Principal?.FindFirst(ManagementClaimTypes.Realm)?.Value);
+                if (path.StartsWithSegments("/api/v1/platform") && realm != AuthRealms.Platform)
+                {
+                    context.Fail("Platform API requires a platform access token.");
+                }
+                else if ((path.StartsWithSegments("/api/v1/management")
+                        || path.StartsWithSegments("/hubs/v1/management-orders"))
+                    && realm == AuthRealms.Platform)
+                {
+                    context.Fail("Management API rejects platform access tokens.");
+                }
+
+                return Task.CompletedTask;
+            },
         };
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidIssuer = managementAuth.Issuer,
             ValidateAudience = true,
-            ValidAudience = managementAuth.Audience,
+            ValidAudiences =
+            [
+                managementAuth.Audience,
+                string.IsNullOrWhiteSpace(managementAuth.PlatformAudience)
+                    ? "restaurant-os-platform"
+                    : managementAuth.PlatformAudience,
+            ],
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(managementAuth.SigningKey)),
             ValidateLifetime = true,

@@ -276,6 +276,74 @@ public sealed class ManagementTablesController(IManagementTableService tableServ
         }
     }
 
+    [HttpGet("tables/{tableId:guid}/check")]
+    [Authorize(Policy = ManagementPolicies.OrderView)]
+    [ProducesResponseType(typeof(ManagementTableCheckResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTableCheckAsync(Guid tableId, CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out var tenantId, out var branchId))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            var check = await tableService.GetTableCheckAsync(userId, tenantId, branchId, tableId, cancellationToken);
+            return Ok(new ManagementTableCheckResponse(
+                check.RoundCount,
+                check.TotalAmountMinor,
+                check.HasIncompleteKitchen));
+        }
+        catch (CustomerExperienceException exception)
+        {
+            return TableProblem(exception);
+        }
+        catch (ManagementAuthException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
+        }
+    }
+
+    [HttpPost("tables/{tableId:guid}/close-check")]
+    [Authorize(Policy = ManagementPolicies.OrderModify)]
+    [ProducesResponseType(typeof(ManagementTableCheckCloseResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CloseTableCheckAsync(
+        Guid tableId,
+        [FromBody] ManagementCloseTableCheckRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out var tenantId, out var branchId))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            var closed = await tableService.CloseTableCheckAsync(
+                userId,
+                tenantId,
+                branchId,
+                tableId,
+                request?.Tender ?? string.Empty,
+                request?.ConfirmIncompleteKitchen ?? false,
+                request?.Note,
+                cancellationToken);
+            return Ok(new ManagementTableCheckCloseResponse(
+                closed.ClosedOrderCount,
+                closed.TotalAmountMinor,
+                closed.Tender,
+                closed.ForcedIncompleteKitchen));
+        }
+        catch (CustomerExperienceException exception)
+        {
+            return TableProblem(exception);
+        }
+        catch (ManagementAuthException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
+        }
+    }
+
     private async Task<IActionResult> ChangeQrStatusAsync(
         Guid qrCodeId,
         QrCodeStatus nextStatus,
@@ -318,7 +386,8 @@ public sealed class ManagementTablesController(IManagementTableService tableServ
         var status = exception.Code switch
         {
             "TABLE_NOT_FOUND" or "QR_NOT_FOUND" => StatusCodes.Status404NotFound,
-            "TABLE_LABEL_CONFLICT" or "INVALID_QR_TRANSITION" or "QR_REVOKED" or "QR_TOKEN_UNAVAILABLE" =>
+            "TABLE_LABEL_CONFLICT" or "INVALID_QR_TRANSITION" or "QR_REVOKED" or "QR_TOKEN_UNAVAILABLE"
+                or "TABLE_HAS_UNFINISHED_ORDERS" =>
                 StatusCodes.Status409Conflict,
             _ => StatusCodes.Status400BadRequest,
         };

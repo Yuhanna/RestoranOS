@@ -171,6 +171,7 @@ public sealed class FeatureEntitlementService(
             .ToArray();
 
         var nextRequiresAddon = RequiresAddonForNextBranch(entitlements, isTrial, activeCount);
+        var extraBranchMonthly = await ResolveExtraBranchMonthlyAsync(cancellationToken);
 
         return new TenantEntitlementUsageResult(
             entitlements.PlanCode,
@@ -196,7 +197,7 @@ public sealed class FeatureEntitlementService(
             PurchasedBranchAddonCount: subscription.PurchasedBranchAddonCount,
             FrozenBranchCount: frozenCount,
             ActiveBranchCount: activeCount,
-            ExtraBranchMonthlyPriceMinor: BranchBillingPolicy.ExtraBranchMonthlyPriceMinor,
+            ExtraBranchMonthlyPriceMinor: extraBranchMonthly,
             BillingCurrency: BranchBillingPolicy.Currency,
             NextBranchRequiresAddon: nextRequiresAddon);
     }
@@ -210,6 +211,7 @@ public sealed class FeatureEntitlementService(
         var now = timeProvider.GetUtcNow();
         var isTrial = subscription.IsTrialActive(now);
         var entitlements = PlanCatalog.ResolveEffective(subscription, now);
+        var extraBranchMonthly = await ResolveExtraBranchMonthlyAsync(cancellationToken);
         return new ManagementBranchBillingPreviewResult(
             usage.PlanCode,
             usage.PlanDisplayName,
@@ -221,13 +223,13 @@ public sealed class FeatureEntitlementService(
             usage.ActiveBranchCount,
             usage.FrozenBranchCount,
             usage.NextBranchRequiresAddon,
-            BranchBillingPolicy.ExtraBranchMonthlyPriceMinor,
+            extraBranchMonthly,
             BranchBillingPolicy.Currency,
             entitlements.CanUseMultiBranch,
             usage.IsTrial
                 ? $"Denemede en fazla {BranchBillingPolicy.TrialMaxBranches} şube açabilirsiniz. Süre bitince yalnızca {BranchBillingPolicy.FreeMaxBranches} şube aktif kalır."
                 : usage.PlanCode == SubscriptionPlanCodes.Pro
-                    ? $"Pro pakete {BranchBillingPolicy.ProIncludedBranches} şube dahildir. Ek şube {FormatMoney(BranchBillingPolicy.ExtraBranchMonthlyPriceMinor)} / ay."
+                    ? $"Pro pakete {BranchBillingPolicy.ProIncludedBranches} şube dahildir. Ek şube {FormatMoney(extraBranchMonthly)} / ay."
                     : usage.PlanCode == SubscriptionPlanCodes.Enterprise
                         ? "Enterprise planda şube kotası sözleşmenize göredir."
                         : "Free planda yalnızca 1 şube vardır. Çok şube için Pro deneme veya Pro plana geçin.");
@@ -287,7 +289,7 @@ public sealed class FeatureEntitlementService(
         {
             throw new EntitlementException(
                 "BRANCH_ADDON_REQUIRED",
-                $"Pro pakete {BranchBillingPolicy.ProIncludedBranches} şube dahildir. Ek şube için {FormatMoney(BranchBillingPolicy.ExtraBranchMonthlyPriceMinor)} / ay onaylayın.");
+                $"Pro pakete {BranchBillingPolicy.ProIncludedBranches} şube dahildir. Ek şube için {FormatMoney(await ResolveExtraBranchMonthlyAsync(cancellationToken))} / ay onaylayın.");
         }
 
         throw new EntitlementException(
@@ -523,6 +525,21 @@ public sealed class FeatureEntitlementService(
         }
 
         return warnings;
+    }
+
+    private async Task<long> ResolveExtraBranchMonthlyAsync(CancellationToken cancellationToken)
+    {
+        var published = await dbContext.PlanPrices
+            .AsNoTracking()
+            .Where(x =>
+                x.ProductCode == CatalogProductCodes.ExtraBranch
+                && x.Interval == BillingIntervals.Month
+                && x.Currency == BranchBillingPolicy.Currency
+                && x.Status == PlanPriceStatuses.Published)
+            .OrderByDescending(x => x.PublishedAtUtc)
+            .Select(x => (long?)x.AmountMinor)
+            .FirstOrDefaultAsync(cancellationToken);
+        return published ?? BranchBillingPolicy.ExtraBranchMonthlyPriceMinor;
     }
 
     private static string FormatMoney(long minor) =>

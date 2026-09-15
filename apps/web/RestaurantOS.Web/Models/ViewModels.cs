@@ -98,6 +98,7 @@ public sealed class WorkspaceViewModel
     public bool CanManageSubscription => HasPermission("Subscription.Manage");
     public bool CanAccessSettings => CanEditMenus || CanManageSubscription;
     public bool CanManagePromotions => CanEditMenus;
+    public bool CanOpenAnalyticsPage => CanViewAnalytics;
 }
 
 public sealed class EntitlementUsageViewModel
@@ -126,6 +127,7 @@ public sealed class EntitlementUsageViewModel
     public long ExtraBranchMonthlyPriceMinor { get; set; }
     public string BillingCurrency { get; set; } = "TRY";
     public bool NextBranchRequiresAddon { get; set; }
+    public int? MaxOrderHistoryHours { get; set; }
 }
 
 public sealed class OrderListItemViewModel

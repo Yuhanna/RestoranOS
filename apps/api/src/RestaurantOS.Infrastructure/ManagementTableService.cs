@@ -421,6 +421,111 @@ public sealed class ManagementTableService(
         return refreshed[0];
     }
 
+    public async Task<ManagementTableCheckResult> GetTableCheckAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.OrderView, cancellationToken);
+        _ = await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
+        var open = await LoadOpenRoundsAsync(tenantId, branchId, tableId, cancellationToken);
+        return new ManagementTableCheckResult(
+            open.Count,
+            open.Sum(order => order.TotalAmountMinor),
+            open.Any(IsIncompleteKitchen));
+    }
+
+    public async Task<ManagementTableCheckCloseResult> CloseTableCheckAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        string tender,
+        bool confirmIncompleteKitchen,
+        string? note,
+        CancellationToken cancellationToken)
+    {
+        await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.OrderModify, cancellationToken);
+        _ = await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
+        var normalizedTender = NormalizeTender(tender);
+        var open = await LoadOpenRoundsAsync(tenantId, branchId, tableId, cancellationToken);
+        if (open.Count == 0)
+        {
+            throw new CustomerExperienceException(
+                "TABLE_CHECK_EMPTY",
+                "Bu masada kapatılacak adisyon bulunmuyor.");
+        }
+
+        var incomplete = open.Any(IsIncompleteKitchen);
+        if (incomplete && !confirmIncompleteKitchen)
+        {
+            throw new CustomerExperienceException(
+                "TABLE_HAS_UNFINISHED_ORDERS",
+                "Mutfakta bitmemiş sipariş var. Kapatmak için onay gerekir.");
+        }
+
+        var now = timeProvider.GetUtcNow();
+        foreach (var order in open)
+        {
+            order.ChangeStatus(OrderStatus.Completed, now);
+        }
+
+        var sessionIds = open.Select(order => order.CustomerSessionId).Distinct().ToArray();
+        foreach (var sessionId in sessionIds)
+        {
+            await TableSessionSettlement.CompleteOpenBillRequestsAsync(dbContext, sessionId, now, cancellationToken);
+            await TableSessionSettlement.ShortenSessionAfterSettlementAsync(dbContext, sessionId, now, cancellationToken);
+        }
+
+        var total = open.Sum(order => order.TotalAmountMinor);
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "TableCheckClose",
+            true,
+            now,
+            userId,
+            tenantId,
+            branchId,
+            tableId,
+            $"{normalizedTender}:{open.Count}:{note}"));
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new ManagementTableCheckCloseResult(
+            open.Count,
+            total,
+            normalizedTender,
+            incomplete && confirmIncompleteKitchen);
+    }
+
+    private async Task<List<CustomerOrder>> LoadOpenRoundsAsync(
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        CancellationToken cancellationToken) =>
+        await dbContext.CustomerOrders
+            .Where(order =>
+                order.TenantId == tenantId
+                && order.BranchId == branchId
+                && order.TableId == tableId
+                && order.Status != OrderStatus.Completed
+                && order.Status != OrderStatus.Cancelled)
+            .ToListAsync(cancellationToken);
+
+    private static bool IsIncompleteKitchen(CustomerOrder order) =>
+        order.Status is OrderStatus.Submitted or OrderStatus.Accepted or OrderStatus.Preparing;
+
+    private static string NormalizeTender(string? tender)
+    {
+        var value = tender?.Trim().ToLowerInvariant() ?? string.Empty;
+        return value switch
+        {
+            "cash" or "nakit" => "cash",
+            "card" or "kart" => "card",
+            _ => throw new CustomerExperienceException("INVALID_TENDER", "Ödeme türü nakit veya kart olmalıdır."),
+        };
+    }
+
     private async Task<IReadOnlyList<ManagementTableResult>> MapTablesWithStatusAsync(
         Guid tenantId,
         Guid branchId,

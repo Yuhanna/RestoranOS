@@ -5,6 +5,26 @@ namespace RestaurantOS.Infrastructure;
 
 public static class PromotionPricingService
 {
+    public static readonly TimeZoneInfo DefaultBranchTimeZone = ResolveIstanbul();
+
+    private static TimeZoneInfo ResolveIstanbul()
+    {
+        foreach (var id in new[] { "Europe/Istanbul", "Turkey Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(id);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+            }
+            catch (InvalidTimeZoneException)
+            {
+            }
+        }
+
+        return TimeZoneInfo.Utc;
+    }
     public static MenuPromotion? ResolveBestPromotion(
         IReadOnlyList<MenuPromotion> promotions,
         Guid menuItemId,

@@ -99,7 +99,7 @@ public sealed class DevelopmentManagementBootstrapper(
         await EnsureAudienceContentAsync(cancellationToken);
         await EnsureDemoMenuPromotionAsync(tenantId, branchId, cancellationToken);
         await EnsureCustomerMenuPublishedAsync(tenantId, branchId, cancellationToken);
-        await EnsurePlatformOperatorAsync(tenantId, branchId, cancellationToken);
+        await EnsurePlatformOperatorAsync(cancellationToken);
     }
 
     /// <summary>
@@ -185,10 +185,7 @@ public sealed class DevelopmentManagementBootstrapper(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task EnsurePlatformOperatorAsync(
-        Guid tenantId,
-        Guid branchId,
-        CancellationToken cancellationToken)
+    private async Task EnsurePlatformOperatorAsync(CancellationToken cancellationToken)
     {
         var email = configuration["BootstrapPlatformAdmin:Email"] ?? "platform@local.test";
         var password = configuration["BootstrapPlatformAdmin:Password"]
@@ -197,22 +194,6 @@ public sealed class DevelopmentManagementBootstrapper(
         {
             throw new InvalidOperationException(
                 "BootstrapPlatformAdmin:Password or BootstrapAdmin:Password is required for platform operator seed.");
-        }
-
-        var role = await dbContext.ManagementRoles
-            .SingleOrDefaultAsync(x => x.Name == "PlatformOperator", cancellationToken);
-        if (role is null)
-        {
-            role = new ManagementRole(Guid.NewGuid(), "PlatformOperator");
-            dbContext.ManagementRoles.Add(role);
-        }
-
-        if (!await dbContext.ManagementRolePermissions.AnyAsync(
-                x => x.RoleId == role.Id && x.Permission == ManagementPermissions.PlatformManage,
-                cancellationToken))
-        {
-            dbContext.ManagementRolePermissions.Add(
-                new ManagementRolePermissionGrant(role.Id, ManagementPermissions.PlatformManage));
         }
 
         var normalizedEmail = email.Trim().ToUpperInvariant();
@@ -234,22 +215,53 @@ public sealed class DevelopmentManagementBootstrapper(
             user.UpdatePasswordHash(passwordHasher.HashPassword(user, password));
         }
 
-        var membershipExists = await dbContext.ManagementMemberships.AnyAsync(
-            x => x.UserId == user.Id
-                && x.TenantId == tenantId
-                && x.BranchId == branchId
-                && x.RoleId == role.Id,
-            cancellationToken);
-        if (!membershipExists)
+        var staff = await dbContext.PlatformStaff.SingleOrDefaultAsync(x => x.UserId == user.Id, cancellationToken);
+        if (staff is null)
         {
-            dbContext.ManagementMemberships.Add(new ManagementMembership(
-                Guid.NewGuid(),
-                user.Id,
-                tenantId,
-                branchId,
-                role.Id));
+            dbContext.PlatformStaff.Add(new PlatformStaff(user.Id, PlatformStaffRoles.Owner, timeProvider.GetUtcNow()));
+        }
+        else if (!staff.IsActive || staff.RoleCode != PlatformStaffRoles.Owner)
+        {
+            staff.Activate();
+            staff.ChangeRole(PlatformStaffRoles.Owner);
         }
 
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await EnsureBillingCatalogAsync(user.Id, cancellationToken);
+    }
+
+    private async Task EnsureBillingCatalogAsync(Guid createdByUserId, CancellationToken cancellationToken)
+    {
+        if (await dbContext.PlanPrices.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        void AddPublished(string product, string interval, long amount)
+        {
+            var price = new PlanPrice(
+                Guid.NewGuid(),
+                product,
+                interval,
+                BranchBillingPolicy.Currency,
+                amount,
+                taxInclusive: true,
+                now,
+                createdByUserId);
+            price.Publish(now);
+            dbContext.PlanPrices.Add(price);
+        }
+
+        AddPublished(SubscriptionPlanCodes.Free, BillingIntervals.Month, 0);
+        AddPublished(SubscriptionPlanCodes.Free, BillingIntervals.Year, 0);
+        AddPublished(SubscriptionPlanCodes.Pro, BillingIntervals.Month, 2_499_00);
+        AddPublished(SubscriptionPlanCodes.Pro, BillingIntervals.Year, 24_990_00);
+        AddPublished(CatalogProductCodes.ExtraBranch, BillingIntervals.Month, BranchBillingPolicy.ExtraBranchMonthlyPriceMinor);
+        AddPublished(
+            CatalogProductCodes.ExtraBranch,
+            BillingIntervals.Year,
+            BranchBillingPolicy.ExtraBranchMonthlyPriceMinor * 10);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

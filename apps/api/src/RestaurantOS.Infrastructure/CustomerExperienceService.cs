@@ -851,8 +851,7 @@ public sealed class CustomerExperienceService(
                 dbContext,
                 order.CustomerSessionId,
                 changedAt,
-                cancellationToken,
-                excludingOrderId: order.Id);
+                cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 

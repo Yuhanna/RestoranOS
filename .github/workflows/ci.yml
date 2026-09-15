@@ -52,7 +52,11 @@ jobs:
         run: pnpm web:test
       - name: Test restaurant-web
         run: pnpm restaurant:test
+      - name: Test admin-web
+        run: pnpm admin:test
       - name: Build customer-web
         run: pnpm web:build
       - name: Build restaurant-web
         run: pnpm restaurant:build
+      - name: Build admin-web
+        run: pnpm admin:build

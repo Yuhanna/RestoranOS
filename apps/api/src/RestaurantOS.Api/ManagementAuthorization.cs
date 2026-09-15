@@ -15,7 +15,31 @@ public sealed class PermissionAuthorizationHandler(RestaurantOsDbContext dbConte
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
-        if (!TryGetScope(context.User, out var userId, out var tenantId, out var branchId))
+        if (!TryGetUserId(context.User, out var userId))
+        {
+            return;
+        }
+
+        if (requirement.Permission == ManagementPermissions.PlatformManage)
+        {
+            if (!PermissionAuthorizationHandler.IsPlatformRealm(context.User))
+            {
+                return;
+            }
+
+            var platformAllowed = await dbContext.PlatformStaff
+                .AsNoTracking()
+                .AnyAsync(staff => staff.UserId == userId && staff.IsActive);
+            if (platformAllowed)
+            {
+                context.Succeed(requirement);
+            }
+
+            return;
+        }
+
+        if (PermissionAuthorizationHandler.IsPlatformRealm(context.User)
+            || !TryGetScope(context.User, out _, out var tenantId, out var branchId))
         {
             return;
         }
@@ -42,6 +66,45 @@ public sealed class PermissionAuthorizationHandler(RestaurantOsDbContext dbConte
         }
     }
 
+    public static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId) =>
+        Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out userId)
+        && userId != Guid.Empty;
+
+    public static bool IsPlatformRealm(ClaimsPrincipal principal) =>
+        AuthRealms.Normalize(principal.FindFirstValue(ManagementClaimTypes.Realm)) == AuthRealms.Platform;
+
+    public static bool TryGetPlatformActor(
+        ClaimsPrincipal principal,
+        out Guid userId,
+        out string roleCode)
+    {
+        userId = Guid.Empty;
+        roleCode = PlatformStaffRoles.ReadOnly;
+        if (!IsPlatformRealm(principal) || !TryGetUserId(principal, out userId))
+        {
+            return false;
+        }
+
+        roleCode = PlatformStaffRoles.Normalize(principal.FindFirstValue(ManagementClaimTypes.PlatformRole));
+        return true;
+    }
+
+    public static async Task<(Guid UserId, string RoleCode)?> TryGetLivePlatformActorAsync(
+        ClaimsPrincipal principal,
+        RestaurantOsDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        if (!IsPlatformRealm(principal) || !TryGetUserId(principal, out var userId))
+        {
+            return null;
+        }
+
+        var staff = await dbContext.PlatformStaff
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.UserId == userId && x.IsActive, cancellationToken);
+        return staff is null ? null : (userId, staff.RoleCode);
+    }
+
     public static bool TryGetScope(
         ClaimsPrincipal principal,
         out Guid userId,
@@ -51,9 +114,16 @@ public sealed class PermissionAuthorizationHandler(RestaurantOsDbContext dbConte
         userId = Guid.Empty;
         tenantId = Guid.Empty;
         branchId = Guid.Empty;
-        return Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out userId)
+        if (IsPlatformRealm(principal))
+        {
+            return false;
+        }
+
+        return TryGetUserId(principal, out userId)
             && Guid.TryParse(principal.FindFirstValue(ManagementClaimTypes.TenantId), out tenantId)
-            && Guid.TryParse(principal.FindFirstValue(ManagementClaimTypes.BranchId), out branchId);
+            && tenantId != Guid.Empty
+            && Guid.TryParse(principal.FindFirstValue(ManagementClaimTypes.BranchId), out branchId)
+            && branchId != Guid.Empty;
     }
 
     public static Task<bool> HasPermissionAsync(
