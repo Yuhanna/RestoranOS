@@ -175,6 +175,7 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(160);
             entity.Property(x => x.Note).HasMaxLength(160);
+            entity.Property(x => x.SourcePackageName).HasMaxLength(160);
             entity.Ignore(x => x.ListUnitPrice);
             entity.Ignore(x => x.DiscountUnitAmount);
             entity.Ignore(x => x.UnitPrice);
@@ -331,9 +332,6 @@ public sealed class RestaurantOsDbContext(DbContextOptions<RestaurantOsDbContext
             entity.Property(x => x.Description).HasMaxLength(2000);
             entity.Property(x => x.PriceCurrency).HasMaxLength(3);
             entity.HasMany(x => x.Components).WithOne().HasForeignKey(x => x.MenuPackageId).OnDelete(DeleteBehavior.Cascade);
-            entity.Navigation(x => x.Components)
-                .HasField("_components")
-                .UsePropertyAccessMode(PropertyAccessMode.Field);
         });
         modelBuilder.Entity<MenuPackageComponent>(entity =>
         {
