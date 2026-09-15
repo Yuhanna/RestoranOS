@@ -1,5 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 
+Object.defineProperty(window.HTMLMediaElement.prototype, "play", {
+  configurable: true,
+  writable: true,
+  value: () => Promise.resolve(),
+});
+
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: (query: string) => ({

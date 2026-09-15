@@ -18,6 +18,8 @@ const order: Order = {
   estimatedReadyAtUtc: "2026-08-25T12:20:00Z",
   amountMinor: 1000,
   currency: "TRY",
+  tableId: "table-1",
+  tableLabel: "Masa 1",
 };
 
 const response = (body: unknown, status = 200) =>

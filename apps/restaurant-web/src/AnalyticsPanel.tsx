@@ -94,7 +94,7 @@ export function AnalyticsPanel({ managementApi, onError }: AnalyticsPanelProps) 
         </div>
       </header>
 
-      {summary.canViewFinancials &&
+      {summary?.canViewFinancials &&
       workspace?.entitlements &&
       workspace.entitlements.planCode === "Free" &&
       !workspace.entitlements.isTrial ? (

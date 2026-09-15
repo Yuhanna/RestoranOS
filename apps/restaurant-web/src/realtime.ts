@@ -9,12 +9,17 @@ import type { Order, ServiceRequest, AudienceNotification } from "./domain";
 
 export type RealtimeState = "connecting" | "connected" | "reconnecting" | "offline";
 
+export type LivePanelDenied = {
+  message?: string;
+};
+
 export type RealtimeCallbacks = {
   onOrder: (order: Order) => void;
   onResync: (orders: Order[]) => void;
   onState: (state: RealtimeState) => void;
   onServiceRequest?: (request: ServiceRequest) => void;
   onAudienceNotification?: (notification: AudienceNotification) => void;
+  onLivePanelDenied?: (payload: LivePanelDenied) => void;
 };
 
 export type RealtimeClient = {
@@ -49,6 +54,9 @@ export class SignalRRealtimeClient implements RealtimeClient {
     if (callbacks.onAudienceNotification) {
       connection.on("audienceNotificationPublished", callbacks.onAudienceNotification);
     }
+    if (callbacks.onLivePanelDenied) {
+      connection.on("livePanelDenied", callbacks.onLivePanelDenied);
+    }
     connection.onreconnecting(async () => {
       callbacks.onState("reconnecting");
       try {
@@ -82,6 +90,9 @@ export class SignalRRealtimeClient implements RealtimeClient {
       }
       if (callbacks.onAudienceNotification) {
         connection.off("audienceNotificationPublished", callbacks.onAudienceNotification);
+      }
+      if (callbacks.onLivePanelDenied) {
+        connection.off("livePanelDenied", callbacks.onLivePanelDenied);
       }
       if (connection.state !== HubConnectionState.Disconnected) await connection.stop();
     };
