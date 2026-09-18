@@ -1,5 +1,6 @@
 import type {
   AnalyticsSummary,
+  CloseTableCheckInput,
   CreateMenuPromotionInput,
   CreateNotificationInput,
   DiningTable,
@@ -18,6 +19,8 @@ import type {
   SalesPeriod,
   ServiceRequest,
   Session,
+  TableCheck,
+  TableCheckCloseResult,
   TableQrCode,
   TopItem,
   TodayDashboard,
@@ -101,6 +104,29 @@ export class ManagementApi {
       body: JSON.stringify({
         status,
         expectedStatusChangedAtUtc: order.statusChangedAtUtc,
+      }),
+    });
+  }
+
+  async getTableCheck(tableId: string, signal?: AbortSignal): Promise<TableCheck> {
+    const check = await this.authorized<TableCheck>(`/api/v1/management/tables/${tableId}/check`, { signal });
+    return {
+      ...check,
+      rounds: (check.rounds ?? []).map((round) => ({
+        ...round,
+        items: round.items ?? [],
+      })),
+    };
+  }
+
+  async closeTableCheck(tableId: string, input: CloseTableCheckInput): Promise<TableCheckCloseResult> {
+    return this.authorized<TableCheckCloseResult>(`/api/v1/management/tables/${tableId}/close-check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tender: input.tender,
+        confirmIncompleteKitchen: Boolean(input.confirmIncompleteKitchen),
+        note: input.note?.trim() || null,
       }),
     });
   }

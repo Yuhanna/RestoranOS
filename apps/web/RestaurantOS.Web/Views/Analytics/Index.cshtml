@@ -11,6 +11,7 @@
 <p class="muted">
     Son @Model.Days gün · tamamlanan siparişler üzerinden
     @(Model.CanViewFinancials ? "ciro ve brüt kâr" : "ciro ve sipariş metrikleri")
+    · plan: @Model.PlanDisplayName (en fazla @Model.MaxDays gün)
 </p>
 
 @if (TempData["Message"] is string message)
@@ -22,18 +23,41 @@
     <div class="alert" role="alert">@error</div>
 }
 
+@if (Model.UpgradePrompt is not null)
+{
+    <partial name="_UpgradePrompt" model="Model.UpgradePrompt" />
+}
+else if (Model.MaxDays < 90 && Model.CanManageSubscription)
+{
+    @* SoftDiscover: locked day buttons need the dialog template even before a clamp. *@
+    var analyticsPrompt = MonetizationUi.FromFeature(
+        RestaurantOS.Domain.MonetizationPolicy.AnalyticsLookbackFeature,
+        toneOverride: "info",
+        compact: true);
+    <div hidden>
+        <partial name="_UpgradePrompt" model="analyticsPrompt" />
+    </div>
+}
+
 <p class="actions">
-    @foreach (var range in new[] { 7, 30, 90 })
+    @foreach (var range in new[] { 3, 7, 30, 90 })
     {
-        <a class="btn @(Model.Days == range ? null : "btn-ghost")" asp-action="Index" asp-route-days="@range">@range gün</a>
+        var locked = range > Model.MaxDays;
+        if (locked)
+        {
+            <button type="button"
+                    class="btn btn-ghost is-locked"
+                    data-upgrade-trigger="@RestaurantOS.Domain.MonetizationPolicy.AnalyticsLookback"
+                    title="Bu aralık Pro ile açılır">@range gün · Pro</button>
+        }
+        else
+        {
+            <a class="btn @(Model.Days == range ? null : "btn-ghost")" asp-action="Index" asp-route-days="@range">@range gün</a>
+        }
     }
-    @if (Model.CanViewFinancials)
+    @if (Model.CanManageSubscription && Model.MaxDays < 30)
     {
-        <form asp-action="Checkout" method="post" class="inline">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="planCode" value="Pro" />
-            <button type="submit" class="btn btn-ghost">Pro&apos;ya yükselt (demo)</button>
-        </form>
+        <a class="btn btn-ghost" asp-controller="Subscription" asp-action="Index">Paketi yükselt</a>
     }
 </p>
 

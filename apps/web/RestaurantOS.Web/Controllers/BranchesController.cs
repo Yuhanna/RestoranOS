@@ -28,6 +28,9 @@ public sealed class BranchesController(IWebApiExecuter api) : Controller
             model.Memberships = memberships;
             model.CanManageBranches = memberships.Any(x =>
                 x.BranchId == (workspace?.BranchId ?? Guid.Empty) && x.CanManageBranches);
+            model.CanManageMembers = workspace?.CanManageMembers == true
+                || memberships.Any(x =>
+                    x.BranchId == (workspace?.BranchId ?? Guid.Empty) && x.CanManageMembers);
 
             if (model.CanManageBranches)
             {
@@ -87,6 +90,26 @@ public sealed class BranchesController(IWebApiExecuter api) : Controller
                         IsCurrent = x.BranchId == workspace?.BranchId,
                     })
                     .ToArray();
+                model.SelectedBranchId = workspace?.BranchId
+                    ?? model.Branches.FirstOrDefault(x => x.IsCurrent)?.Id
+                    ?? (model.Branches.Count > 0 ? model.Branches[0].Id : null);
+
+                if (model.CanManageMembers && workspace?.BranchId is Guid managerBranchId)
+                {
+                    model.SelectedBranchId = managerBranchId;
+                    model.InviteMember.BranchId = managerBranchId;
+                    model.InviteMember.RoleKey = "staff";
+                    try
+                    {
+                        model.SelectedMembers = await api.InvokeGetAsync<List<BranchMemberViewModel>>(
+                            $"/api/v1/management/branches/{managerBranchId}/members",
+                            cancellationToken) ?? [];
+                    }
+                    catch (WebApiException exception)
+                    {
+                        TempData["Error"] = exception.Message;
+                    }
+                }
             }
         }
         catch (WebApiException exception)
@@ -251,6 +274,8 @@ public sealed class BranchesController(IWebApiExecuter api) : Controller
                 new
                 {
                     email = invite.Email,
+                    displayName = invite.DisplayName,
+                    phone = string.IsNullOrWhiteSpace(invite.Phone) ? null : invite.Phone,
                     password = string.IsNullOrWhiteSpace(invite.Password) ? null : invite.Password,
                     roleKey = invite.RoleKey,
                 },
@@ -293,6 +318,94 @@ public sealed class BranchesController(IWebApiExecuter api) : Controller
         }
 
         return RedirectToAction(nameof(Index), new { branchId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ActivateMember(
+        Guid branchId,
+        Guid membershipId,
+        CancellationToken cancellationToken)
+    {
+        if (!api.IsAuthenticated)
+        {
+            return RedirectToAction("Login", "Account");
+        }
+
+        try
+        {
+            await api.InvokePostAsync<object>(
+                $"/api/v1/management/branches/{branchId}/members/{membershipId}/activate",
+                null,
+                cancellationToken);
+            api.InvalidateWorkspaceCache();
+            TempData["Message"] = "Üyelik yeniden aktifleştirildi.";
+        }
+        catch (WebApiException exception)
+        {
+            TempData["Error"] = exception.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { branchId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateMember(
+        UpdateBranchMemberViewModel update,
+        CancellationToken cancellationToken)
+    {
+        if (!api.IsAuthenticated)
+        {
+            return RedirectToAction("Login", "Account");
+        }
+
+        try
+        {
+            await api.InvokePatchAsync<BranchMemberViewModel>(
+                $"/api/v1/management/branches/{update.BranchId}/members/{update.MembershipId}",
+                new
+                {
+                    displayName = update.DisplayName,
+                    phone = string.IsNullOrWhiteSpace(update.Phone) ? null : update.Phone,
+                    roleKey = string.IsNullOrWhiteSpace(update.RoleKey) ? null : update.RoleKey,
+                },
+                cancellationToken);
+            TempData["Message"] = "Hesap güncellendi.";
+        }
+        catch (WebApiException exception)
+        {
+            TempData["Error"] = exception.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { branchId = update.BranchId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetMemberPassword(
+        ResetBranchMemberPasswordViewModel reset,
+        CancellationToken cancellationToken)
+    {
+        if (!api.IsAuthenticated)
+        {
+            return RedirectToAction("Login", "Account");
+        }
+
+        try
+        {
+            await api.InvokePostAsync<object>(
+                $"/api/v1/management/branches/{reset.BranchId}/members/{reset.MembershipId}/reset-password",
+                new { newPassword = reset.NewPassword },
+                cancellationToken);
+            TempData["Message"] = "Şifre güncellendi. Kullanıcı yeni şifreyle giriş yapmalı.";
+        }
+        catch (WebApiException exception)
+        {
+            TempData["Error"] = exception.Message;
+        }
+
+        return RedirectToAction(nameof(Index), new { branchId = reset.BranchId });
     }
 
     [HttpPost]

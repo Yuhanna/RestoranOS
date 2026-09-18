@@ -90,23 +90,51 @@ public sealed record ManagementEntitlementUsageResponse(
     int ActiveBranchCount = 0,
     long ExtraBranchMonthlyPriceMinor = 0,
     string BillingCurrency = "TRY",
-    bool NextBranchRequiresAddon = false);
+    bool NextBranchRequiresAddon = false,
+    bool CanUseMenuThemes = false,
+    bool CanUseBrandWatermark = false,
+    int ActiveQrCount = 0,
+    int? MaxActiveQrCodes = null,
+    int? MaxConcurrentLiveSessions = null,
+    bool CanUsePromotions = false,
+    bool CanUseAnalytics = false,
+    int MaxOrderHistoryHours = 72);
 
 public sealed record ManagementCloseTableCheckRequest(
     string Tender,
     bool ConfirmIncompleteKitchen = false,
     string? Note = null);
 
+public sealed record ManagementTableCheckRoundResponse(
+    Guid OrderId,
+    string DisplayNumber,
+    string Status,
+    long AmountMinor,
+    string Currency,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset StatusChangedAtUtc,
+    bool IsKitchenIncomplete,
+    IReadOnlyList<ManagementOrderLineResponse> Items);
+
 public sealed record ManagementTableCheckResponse(
+    Guid TableId,
+    string TableLabel,
     int RoundCount,
     long TotalAmountMinor,
-    bool HasIncompleteKitchen);
+    string Currency,
+    bool HasIncompleteKitchen,
+    IReadOnlyList<ManagementTableCheckRoundResponse> Rounds);
 
 public sealed record ManagementTableCheckCloseResponse(
-    int ClosedOrderCount,
-    long TotalAmountMinor,
+    Guid TableId,
+    string TableLabel,
     string Tender,
-    bool ForcedIncompleteKitchen);
+    long TotalAmountMinor,
+    string Currency,
+    int ClosedOrderCount,
+    bool ForcedIncompleteKitchen,
+    DateTimeOffset ClosedAtUtc,
+    IReadOnlyList<Guid> ClosedOrderIds);
 
 public sealed record ManagementChangeOrderStatusRequest(
     string Status,
@@ -123,7 +151,8 @@ public sealed record ManagementOrderResponse(
     long AmountMinor,
     string Currency,
     Guid TableId,
-    string TableLabel);
+    string TableLabel,
+    string ItemSummary = "");
 
 public sealed record ManagementTodayDashboardResponse(
     int TodaysOrderCount,
@@ -145,7 +174,9 @@ public sealed record ManagementOrderLineResponse(
     long DiscountUnitAmountMinor,
     long UnitPriceAmountMinor,
     string Currency,
-    string? Note);
+    string? Note,
+    Guid? SourcePackageId = null,
+    string? SourcePackageName = null);
 
 public sealed record ManagementOrderStatusHistoryResponse(
     string Status,
@@ -269,7 +300,12 @@ public sealed record ManagementCustomerMenuSettingsResponse(
     bool ShowProductAllergens,
     bool ShowProductModifiers,
     string? AllergenDisclaimer,
-    string? AllergenMatrixUrl);
+    string? AllergenMatrixUrl,
+    string ThemeId = "modern",
+    string? LogoUrl = null,
+    string? LogoAlt = null,
+    bool ShowBrandWatermark = false,
+    string BrandWatermarkIntensity = "soft");
 
 public sealed record ManagementUpdateCustomerMenuSettingsRequest(
     bool ShowDietaryFilters,
@@ -280,7 +316,12 @@ public sealed record ManagementUpdateCustomerMenuSettingsRequest(
     bool ShowProductAllergens,
     bool ShowProductModifiers,
     string? AllergenDisclaimer,
-    string? AllergenMatrixUrl);
+    string? AllergenMatrixUrl,
+    string? ThemeId = null,
+    string? LogoUrl = null,
+    string? LogoAlt = null,
+    bool ShowBrandWatermark = false,
+    string? BrandWatermarkIntensity = null);
 
 public sealed record ManagementStockPhotoCategoryResponse(string Id, string Label);
 
@@ -379,7 +420,8 @@ public sealed record ManagementMenuPromotionResponse(
     TimeOnly? DailyEndLocal,
     Guid? CategoryId,
     Guid? MenuItemId,
-    bool IsActive);
+    bool IsActive,
+    byte? DaysOfWeekMask = null);
 
 public sealed record ManagementCreateMenuPromotionRequest(
     string Name,
@@ -392,12 +434,54 @@ public sealed record ManagementCreateMenuPromotionRequest(
     TimeOnly? DailyEndLocal,
     Guid? CategoryId,
     Guid? MenuItemId,
-    bool IsActive = true);
+    bool IsActive = true,
+    byte? DaysOfWeekMask = null);
 
 public sealed record ManagementUpdateMenuPromotionRequest(
     string? Name,
     bool? IsActive,
     DateTimeOffset? EndsAtUtc);
+
+public sealed record ManagementLunchPackageComponentRequest(
+    Guid MenuItemId,
+    string? SlotLabel,
+    int SortOrder = 0);
+
+public sealed record ManagementUpsertLunchPackageRequest(
+    string Name,
+    string? Description,
+    long PriceAmountMinor,
+    string? Currency,
+    bool IsActive,
+    int SortOrder,
+    string? DailyStartLocal,
+    string? DailyEndLocal,
+    byte? DaysOfWeekMask,
+    IReadOnlyList<ManagementLunchPackageComponentRequest>? Components);
+
+public sealed record ManagementSetLunchPackageActiveRequest(bool IsActive);
+
+public sealed record ManagementLunchPackageComponentResponse(
+    Guid Id,
+    Guid MenuItemId,
+    string MenuItemName,
+    string? SlotLabel,
+    int SortOrder,
+    long ListAmountMinor);
+
+public sealed record ManagementLunchPackageResponse(
+    Guid Id,
+    string Name,
+    string? Description,
+    long PriceAmountMinor,
+    string Currency,
+    bool IsActive,
+    int SortOrder,
+    string? DailyStartLocal,
+    string? DailyEndLocal,
+    byte? DaysOfWeekMask,
+    long ComponentsListTotalMinor,
+    IReadOnlyList<ManagementLunchPackageComponentResponse> Components);
 
 public sealed record ManagementManagedNotificationResponse(
     Guid Id,
@@ -437,6 +521,8 @@ public sealed record ManagementCreatePlatformNotificationRequest(
     string? ActionUrl,
     bool IsActive = true);
 
+public sealed record ManagementSetPlatformNotificationActiveRequest(bool IsActive);
+
 public sealed record ManagementCreateSubscriptionOfferRequest(
     string Audience,
     string TargetPlanCode,
@@ -456,6 +542,22 @@ public sealed record ManagementCreatePlanPriceRequest(
     long AmountMinor,
     string Currency = "TRY",
     bool TaxInclusive = true);
+
+public sealed record ManagementInvitePlatformStaffRequest(
+    string Email,
+    string RoleCode,
+    string? Password = null);
+
+public sealed record ManagementUpdatePlatformStaffRequest(
+    string? RoleCode = null,
+    bool? IsActive = null);
+
+public sealed record ManagementPlatformStaffResponse(
+    Guid UserId,
+    string Email,
+    string RoleCode,
+    bool IsActive,
+    DateTimeOffset GrantedAtUtc);
 
 public sealed record ManagementPlanPriceResponse(
     Guid Id,
@@ -493,8 +595,50 @@ public sealed record ManagementRenameBranchRequest(string Name);
 
 public sealed record ManagementInviteBranchMemberRequest(
     string Email,
+    string DisplayName = "",
+    string? Phone = null,
     string? Password = null,
-    string RoleKey = "manager");
+    string RoleKey = "staff");
+
+public sealed record ManagementUpdateBranchMemberRequest(
+    string DisplayName,
+    string? Phone = null,
+    string? RoleKey = null);
+
+public sealed record ManagementResetBranchMemberPasswordRequest(string NewPassword);
+
+public sealed record ManagementIncidentResponse(
+    Guid Id,
+    DateTimeOffset OccurredAtUtc,
+    DateTimeOffset ExpiresAtUtc,
+    Guid? TenantId,
+    Guid? BranchId,
+    Guid? RestaurantId,
+    string Channel,
+    string Severity,
+    string Code,
+    int? HttpStatus,
+    string Message,
+    string? CorrelationId,
+    string ActorType,
+    Guid? ActorUserId,
+    Guid? CustomerSessionId,
+    Guid? GuestSessionId,
+    Guid? TableId,
+    Guid? OrderId,
+    string? RequestMethod,
+    string? RequestPath,
+    string? DetailJson);
+
+public sealed record ManagementUpdateProfileRequest(string DisplayName, string? Phone = null);
+
+public sealed record ManagementProfileResponse(
+    Guid UserId,
+    string Email,
+    string? DisplayName,
+    string? Phone);
+
+public sealed record ManagementChangePasswordRequest(string CurrentPassword, string NewPassword);
 
 public sealed record ManagementSwitchBranchRequest(Guid BranchId);
 
@@ -511,6 +655,8 @@ public sealed record ManagementBranchMemberResponse(
     Guid MembershipId,
     Guid UserId,
     string Email,
+    string? DisplayName,
+    string? Phone,
     string RoleName,
     string RoleKey,
     bool IsActive,
@@ -524,7 +670,8 @@ public sealed record ManagementMembershipScopeResponse(
     Guid BranchId,
     string BranchName,
     string RoleName,
-    bool CanManageBranches);
+    bool CanManageBranches,
+    bool CanManageMembers = false);
 
 public sealed record ManagementNetworkBranchStatResponse(
     Guid BranchId,
@@ -575,3 +722,86 @@ public sealed record ManagementEnterpriseQuoteResponse(
     Guid Id,
     DateTimeOffset CreatedAtUtc,
     string Message);
+
+public sealed record ManagementPlatformTenantListResponse(
+    IReadOnlyList<ManagementPlatformTenantListItemResponse> Items,
+    int Total,
+    int Skip,
+    int Take);
+
+public sealed record ManagementPlatformTenantListItemResponse(
+    Guid TenantId,
+    string TenantName,
+    string RestaurantName,
+    string PlanCode,
+    bool IsTrial,
+    DateTimeOffset? ExpiresAtUtc,
+    int ActiveBranchCount,
+    int? MaxBranches,
+    int OpenQuoteCount);
+
+public sealed record ManagementPlatformTenantDetailResponse(
+    Guid TenantId,
+    string TenantName,
+    string RestaurantName,
+    string? BillingEmail,
+    string PlanCode,
+    bool IsTrial,
+    DateTimeOffset StartedAtUtc,
+    DateTimeOffset? ExpiresAtUtc,
+    int PurchasedBranchAddonCount,
+    int ActiveBranchCount,
+    int FrozenBranchCount,
+    int ActiveUserCount,
+    int? MaxBranches,
+    int? MaxActiveUsers,
+    int MaxOrderHistoryHours,
+    int? MaxActiveQrCodes,
+    int? OverrideMaxBranches,
+    int? OverrideMaxActiveUsers,
+    int? OverrideMaxOrderHistoryHours,
+    int? OverrideMaxActiveQrCodes,
+    string? ContractNote);
+
+public sealed record ManagementUpdatePlatformTenantSubscriptionRequest(
+    string PlanCode,
+    DateTimeOffset? ExpiresAtUtc = null,
+    int PurchasedBranchAddonCount = 0,
+    int? OverrideMaxBranches = null,
+    int? OverrideMaxActiveUsers = null,
+    int? OverrideMaxOrderHistoryHours = null,
+    int? OverrideMaxActiveQrCodes = null,
+    string? ContractNote = null);
+
+public sealed record ManagementPlatformQuoteListItemResponse(
+    Guid Id,
+    Guid TenantId,
+    string TenantName,
+    int EstimatedBranchCount,
+    string Status,
+    DateTimeOffset CreatedAtUtc);
+
+public sealed record ManagementPlatformQuoteDetailResponse(
+    Guid Id,
+    Guid TenantId,
+    string TenantName,
+    string ContactName,
+    string Email,
+    string? Phone,
+    int EstimatedBranchCount,
+    string? Note,
+    string Status,
+    DateTimeOffset CreatedAtUtc,
+    Guid? ReviewedByUserId,
+    DateTimeOffset? ReviewedAtUtc,
+    string? DecisionNote);
+
+public sealed record ManagementAcceptPlatformQuoteRequest(
+    int? OverrideMaxBranches = null,
+    int? OverrideMaxActiveUsers = null,
+    int? OverrideMaxOrderHistoryHours = null,
+    int? OverrideMaxActiveQrCodes = null,
+    string? ContractNote = null,
+    DateTimeOffset? ExpiresAtUtc = null);
+
+public sealed record ManagementRejectPlatformQuoteRequest(string? DecisionNote = null);

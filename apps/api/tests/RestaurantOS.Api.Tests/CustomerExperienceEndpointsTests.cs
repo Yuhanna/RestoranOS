@@ -69,6 +69,8 @@ public sealed class CustomerExperienceEndpointsTests : IAsyncLifetime, IDisposab
         Assert.Equal(HttpStatusCode.OK, sessionResponse.StatusCode);
         Assert.NotNull(session);
         Assert.Equal("Tenant A Restaurant", session.RestaurantName);
+        Assert.NotNull(session.Packages);
+        Assert.Empty(session.Packages);
         Assert.Single(session.Products);
         Assert.Equal(SeedIds.ProductA.ToString(), session.Products[0].Id);
         Assert.DoesNotContain(session.Products, product => product.Id == SeedIds.ProductB.ToString());
@@ -417,6 +419,8 @@ public sealed class CustomerExperienceEndpointsTests : IAsyncLifetime, IDisposab
             builder.UseSetting(
                 "ManagementAuth:SigningKey",
                 "test-only-signing-key-32-bytes-minimum-value");
+            builder.UseSetting("RateLimits:CustomerOrders:GuestPermitLimit", "2");
+            builder.UseSetting("RateLimits:CustomerOrders:GuestWindowMinutes", "1");
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<DbContextOptions<RestaurantOsDbContext>>();

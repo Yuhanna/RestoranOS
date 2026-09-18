@@ -148,7 +148,8 @@ public sealed class ManagementAuthController(IManagementAuthService authService)
             item.BranchId,
             item.BranchName,
             item.RoleName,
-            item.CanManageBranches)).ToArray());
+            item.CanManageBranches,
+            item.CanManageMembers)).ToArray());
     }
 
     [HttpPost("switch-branch")]
@@ -181,6 +182,97 @@ public sealed class ManagementAuthController(IManagementAuthService authService)
         catch (ManagementAuthException exception)
         {
             return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
+        }
+    }
+
+    [HttpGet("profile")]
+    [Authorize]
+    [ProducesResponseType(typeof(ManagementProfileResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetProfileAsync(CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out _, out _))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            var profile = await authService.GetProfileAsync(userId, cancellationToken);
+            return Ok(new ManagementProfileResponse(
+                profile.UserId,
+                profile.Email,
+                profile.DisplayName,
+                profile.Phone));
+        }
+        catch (ManagementAuthException exception)
+        {
+            var status = exception.Code == "USER_NOT_FOUND"
+                ? StatusCodes.Status404NotFound
+                : StatusCodes.Status400BadRequest;
+            return ApiProblem.Create(status, exception.Code, exception.Message);
+        }
+    }
+
+    [HttpPatch("profile")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> UpdateProfileAsync(
+        [FromBody] ManagementUpdateProfileRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out _, out _))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            await authService.UpdateProfileAsync(
+                userId,
+                request?.DisplayName ?? string.Empty,
+                request?.Phone,
+                cancellationToken);
+            return NoContent();
+        }
+        catch (ManagementAuthException exception)
+        {
+            var status = exception.Code == "USER_NOT_FOUND"
+                ? StatusCodes.Status404NotFound
+                : StatusCodes.Status400BadRequest;
+            return ApiProblem.Create(status, exception.Code, exception.Message);
+        }
+    }
+
+    [HttpPost("change-password")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ChangePasswordAsync(
+        [FromBody] ManagementChangePasswordRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out _, out _))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            await authService.ChangePasswordAsync(
+                userId,
+                request?.CurrentPassword ?? string.Empty,
+                request?.NewPassword ?? string.Empty,
+                cancellationToken);
+            return NoContent();
+        }
+        catch (ManagementAuthException exception)
+        {
+            var status = exception.Code switch
+            {
+                "USER_NOT_FOUND" => StatusCodes.Status404NotFound,
+                "INVALID_CREDENTIALS" => StatusCodes.Status401Unauthorized,
+                _ => StatusCodes.Status400BadRequest,
+            };
+            return ApiProblem.Create(status, exception.Code, exception.Message);
         }
     }
 

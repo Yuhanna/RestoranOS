@@ -91,7 +91,8 @@ public sealed class MenuPromotion
         TimeOnly? dailyEndLocal,
         Guid? categoryId,
         Guid? menuItemId,
-        bool isActive)
+        bool isActive,
+        byte? daysOfWeekMask = null)
     {
         Id = id;
         TenantId = tenantId;
@@ -107,6 +108,7 @@ public sealed class MenuPromotion
         CategoryId = categoryId;
         MenuItemId = menuItemId;
         IsActive = isActive;
+        DaysOfWeekMask = NormalizeDaysMask(daysOfWeekMask);
         Validate();
     }
 
@@ -121,6 +123,11 @@ public sealed class MenuPromotion
     public DateTimeOffset? EndsAtUtc { get; private set; }
     public TimeOnly? DailyStartLocal { get; private set; }
     public TimeOnly? DailyEndLocal { get; private set; }
+    /// <summary>
+    /// Bitmask of <see cref="DayOfWeek"/> (bit 0 = Sunday … bit 6 = Saturday).
+    /// Null or all bits set means every day.
+    /// </summary>
+    public byte? DaysOfWeekMask { get; private set; }
     public Guid? CategoryId { get; private set; }
     public Guid? MenuItemId { get; private set; }
     public bool IsActive { get; private set; }
@@ -138,17 +145,76 @@ public sealed class MenuPromotion
             return false;
         }
 
+        var localDateTime = branchTimeZone is null
+            ? utcNow.LocalDateTime
+            : TimeZoneInfo.ConvertTime(utcNow, branchTimeZone).DateTime;
+
+        if (!AppliesOnWeekday(localDateTime.DayOfWeek))
+        {
+            return false;
+        }
+
         if (DailyStartLocal is null || DailyEndLocal is null)
         {
             return true;
         }
 
-        var localNow = branchTimeZone is null
-            ? TimeOnly.FromDateTime(utcNow.LocalDateTime)
-            : TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(utcNow, branchTimeZone).DateTime);
+        var localNow = TimeOnly.FromDateTime(localDateTime);
         return DailyStartLocal <= DailyEndLocal
             ? localNow >= DailyStartLocal && localNow <= DailyEndLocal
             : localNow >= DailyStartLocal || localNow <= DailyEndLocal;
+    }
+
+    public bool AppliesOnWeekday(DayOfWeek dayOfWeek)
+    {
+        if (DaysOfWeekMask is null || DaysOfWeekMask == 0b0111_1111)
+        {
+            return true;
+        }
+
+        var bit = (byte)(1 << (int)dayOfWeek);
+        return (DaysOfWeekMask.Value & bit) != 0;
+    }
+
+    /// <summary>Next customer-facing end for urgency copy (campaign end or today's daily window end).</summary>
+    public DateTimeOffset? EffectiveEndsAtUtc(DateTimeOffset utcNow, TimeZoneInfo? branchTimeZone = null)
+    {
+        if (!IsActiveAt(utcNow, branchTimeZone))
+        {
+            return EndsAtUtc;
+        }
+
+        DateTimeOffset? dailyEndUtc = null;
+        if (DailyEndLocal is not null && DailyStartLocal is not null)
+        {
+            var tz = branchTimeZone ?? TimeZoneInfo.Local;
+            var localNow = TimeZoneInfo.ConvertTime(utcNow, tz);
+            var endLocalDate = localNow.Date;
+            // Overnight window ending after midnight: if now is before end and after midnight, end is today.
+            if (DailyStartLocal > DailyEndLocal && TimeOnly.FromDateTime(localNow.DateTime) <= DailyEndLocal)
+            {
+                // already correct — end is today
+            }
+            else if (DailyStartLocal > DailyEndLocal)
+            {
+                endLocalDate = localNow.Date.AddDays(1);
+            }
+
+            var endLocal = DateTime.SpecifyKind(endLocalDate + DailyEndLocal.Value.ToTimeSpan(), DateTimeKind.Unspecified);
+            dailyEndUtc = new DateTimeOffset(endLocal, tz.GetUtcOffset(endLocal));
+        }
+
+        if (EndsAtUtc is null)
+        {
+            return dailyEndUtc;
+        }
+
+        if (dailyEndUtc is null)
+        {
+            return EndsAtUtc;
+        }
+
+        return EndsAtUtc < dailyEndUtc ? EndsAtUtc : dailyEndUtc;
     }
 
     public bool AppliesTo(Guid menuItemId, Guid categoryId)
@@ -176,8 +242,6 @@ public sealed class MenuPromotion
 
     public long DiscountAmount(long listAmountMinor) => Math.Max(0, listAmountMinor - ApplyDiscount(listAmountMinor));
 
-    public DateTimeOffset? EffectiveEndsAtUtc(DateTimeOffset utcNow, TimeZoneInfo? branchTimeZone) => EndsAtUtc;
-
     private void Validate()
     {
         if (Scope == PromotionScopes.Category && CategoryId is null)
@@ -199,7 +263,15 @@ public sealed class MenuPromotion
         {
             throw new ArgumentOutOfRangeException(nameof(DiscountValue), "Fixed discount must be positive.");
         }
+
+        if (DaysOfWeekMask is 0)
+        {
+            throw new ArgumentException("Select at least one weekday.");
+        }
     }
+
+    private static byte? NormalizeDaysMask(byte? mask) =>
+        mask is null or 0b0111_1111 ? null : mask;
 
     private static string Required(string value, int maxLength)
     {

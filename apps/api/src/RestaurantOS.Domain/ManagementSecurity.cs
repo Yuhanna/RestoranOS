@@ -13,6 +13,7 @@ public static class ManagementPermissions
     public const string AnalyticsFinancialView = "Analytics.FinancialView";
     public const string SubscriptionManage = "Subscription.Manage";
     public const string BranchManage = "Branch.Manage";
+    public const string BranchMembers = "Branch.Members";
     public const string PlatformManage = "Platform.Manage";
 }
 
@@ -25,7 +26,9 @@ public sealed class ManagementUser
         string email,
         string normalizedEmail,
         string passwordHash,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        string? displayName = null,
+        string? phone = null)
     {
         Id = id;
         Email = Required(email);
@@ -33,12 +36,32 @@ public sealed class ManagementUser
         PasswordHash = Required(passwordHash);
         CreatedAtUtc = createdAtUtc.ToUniversalTime();
         IsActive = true;
+        if (!string.IsNullOrWhiteSpace(displayName))
+        {
+            DisplayName = displayName.Trim();
+            if (DisplayName.Length > 120)
+            {
+                throw new ArgumentException("Display name is too long.");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(phone))
+        {
+            Phone = phone.Trim();
+            if (Phone.Length > 40)
+            {
+                throw new ArgumentException("Phone is too long.");
+            }
+        }
     }
 
     public Guid Id { get; private set; }
     public string Email { get; private set; } = null!;
     public string NormalizedEmail { get; private set; } = null!;
     public string PasswordHash { get; private set; } = null!;
+    /// <summary>Human-facing name shown in member lists and ops UIs.</summary>
+    public string? DisplayName { get; private set; }
+    public string? Phone { get; private set; }
     public bool IsActive { get; private set; }
     public int AccessFailedCount { get; private set; }
     public DateTimeOffset? LockoutEndUtc { get; private set; }
@@ -65,6 +88,40 @@ public sealed class ManagementUser
     }
 
     public void UpdatePasswordHash(string passwordHash) => PasswordHash = Required(passwordHash);
+
+    /// <summary>
+    /// Updates profile fields. When <paramref name="requireDisplayName"/> is true (new invites),
+    /// display name must be non-empty. Pass <paramref name="phone"/> as empty string to clear.
+    /// </summary>
+    public void UpdateProfile(string? displayName, string? phone, bool requireDisplayName = true)
+    {
+        var trimmedName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();
+        if (requireDisplayName && trimmedName is null)
+        {
+            throw new ArgumentException("Display name is required.");
+        }
+
+        if (trimmedName is { Length: > 120 })
+        {
+            throw new ArgumentException("Display name is too long.");
+        }
+
+        if (trimmedName is not null)
+        {
+            DisplayName = trimmedName;
+        }
+
+        if (phone is not null)
+        {
+            var trimmedPhone = string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+            if (trimmedPhone is { Length: > 40 })
+            {
+                throw new ArgumentException("Phone is too long.");
+            }
+
+            Phone = trimmedPhone;
+        }
+    }
 
     private static string Required(string value) =>
         string.IsNullOrWhiteSpace(value) ? throw new ArgumentException("Value is required.") : value.Trim();

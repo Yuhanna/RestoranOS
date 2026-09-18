@@ -59,7 +59,9 @@ public sealed class SetupChecklistViewModel
     public bool IsTrial { get; set; }
     public DateTimeOffset? TrialEndsAtUtc { get; set; }
     public int TableCount { get; set; }
-    public int? MaxTablesPerBranch { get; set; } = 8;
+    public int? MaxTablesPerBranch { get; set; }
+    public int? MaxActiveQrCodes { get; set; }
+    public int? MaxConcurrentLiveSessions { get; set; }
     public bool CanUseProductImages { get; set; }
     public bool CanUseMenuTranslations { get; set; }
     public bool CanUseLiveOrderPanel { get; set; }
@@ -95,10 +97,14 @@ public sealed class WorkspaceViewModel
     public bool CanViewAnalytics => HasPermission("Analytics.View");
     public bool CanViewFinancials => HasPermission("Analytics.FinancialView");
     public bool CanManageBranches => HasPermission("Branch.Manage");
+    public bool CanManageMembers => HasPermission("Branch.Members");
     public bool CanManageSubscription => HasPermission("Subscription.Manage");
-    public bool CanAccessSettings => CanEditMenus || CanManageSubscription;
-    public bool CanManagePromotions => CanEditMenus;
-    public bool CanOpenAnalyticsPage => CanViewAnalytics;
+    public bool CanAccessSettings => CanEditMenus || CanManageSubscription || CanManageMembers;
+    public bool CanManagePromotions =>
+        CanEditMenus && (Entitlements?.CanUsePromotions ?? true);
+    /// <summary>Analytics page is open on Free; lookback is clamped by MaxOrderHistoryHours.</summary>
+    public bool CanOpenAnalyticsPage =>
+        CanViewAnalytics && (Entitlements?.CanUseAnalytics ?? true);
 }
 
 public sealed class EntitlementUsageViewModel
@@ -109,13 +115,20 @@ public sealed class EntitlementUsageViewModel
     public int? MaxBranches { get; set; }
     public int TableCount { get; set; }
     public int? MaxTablesPerBranch { get; set; }
+    public int ActiveQrCount { get; set; }
+    public int? MaxActiveQrCodes { get; set; }
     public int ActiveUserCount { get; set; }
     public int? MaxActiveUsers { get; set; }
+    public int? MaxConcurrentLiveSessions { get; set; }
     public bool CanUseProductImages { get; set; }
     public bool CanUseMenuTranslations { get; set; }
     public bool CanManageAdditionalRoles { get; set; }
     public bool CanUseLiveOrderPanel { get; set; }
+    public bool CanUsePromotions { get; set; }
+    public bool CanUseAnalytics { get; set; }
     public bool CanUseMultiBranch { get; set; }
+    public bool CanUseMenuThemes { get; set; }
+    public bool CanUseBrandWatermark { get; set; }
     public bool HasPrioritySupport { get; set; }
     public bool IsTrial { get; set; }
     public DateTimeOffset? TrialEndsAtUtc { get; set; }
@@ -127,7 +140,8 @@ public sealed class EntitlementUsageViewModel
     public long ExtraBranchMonthlyPriceMinor { get; set; }
     public string BillingCurrency { get; set; } = "TRY";
     public bool NextBranchRequiresAddon { get; set; }
-    public int? MaxOrderHistoryHours { get; set; }
+    /// <summary>Plan max lookback in hours (Free 72, Pro 720, Enterprise 2160).</summary>
+    public int MaxOrderHistoryHours { get; set; } = 72;
 }
 
 public sealed class OrderListItemViewModel
@@ -142,6 +156,7 @@ public sealed class OrderListItemViewModel
     public string Currency { get; set; } = "TRY";
     public Guid TableId { get; set; }
     public string TableLabel { get; set; } = string.Empty;
+    public string ItemSummary { get; set; } = string.Empty;
 }
 
 public sealed class DashboardTodayViewModel
@@ -161,6 +176,42 @@ public sealed class SettingsViewModel
 {
     public WorkspaceViewModel? Workspace { get; set; }
     public CustomerMenuSettingsViewModel CustomerMenu { get; set; } = new();
+    public UpdateProfileViewModel Profile { get; set; } = new();
+    public ChangePasswordViewModel ChangePassword { get; set; } = new();
+}
+
+public sealed class UpdateProfileViewModel
+{
+    [Required(ErrorMessage = "Ad soyad gerekli.")]
+    [StringLength(120)]
+    [Display(Name = "Ad Soyad")]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [StringLength(40)]
+    [Display(Name = "Telefon")]
+    public string? Phone { get; set; }
+}
+
+public sealed class ProfileApiModel
+{
+    public Guid UserId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string? DisplayName { get; set; }
+    public string? Phone { get; set; }
+}
+
+public sealed class ChangePasswordViewModel
+{
+    [Required(ErrorMessage = "Mevcut şifre gerekli.")]
+    [DataType(DataType.Password)]
+    [Display(Name = "Mevcut şifre")]
+    public string CurrentPassword { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Yeni şifre gerekli.")]
+    [StringLength(128, MinimumLength = 12)]
+    [DataType(DataType.Password)]
+    [Display(Name = "Yeni şifre")]
+    public string NewPassword { get; set; } = string.Empty;
 }
 
 public sealed class OrderLineViewModel
@@ -495,8 +546,14 @@ public sealed class StockPhotoViewModel
 
 public sealed class AnalyticsDashboardViewModel
 {
-    public int Days { get; set; } = 30;
+    public int Days { get; set; } = 3;
+    public int MaxDays { get; set; } = 3;
+    public bool WasClamped { get; set; }
     public bool CanViewFinancials { get; set; }
+    public bool CanManageSubscription { get; set; }
+    public bool IsTrial { get; set; }
+    public string PlanDisplayName { get; set; } = "Free";
+    public UpgradePromptViewModel? UpgradePrompt { get; set; }
     public AnalyticsSummaryViewModel? Summary { get; set; }
     public List<AnalyticsPeriodViewModel> Periods { get; set; } = [];
     public List<AnalyticsTopItemViewModel> TopItems { get; set; } = [];
@@ -545,6 +602,7 @@ public sealed class MenuPromotionListItemViewModel
     public DateTimeOffset? EndsAtUtc { get; set; }
     public TimeOnly? DailyStartLocal { get; set; }
     public TimeOnly? DailyEndLocal { get; set; }
+    public byte? DaysOfWeekMask { get; set; }
     public Guid? CategoryId { get; set; }
     public Guid? MenuItemId { get; set; }
     public bool IsActive { get; set; }
@@ -578,6 +636,9 @@ public sealed class CreateMenuPromotionViewModel
     [Display(Name = "Günlük bitiş")]
     public string? DailyEndLocal { get; set; }
 
+    /// <summary>DayOfWeek bits (0=Pazar … 6=Cumartesi). Empty/all = every day.</summary>
+    public int[]? WeekdayBits { get; set; } = [1, 2, 3, 4, 5, 6, 0];
+
     [Display(Name = "Kategori")]
     public Guid? CategoryId { get; set; }
 
@@ -586,6 +647,72 @@ public sealed class CreateMenuPromotionViewModel
 
     [Display(Name = "Bitiş tarihi (isteğe bağlı)")]
     public DateTime? EndsAtLocal { get; set; }
+}
+
+public sealed class LunchPackageComponentViewModel
+{
+    public Guid Id { get; set; }
+    public Guid MenuItemId { get; set; }
+    public string MenuItemName { get; set; } = string.Empty;
+    public string? SlotLabel { get; set; }
+    public int SortOrder { get; set; }
+    public long ListAmountMinor { get; set; }
+}
+
+public sealed class LunchPackageListItemViewModel
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public long PriceAmountMinor { get; set; }
+    public string Currency { get; set; } = "TRY";
+    public bool IsActive { get; set; }
+    public int SortOrder { get; set; }
+    public string? DailyStartLocal { get; set; }
+    public string? DailyEndLocal { get; set; }
+    public byte? DaysOfWeekMask { get; set; }
+    public long ComponentsListTotalMinor { get; set; }
+    public IReadOnlyList<LunchPackageComponentViewModel> Components { get; set; } = [];
+}
+
+public sealed class LunchPackagesPageViewModel
+{
+    public IReadOnlyList<LunchPackageListItemViewModel> Packages { get; set; } = [];
+    public CreateLunchPackageViewModel Create { get; set; } = new();
+    public MenuDetailViewModel? PublishedMenu { get; set; }
+}
+
+public sealed class CreateLunchPackageViewModel
+{
+    [Required(ErrorMessage = "Menü adı gerekli.")]
+    [Display(Name = "Menü adı")]
+    public string Name { get; set; } = string.Empty;
+
+    [Display(Name = "Açıklama")]
+    public string? Description { get; set; }
+
+    [Required(ErrorMessage = "Menü fiyatı gerekli.")]
+    [Display(Name = "Menü fiyatı (₺)")]
+    public string PriceLira { get; set; } = string.Empty;
+
+    [Display(Name = "Aktif")]
+    public bool IsActive { get; set; } = true;
+
+    [Display(Name = "Sıra")]
+    public int SortOrder { get; set; }
+
+    [Display(Name = "Günlük başlangıç")]
+    public string? DailyStartLocal { get; set; } = "11:30";
+
+    [Display(Name = "Günlük bitiş")]
+    public string? DailyEndLocal { get; set; } = "15:00";
+
+    public int[]? WeekdayBits { get; set; } = [1, 2, 3, 4, 5];
+
+    [Display(Name = "Ürünler")]
+    public Guid[]? ComponentMenuItemIds { get; set; }
+
+    public string?[]? ComponentSlotLabels { get; set; }
 }
 
 public sealed class ManagedNotificationListItemViewModel
@@ -720,6 +847,7 @@ public sealed class BranchesPageViewModel
     public WorkspaceViewModel? Workspace { get; set; }
     public bool CanUseMultiBranch { get; set; }
     public bool CanManageBranches { get; set; }
+    public bool CanManageMembers { get; set; }
     public int? MaxBranches { get; set; }
     public BranchBillingPreviewViewModel? Billing { get; set; }
     public IReadOnlyList<BranchListItemViewModel> Branches { get; set; } = [];
@@ -771,6 +899,7 @@ public sealed class MembershipScopeViewModel
     public string BranchName { get; set; } = string.Empty;
     public string RoleName { get; set; } = string.Empty;
     public bool CanManageBranches { get; set; }
+    public bool CanManageMembers { get; set; }
 }
 
 public sealed class BranchMemberViewModel
@@ -778,6 +907,8 @@ public sealed class BranchMemberViewModel
     public Guid MembershipId { get; set; }
     public Guid UserId { get; set; }
     public string Email { get; set; } = string.Empty;
+    public string? DisplayName { get; set; }
+    public string? Phone { get; set; }
     public string RoleName { get; set; } = string.Empty;
     public string RoleKey { get; set; } = string.Empty;
     public bool IsActive { get; set; }
@@ -830,12 +961,47 @@ public sealed class InviteBranchMemberViewModel
     [Display(Name = "E-posta")]
     public string Email { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "Ad soyad gerekli.")]
+    [StringLength(120)]
+    [Display(Name = "Ad Soyad")]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [StringLength(40)]
+    [Display(Name = "Telefon")]
+    public string? Phone { get; set; }
+
     [StringLength(128)]
     [Display(Name = "Şifre (yeni hesapsa)")]
     public string? Password { get; set; }
 
     [Display(Name = "Rol")]
     public string RoleKey { get; set; } = "manager";
+}
+
+public sealed class UpdateBranchMemberViewModel
+{
+    public Guid BranchId { get; set; }
+    public Guid MembershipId { get; set; }
+
+    [Required(ErrorMessage = "Ad soyad gerekli.")]
+    [StringLength(120)]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [StringLength(40)]
+    public string? Phone { get; set; }
+
+    public string? RoleKey { get; set; }
+}
+
+public sealed class ResetBranchMemberPasswordViewModel
+{
+    public Guid BranchId { get; set; }
+    public Guid MembershipId { get; set; }
+
+    [Required(ErrorMessage = "Şifre gerekli.")]
+    [StringLength(128, MinimumLength = 12)]
+    [DataType(DataType.Password)]
+    public string NewPassword { get; set; } = string.Empty;
 }
 
 public sealed class RenameBranchViewModel

@@ -1,0 +1,118 @@
+@model QuoteDetailPageViewModel
+@{
+    ViewData["Title"] = "Teklif";
+    var isOpen = string.Equals(Model.Status, "Open", StringComparison.OrdinalIgnoreCase);
+    var canAccept = isOpen && AdminAccess.CanAcceptQuotes(Model.RoleCode);
+    var canReject = isOpen && AdminAccess.CanRejectQuotes(Model.RoleCode);
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Enterprise teklif</p>
+        <h1>@Model.TenantName</h1>
+        <p class="note">Onay, üyeyi Enterprise plana alır ve aşağıdaki tavanları sözleşmeye basar. Aynı teklif ikinci kez onaylanamaz.</p>
+    </div>
+    <div class="stack" style="gap:0.4rem">
+        <a class="btn secondary" asp-action="Index">Kuyruğa dön</a>
+        <a class="btn secondary" asp-controller="Tenants" asp-action="Detail" asp-route-id="@Model.TenantId">Üye sözleşmesi</a>
+    </div>
+</div>
+
+<dl class="facts">
+    <div>
+        <dt>Durum</dt>
+        <dd>@AdminAccess.QuoteStatusLabel(Model.Status)</dd>
+    </div>
+    <div>
+        <dt>İletişim</dt>
+        <dd>
+            @Model.ContactName
+            <div>@Model.Email</div>
+            @if (!string.IsNullOrWhiteSpace(Model.Phone))
+            {
+                <div class="muted">@Model.Phone</div>
+            }
+        </dd>
+    </div>
+    <div>
+        <dt>Tahmini şube</dt>
+        <dd>@Model.EstimatedBranchCount</dd>
+    </div>
+    <div>
+        <dt>Gönderim</dt>
+        <dd>@Model.CreatedAtUtc.ToLocalTime().ToString("g")</dd>
+    </div>
+    <div>
+        <dt>Restoran notu</dt>
+        <dd>@(string.IsNullOrWhiteSpace(Model.Note) ? "—" : Model.Note)</dd>
+    </div>
+    @if (Model.ReviewedAtUtc is DateTimeOffset reviewedAt)
+    {
+        <div>
+            <dt>Karar</dt>
+            <dd>
+                @reviewedAt.ToLocalTime().ToString("g")
+                @if (!string.IsNullOrWhiteSpace(Model.DecisionNote))
+                {
+                    <div>@Model.DecisionNote</div>
+                }
+            </dd>
+        </div>
+    }
+</dl>
+
+@if (canAccept)
+{
+    <form asp-action="Accept" asp-route-id="@Model.Id" method="post" class="stack" style="max-width:40rem;margin-bottom:1.5rem">
+        @Html.AntiForgeryToken()
+        <h2>Onayla ve tavan bas</h2>
+        <div class="form-row">
+            <label>
+                Override şube tavanı
+                <input asp-for="Decision.OverrideMaxBranches" type="number" min="1" />
+            </label>
+            <label>
+                Override kullanıcı tavanı
+                <input asp-for="Decision.OverrideMaxActiveUsers" type="number" min="1" />
+            </label>
+            <label>
+                Override geçmiş (saat)
+                <input asp-for="Decision.OverrideMaxOrderHistoryHours" type="number" min="1" />
+            </label>
+            <label>
+                Override aktif QR
+                <input asp-for="Decision.OverrideMaxActiveQrCodes" type="number" min="1" />
+            </label>
+        </div>
+        <label>
+            Sözleşme bitişi (isteğe bağlı)
+            <input asp-for="Decision.ExpiresAtLocal" type="datetime-local" />
+            <span asp-validation-for="Decision.ExpiresAtLocal" class="field-error"></span>
+            <span class="muted">Boş bırakılırsa süresiz Enterprise.</span>
+        </label>
+        <label>
+            Sözleşme notu
+            <textarea asp-for="Decision.ContractNote" rows="3" maxlength="2000"></textarea>
+            <span asp-validation-for="Decision.ContractNote" class="field-error"></span>
+        </label>
+        <button class="btn" type="submit">Teklifi onayla</button>
+    </form>
+}
+else if (isOpen && !AdminAccess.CanAcceptQuotes(Model.RoleCode))
+{
+    <p class="muted">Onay yalnızca Owner veya Billing. Support reddedebilir.</p>
+}
+
+@if (canReject)
+{
+    <form asp-action="Reject" asp-route-id="@Model.Id" method="post" class="stack" style="max-width:40rem">
+        @Html.AntiForgeryToken()
+        <h2>Reddet</h2>
+        <label>
+            Karar notu
+            <textarea asp-for="Decision.DecisionNote" rows="3" maxlength="2000"></textarea>
+            <span asp-validation-for="Decision.DecisionNote" class="field-error"></span>
+        </label>
+        <button class="btn danger" type="submit">Teklifi reddet</button>
+    </form>
+}

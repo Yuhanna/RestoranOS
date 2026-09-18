@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using RestaurantOS.Api;
 using RestaurantOS.Api.Infrastructure;
@@ -17,9 +18,10 @@ using RestaurantOS.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 builder.Services.AddEmailSender(builder.Configuration);
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<UnhandledExceptionIncidentHandler>();
 builder.Services.AddControllers();
 builder.Services.AddSingleton(TimeProvider.System);
 var managementAuth = builder.Configuration
@@ -240,6 +242,11 @@ app.MapHub<ManagementOrderHub>("/hubs/v1/management-orders");
 
 if (app.Environment.IsDevelopment())
 {
+    var customerWeb = app.Services.GetRequiredService<IOptions<CustomerWebOptions>>().Value;
+    var qrBase = CustomerWebBaseUrlResolver.Resolve(customerWeb, app.Environment);
+    Console.WriteLine(
+        $"Customer QR base URL for this machine: {qrBase} (phones must be on the same Wi-Fi; customer-web must listen on :5173)");
+
     await using (var migrateScope = app.Services.CreateAsyncScope())
     {
         var db = migrateScope.ServiceProvider.GetRequiredService<RestaurantOsDbContext>();

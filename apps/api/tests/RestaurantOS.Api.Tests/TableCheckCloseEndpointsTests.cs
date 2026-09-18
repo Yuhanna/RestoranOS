@@ -231,6 +231,14 @@ public sealed class TableCheckCloseEndpointsTests
                 now,
                 now.AddMinutes(15));
             served.ChangeStatus(OrderStatus.Served, now);
+            served.Items.Add(new CustomerOrderItem(
+                Guid.NewGuid(),
+                orderId,
+                Guid.NewGuid(),
+                "Izgara Köfte",
+                Money.Try(113000),
+                2,
+                null));
             db.CustomerOrders.Add(served);
             await db.SaveChangesAsync();
         }
@@ -242,7 +250,8 @@ public sealed class TableCheckCloseEndpointsTests
         var activeBody = await active.Content.ReadFromJsonAsync<ManagementOrderResponse[]>();
         Assert.Equal(HttpStatusCode.OK, active.StatusCode);
         Assert.NotNull(activeBody);
-        Assert.Contains(activeBody, order => order.Id == orderId && order.Status == "served");
+        var servedActive = Assert.Single(activeBody, order => order.Id == orderId && order.Status == "served");
+        Assert.Equal("2× Izgara Köfte", servedActive.ItemSummary);
 
         var check = await client.SendAsync(Authorized(
             access,
@@ -254,6 +263,11 @@ public sealed class TableCheckCloseEndpointsTests
         Assert.Equal(1, checkBody.RoundCount);
         Assert.Equal(226000, checkBody.TotalAmountMinor);
         Assert.False(checkBody.HasIncompleteKitchen);
+        Assert.Equal(SeedIds.TableA, checkBody.TableId);
+        var round = Assert.Single(checkBody.Rounds);
+        var line = Assert.Single(round.Items);
+        Assert.Equal("Izgara Köfte", line.Name);
+        Assert.Equal(2, line.Quantity);
 
         var closed = await client.SendAsync(Authorized(
             access,

@@ -1,5 +1,9 @@
 @model RestaurantOS.Web.Models.MenuItemCatalogViewModel
-
+@{
+    var customLabelFieldName = string.IsNullOrEmpty(ViewData.TemplateInfo.HtmlFieldPrefix)
+        ? "CustomLabels"
+        : ViewData.TemplateInfo.HtmlFieldPrefix + ".CustomLabels";
+}
 <fieldset class="catalog-fields span-2">
     <legend>Ürün detayları (müşteri menüsü)</legend>
     <p class="muted catalog-fields__hint">
@@ -47,7 +51,7 @@
             <input asp-for="IngredientsText" placeholder="Domates, fesleğen, mozzarella…" />
         </label>
 
-        <div class="span-2">
+        <div class="span-2 catalog-tag-block">
             <h3>Beslenme etiketleri</h3>
             <div class="check-grid">
                 <label class="check"><input asp-for="DietaryVegetarian" /> Vejetaryen</label>
@@ -61,7 +65,33 @@
             </div>
         </div>
 
-        <div class="span-2">
+        <div class="span-2 catalog-tag-block" data-custom-labels>
+            <div class="catalog-tag-block__head">
+                <h3>Özel etiketler</h3>
+                <p class="muted">Standart filtrelerden ayrıdır. Örn. Ev yapımı, Fırından, Günlük.</p>
+            </div>
+            <div class="custom-label-chips" data-custom-label-list data-field-name="@customLabelFieldName">
+                @foreach (var label in Model.CustomLabels)
+                {
+                    <span class="custom-label-chip">
+                        <input type="hidden" name="@customLabelFieldName" value="@label" />
+                        <span>@label</span>
+                        <button type="button" class="custom-label-chip__remove" aria-label="Sil">×</button>
+                    </span>
+                }
+            </div>
+            <div class="custom-label-add">
+                <input type="text"
+                       data-custom-label-input
+                       maxlength="32"
+                       placeholder="Örn. Ev yapımı"
+                       autocomplete="off" />
+                <button type="button" class="btn btn-ghost" data-custom-label-add>Etiket Ekle</button>
+            </div>
+            <p class="muted custom-label-hint">En fazla 8 etiket · her biri en fazla 32 karakter</p>
+        </div>
+
+        <div class="span-2 catalog-tag-block">
             <h3>Alerjenler (içerir)</h3>
             <div class="check-grid">
                 <label class="check"><input asp-for="AllergenGluten" /> Gluten</label>
@@ -81,7 +111,7 @@
             </div>
         </div>
 
-        <div class="span-2">
+        <div class="span-2 catalog-tag-block">
             <h3>İçerebilir (cross-contact)</h3>
             <div class="check-grid">
                 <label class="check"><input asp-for="MayContainGluten" /> Gluten</label>
@@ -101,7 +131,7 @@
             </div>
         </div>
 
-        <div class="span-2">
+        <div class="span-2 catalog-tag-block">
             <h3>Besin bilgisi (isteğe bağlı)</h3>
             <div class="form-grid form-grid-wide">
                 <label><span>Ağırlık (g)</span><input asp-for="NutritionWeightGrams" type="number" min="0" /></label>

@@ -39,6 +39,22 @@ public interface IManagementAuthService
     Task<IReadOnlyList<ManagementMembershipScopeResult>> ListMembershipsAsync(
         Guid userId,
         CancellationToken cancellationToken);
+
+    Task UpdateProfileAsync(
+        Guid userId,
+        string displayName,
+        string? phone,
+        CancellationToken cancellationToken);
+
+    Task<ManagementProfileResult> GetProfileAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    Task ChangePasswordAsync(
+        Guid userId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken);
 }
 
 public interface IManagementOrderService
@@ -153,16 +169,36 @@ public interface IManagementTableService
         CancellationToken cancellationToken);
 }
 
+public sealed record ManagementTableCheckRoundResult(
+    Guid OrderId,
+    string DisplayNumber,
+    string Status,
+    long AmountMinor,
+    string Currency,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset StatusChangedAtUtc,
+    bool IsKitchenIncomplete,
+    IReadOnlyList<ManagementOrderLineResult> Items);
+
 public sealed record ManagementTableCheckResult(
+    Guid TableId,
+    string TableLabel,
     int RoundCount,
     long TotalAmountMinor,
-    bool HasIncompleteKitchen);
+    string Currency,
+    bool HasIncompleteKitchen,
+    IReadOnlyList<ManagementTableCheckRoundResult> Rounds);
 
 public sealed record ManagementTableCheckCloseResult(
-    int ClosedOrderCount,
-    long TotalAmountMinor,
+    Guid TableId,
+    string TableLabel,
     string Tender,
-    bool ForcedIncompleteKitchen);
+    long TotalAmountMinor,
+    string Currency,
+    int ClosedOrderCount,
+    bool ForcedIncompleteKitchen,
+    DateTimeOffset ClosedAtUtc,
+    IReadOnlyList<Guid> ClosedOrderIds);
 
 public sealed record ManagementTableResult(
     Guid Id,
@@ -447,6 +483,12 @@ public sealed record ManagementTokenResult(
     string? RoleCode = null,
     string? Email = null);
 
+public sealed record ManagementProfileResult(
+    Guid UserId,
+    string Email,
+    string? DisplayName,
+    string? Phone);
+
 public sealed record ManagementMembershipScopeResult(
     Guid MembershipId,
     Guid TenantId,
@@ -455,7 +497,8 @@ public sealed record ManagementMembershipScopeResult(
     Guid BranchId,
     string BranchName,
     string RoleName,
-    bool CanManageBranches);
+    bool CanManageBranches,
+    bool CanManageMembers = false);
 
 public interface IManagementBranchService
 {
@@ -489,6 +532,33 @@ public interface IManagementBranchService
         string email,
         string? password,
         string roleKey,
+        string displayName,
+        string? phone,
+        CancellationToken cancellationToken);
+
+    Task<ManagementBranchMemberResult> UpdateMemberAsync(
+        Guid actorUserId,
+        Guid tenantId,
+        Guid branchId,
+        Guid membershipId,
+        string displayName,
+        string? phone,
+        string? roleKey,
+        CancellationToken cancellationToken);
+
+    Task ResetMemberPasswordAsync(
+        Guid actorUserId,
+        Guid tenantId,
+        Guid branchId,
+        Guid membershipId,
+        string newPassword,
+        CancellationToken cancellationToken);
+
+    Task ActivateMemberAsync(
+        Guid actorUserId,
+        Guid tenantId,
+        Guid branchId,
+        Guid membershipId,
         CancellationToken cancellationToken);
 
     Task DeactivateMemberAsync(
@@ -521,7 +591,9 @@ public sealed record ManagementBranchMemberResult(
     string RoleName,
     string RoleKey,
     bool IsActive,
-    DateTimeOffset? LastLoginAtUtc);
+    DateTimeOffset? LastLoginAtUtc,
+    string? DisplayName = null,
+    string? Phone = null);
 
 public sealed record ManagementNetworkBranchStatResult(
     Guid BranchId,
@@ -555,7 +627,8 @@ public sealed record ManagementOrderResult(
     long AmountMinor,
     string Currency,
     Guid TableId,
-    string TableLabel);
+    string TableLabel,
+    string ItemSummary = "");
 
 public sealed record ManagementOrderLineResult(
     Guid Id,
@@ -566,7 +639,9 @@ public sealed record ManagementOrderLineResult(
     long DiscountUnitAmountMinor,
     long UnitPriceAmountMinor,
     string Currency,
-    string? Note);
+    string? Note,
+    Guid? SourcePackageId = null,
+    string? SourcePackageName = null);
 
 public sealed record ManagementOrderStatusHistoryEntry(
     string Status,
@@ -619,13 +694,39 @@ public interface IFeatureEntitlementService
 
     Task EnsureCanCreateTableAsync(Guid tenantId, Guid branchId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Ensures activating another QR in the branch would not exceed MaxActiveQrCodes.
+    /// Pass tableId when generating/replacing so an already-active table does not consume an extra seat.
+    /// </summary>
+    Task EnsureCanActivateQrCodeAsync(
+        Guid tenantId,
+        Guid branchId,
+        Guid? tableId,
+        CancellationToken cancellationToken);
+
     Task EnsureCanAddUserAsync(Guid tenantId, CancellationToken cancellationToken);
 
     Task EnsureCanUseProductImagesAsync(Guid tenantId, CancellationToken cancellationToken);
 
     Task EnsureCanUseMenuTranslationsAsync(Guid tenantId, CancellationToken cancellationToken);
 
+    Task EnsureCanUseMenuThemesAsync(Guid tenantId, CancellationToken cancellationToken);
+
+    Task EnsureCanUseBrandWatermarkAsync(Guid tenantId, CancellationToken cancellationToken);
+
     Task EnsureCanManageAdditionalRolesAsync(Guid tenantId, CancellationToken cancellationToken);
+
+    Task EnsureCanUsePromotionsAsync(Guid tenantId, CancellationToken cancellationToken);
+
+    Task EnsureCanUseAnalyticsAsync(Guid tenantId, CancellationToken cancellationToken);
+
+    Task EnsureCanUseMultiBranchAsync(Guid tenantId, CancellationToken cancellationToken);
+
+    Task EnsureCanUseLiveOrderPanelAsync(Guid tenantId, CancellationToken cancellationToken);
+
+    Task<FeatureEntitlements> EnsureLivePanelSessionAllowedAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken);
 
     Task EnsureTenantSubscriptionAsync(
         Guid tenantId,
@@ -636,6 +737,11 @@ public interface IFeatureEntitlementService
         Guid tenantId,
         Guid branchId,
         string planCode,
+        CancellationToken cancellationToken);
+
+    Task<TenantEntitlementUsageResult> StartProTrialAsync(
+        Guid tenantId,
+        Guid branchId,
         CancellationToken cancellationToken);
 
     Task<EnterpriseQuoteRequestResult> RequestEnterpriseQuoteAsync(
@@ -748,7 +854,41 @@ public sealed record TenantEntitlementUsageResult(
     int ActiveBranchCount = 0,
     long ExtraBranchMonthlyPriceMinor = 0,
     string BillingCurrency = "TRY",
-    bool NextBranchRequiresAddon = false);
+    bool NextBranchRequiresAddon = false,
+    bool CanUseMenuThemes = false,
+    bool CanUseBrandWatermark = false,
+    int ActiveQrCount = 0,
+    int? MaxActiveQrCodes = null,
+    int? MaxConcurrentLiveSessions = null,
+    bool CanUsePromotions = false,
+    bool CanUseAnalytics = false,
+    int MaxOrderHistoryHours = OrderHistoryRetention.FreeMaxHours);
+
+/// <summary>
+/// Tracks concurrent live-order panel sessions per branch.
+/// In-memory for single-node; Redis-backed when SignalRRedis is configured (multi-instance safe).
+/// </summary>
+public interface ILivePanelSessionLeaseService
+{
+    Task<LivePanelLeaseAcquireResult> TryAcquireAsync(
+        Guid tenantId,
+        Guid branchId,
+        string connectionId,
+        int? maxSessions,
+        CancellationToken cancellationToken);
+
+    Task ReleaseAsync(
+        Guid tenantId,
+        Guid branchId,
+        string connectionId,
+        CancellationToken cancellationToken);
+}
+
+public sealed record LivePanelLeaseAcquireResult(
+    bool Acquired,
+    int ActiveCount,
+    int? MaxSessions,
+    string? DenialMessage);
 
 public sealed record EnterpriseQuoteRequestResult(
     Guid Id,
@@ -818,7 +958,8 @@ public sealed record MenuPromotionResult(
     TimeOnly? DailyEndLocal,
     Guid? CategoryId,
     Guid? MenuItemId,
-    bool IsActive);
+    bool IsActive,
+    byte? DaysOfWeekMask = null);
 
 public sealed record CreateMenuPromotionCommand(
     string Name,
@@ -831,7 +972,8 @@ public sealed record CreateMenuPromotionCommand(
     TimeOnly? DailyEndLocal,
     Guid? CategoryId,
     Guid? MenuItemId,
-    bool IsActive = true);
+    bool IsActive = true,
+    byte? DaysOfWeekMask = null);
 
 public sealed record UpdateMenuPromotionCommand(
     string? Name,
@@ -864,6 +1006,11 @@ public interface INotificationManagementService
     Task<NotificationDispatchResult> DispatchPlatformAsync(
         Guid notificationId,
         CancellationToken cancellationToken);
+
+    Task<ManagedNotificationResult> SetPlatformActiveAsync(
+        Guid notificationId,
+        bool isActive,
+        CancellationToken cancellationToken);
 }
 
 public sealed record CreatePlatformNotificationCommand(
@@ -874,6 +1021,165 @@ public sealed record CreatePlatformNotificationCommand(
     DateTimeOffset? EndsAtUtc,
     string? ActionUrl,
     bool IsActive = true);
+
+public interface IPlatformStaffService
+{
+    Task<IReadOnlyList<PlatformStaffMemberResult>> ListAsync(CancellationToken cancellationToken);
+
+    Task<PlatformStaffMemberResult> InviteAsync(
+        Guid actorUserId,
+        string actorRole,
+        InvitePlatformStaffCommand command,
+        CancellationToken cancellationToken);
+
+    Task<PlatformStaffMemberResult> ChangeRoleAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid targetUserId,
+        string roleCode,
+        CancellationToken cancellationToken);
+
+    Task<PlatformStaffMemberResult> SetActiveAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid targetUserId,
+        bool isActive,
+        CancellationToken cancellationToken);
+}
+
+public sealed record InvitePlatformStaffCommand(string Email, string RoleCode, string? Password);
+
+public sealed record PlatformStaffMemberResult(
+    Guid UserId,
+    string Email,
+    string RoleCode,
+    bool IsActive,
+    DateTimeOffset GrantedAtUtc);
+
+public interface IPlatformTenantBillingService
+{
+    Task<PlatformTenantListResult> ListTenantsAsync(
+        string? query,
+        string? planCode,
+        int skip,
+        int take,
+        CancellationToken cancellationToken);
+
+    Task<PlatformTenantDetailResult> GetTenantAsync(
+        Guid actorUserId,
+        Guid tenantId,
+        CancellationToken cancellationToken);
+
+    Task<PlatformTenantDetailResult> UpdateSubscriptionAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid tenantId,
+        UpdatePlatformTenantSubscriptionCommand command,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<PlatformQuoteListItemResult>> ListQuotesAsync(
+        string? status,
+        CancellationToken cancellationToken);
+
+    Task<PlatformQuoteDetailResult> GetQuoteAsync(
+        Guid quoteId,
+        CancellationToken cancellationToken);
+
+    Task<PlatformQuoteDetailResult> AcceptQuoteAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid quoteId,
+        AcceptPlatformQuoteCommand command,
+        CancellationToken cancellationToken);
+
+    Task<PlatformQuoteDetailResult> RejectQuoteAsync(
+        Guid actorUserId,
+        string actorRole,
+        Guid quoteId,
+        string? decisionNote,
+        CancellationToken cancellationToken);
+}
+
+public sealed record UpdatePlatformTenantSubscriptionCommand(
+    string PlanCode,
+    DateTimeOffset? ExpiresAtUtc,
+    int PurchasedBranchAddonCount,
+    int? OverrideMaxBranches,
+    int? OverrideMaxActiveUsers,
+    int? OverrideMaxOrderHistoryHours,
+    int? OverrideMaxActiveQrCodes,
+    string? ContractNote);
+
+public sealed record AcceptPlatformQuoteCommand(
+    int? OverrideMaxBranches,
+    int? OverrideMaxActiveUsers,
+    int? OverrideMaxOrderHistoryHours,
+    int? OverrideMaxActiveQrCodes,
+    string? ContractNote,
+    DateTimeOffset? ExpiresAtUtc);
+
+public sealed record PlatformTenantListResult(
+    IReadOnlyList<PlatformTenantListItemResult> Items,
+    int Total,
+    int Skip,
+    int Take);
+
+public sealed record PlatformTenantListItemResult(
+    Guid TenantId,
+    string TenantName,
+    string RestaurantName,
+    string PlanCode,
+    bool IsTrial,
+    DateTimeOffset? ExpiresAtUtc,
+    int ActiveBranchCount,
+    int? MaxBranches,
+    int OpenQuoteCount);
+
+public sealed record PlatformTenantDetailResult(
+    Guid TenantId,
+    string TenantName,
+    string RestaurantName,
+    string? BillingEmail,
+    string PlanCode,
+    bool IsTrial,
+    DateTimeOffset StartedAtUtc,
+    DateTimeOffset? ExpiresAtUtc,
+    int PurchasedBranchAddonCount,
+    int ActiveBranchCount,
+    int FrozenBranchCount,
+    int ActiveUserCount,
+    int? MaxBranches,
+    int? MaxActiveUsers,
+    int MaxOrderHistoryHours,
+    int? MaxActiveQrCodes,
+    int? OverrideMaxBranches,
+    int? OverrideMaxActiveUsers,
+    int? OverrideMaxOrderHistoryHours,
+    int? OverrideMaxActiveQrCodes,
+    string? ContractNote);
+
+public sealed record PlatformQuoteListItemResult(
+    Guid Id,
+    Guid TenantId,
+    string TenantName,
+    int EstimatedBranchCount,
+    string Status,
+    DateTimeOffset CreatedAtUtc);
+
+public sealed record PlatformQuoteDetailResult(
+    Guid Id,
+    Guid TenantId,
+    string TenantName,
+    string ContactName,
+    string Email,
+    string? Phone,
+    int EstimatedBranchCount,
+    string? Note,
+    string Status,
+    DateTimeOffset CreatedAtUtc,
+    Guid? ReviewedByUserId,
+    DateTimeOffset? ReviewedAtUtc,
+    string? DecisionNote);
 
 public interface IPlatformCatalogService
 {

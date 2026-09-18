@@ -97,5 +97,11 @@ public sealed class BillingCatalogTests
         Assert.False(PlatformStaffRoles.CanWriteCatalog(PlatformStaffRoles.Support));
         Assert.False(PlatformStaffRoles.CanPublishCatalog(PlatformStaffRoles.Support));
         Assert.True(PlatformStaffRoles.CanManageCampaigns(PlatformStaffRoles.Support));
+        Assert.False(PlatformStaffRoles.CanManageStaff(PlatformStaffRoles.Support));
+        Assert.True(PlatformStaffRoles.CanManageStaff(PlatformStaffRoles.Owner));
+        Assert.False(PlatformStaffRoles.CanWriteTenants(PlatformStaffRoles.Support));
+        Assert.True(PlatformStaffRoles.CanWriteTenants(PlatformStaffRoles.Billing));
+        Assert.False(PlatformStaffRoles.CanAcceptQuotes(PlatformStaffRoles.Support));
+        Assert.True(PlatformStaffRoles.CanRejectQuotes(PlatformStaffRoles.Support));
     }
 }

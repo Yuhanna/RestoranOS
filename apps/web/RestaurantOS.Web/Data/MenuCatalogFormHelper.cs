@@ -34,6 +34,11 @@ public static class MenuCatalogFormHelper
             ? string.Join(", ", catalog.Ingredients)
             : null;
         SetDietary(model, catalog.DietaryTags);
+        model.CustomLabels = (catalog.CustomLabels ?? [])
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         SetAllergens(model, catalog.AllergenKeys, mayContain: false);
         SetAllergens(model, catalog.MayContainAllergenKeys, mayContain: true);
         if (catalog.Nutrition is not null)
@@ -71,6 +76,7 @@ public static class MenuCatalogFormHelper
         || catalog.SpiceLevel is not null
         || catalog.Ingredients is { Length: > 0 }
         || catalog.DietaryTags is { Length: > 0 }
+        || catalog.CustomLabels is { Length: > 0 }
         || catalog.AllergenKeys is { Length: > 0 }
         || catalog.MayContainAllergenKeys is { Length: > 0 }
         || catalog.Nutrition is not null
@@ -121,6 +127,7 @@ public static class MenuCatalogFormHelper
             SpiceLevel = model.SpiceLevel is >= 0 and <= 3 ? model.SpiceLevel : null,
             Ingredients = ParseIngredients(model.IngredientsText),
             DietaryTags = ReadDietary(model),
+            CustomLabels = ReadCustomLabels(model),
             AllergenKeys = ReadAllergens(model, mayContain: false),
             MayContainAllergenKeys = ReadAllergens(model, mayContain: true),
             Nutrition = HasNutrition(model)
@@ -150,8 +157,15 @@ public static class MenuCatalogFormHelper
             ShowProductNutrition = settings?.ShowProductNutrition ?? false,
             ShowProductAllergens = settings?.ShowProductAllergens ?? false,
             ShowProductModifiers = settings?.ShowProductModifiers ?? false,
-            AllergenDisclaimer = settings?.AllergenDisclaimer,
+            AllergenDisclaimer = SanitizeDisclaimer(settings?.AllergenDisclaimer),
             AllergenMatrixUrl = settings?.AllergenMatrixUrl,
+            ThemeId = string.IsNullOrWhiteSpace(settings?.ThemeId) ? "modern" : settings.ThemeId.Trim().ToLowerInvariant(),
+            LogoUrl = settings?.LogoUrl,
+            LogoAlt = settings?.LogoAlt,
+            ShowBrandWatermark = settings?.ShowBrandWatermark ?? false,
+            BrandWatermarkIntensity = string.IsNullOrWhiteSpace(settings?.BrandWatermarkIntensity)
+                ? "soft"
+                : settings.BrandWatermarkIntensity.Trim().ToLowerInvariant(),
         };
         SetFilter(model, settings?.DietaryFilterOptions);
         SetExclusions(model, settings?.AllergenExclusionOptions);
@@ -166,16 +180,51 @@ public static class MenuCatalogFormHelper
             ShowProductNutrition = model.ShowProductNutrition,
             ShowProductAllergens = model.ShowProductAllergens,
             ShowProductModifiers = model.ShowProductModifiers,
-            AllergenDisclaimer = model.AllergenDisclaimer,
+            AllergenDisclaimer = SanitizeDisclaimer(model.AllergenDisclaimer),
             AllergenMatrixUrl = model.AllergenMatrixUrl,
             DietaryFilterOptions = ReadFilters(model),
             AllergenExclusionOptions = ReadExclusions(model),
+            ThemeId = string.IsNullOrWhiteSpace(model.ThemeId) ? "modern" : model.ThemeId.Trim().ToLowerInvariant(),
+            LogoUrl = model.LogoUrl,
+            LogoAlt = model.LogoAlt,
+            ShowBrandWatermark = model.ShowBrandWatermark,
+            BrandWatermarkIntensity = string.IsNullOrWhiteSpace(model.BrandWatermarkIntensity)
+                ? "soft"
+                : model.BrandWatermarkIntensity.Trim().ToLowerInvariant(),
         };
+
+    private static string? SanitizeDisclaimer(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        // Field label / display name accidentally saved as content.
+        if (string.Equals(trimmed, "Menü altı uyarı metni", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "Allergen disclaimer", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return trimmed;
+    }
 
     private static string[] ParseIngredients(string? text) =>
         string.IsNullOrWhiteSpace(text)
             ? []
             : text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+    private static string[] ReadCustomLabels(MenuItemCatalogViewModel model) =>
+        (model.CustomLabels ?? [])
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .Select(x => x.Length > 32 ? x[..32].Trim() : x)
+            .Where(x => x.Length > 0)
+            .ToArray();
 
     private static bool HasNutrition(MenuItemCatalogViewModel model) =>
         model.NutritionWeightGrams is not null

@@ -180,7 +180,7 @@ public sealed class ManagementBranchesController(IManagementBranchService branch
     }
 
     [HttpGet("{branchId:guid}/members")]
-    [Authorize(Policy = ManagementPolicies.BranchManage)]
+    [Authorize(Policy = ManagementPolicies.BranchMembers)]
     [ProducesResponseType(typeof(IReadOnlyList<ManagementBranchMemberResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListMembersAsync(Guid branchId, CancellationToken cancellationToken)
     {
@@ -204,7 +204,7 @@ public sealed class ManagementBranchesController(IManagementBranchService branch
     }
 
     [HttpPost("{branchId:guid}/members")]
-    [Authorize(Policy = ManagementPolicies.BranchManage)]
+    [Authorize(Policy = ManagementPolicies.BranchMembers)]
     [ProducesResponseType(typeof(ManagementBranchMemberResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> InviteMemberAsync(
         Guid branchId,
@@ -225,6 +225,8 @@ public sealed class ManagementBranchesController(IManagementBranchService branch
                 request?.Email ?? string.Empty,
                 request?.Password,
                 request?.RoleKey ?? "manager",
+                request?.DisplayName ?? string.Empty,
+                request?.Phone,
                 cancellationToken);
             return Created(
                 $"/api/v1/management/branches/{branchId}/members/{member.MembershipId}",
@@ -240,6 +242,87 @@ public sealed class ManagementBranchesController(IManagementBranchService branch
             {
                 "BRANCH_NOT_FOUND" => StatusCodes.Status404NotFound,
                 "MEMBERSHIP_EXISTS" => StatusCodes.Status409Conflict,
+                "FORBIDDEN" or "MEMBER_ROLE_FORBIDDEN" or "MEMBER_TARGET_FORBIDDEN" => StatusCodes.Status403Forbidden,
+                _ => StatusCodes.Status400BadRequest,
+            };
+            return ApiProblem.Create(status, exception.Code, exception.Message);
+        }
+    }
+
+    [HttpPatch("{branchId:guid}/members/{membershipId:guid}")]
+    [Authorize(Policy = ManagementPolicies.BranchMembers)]
+    [ProducesResponseType(typeof(ManagementBranchMemberResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateMemberAsync(
+        Guid branchId,
+        Guid membershipId,
+        [FromBody] ManagementUpdateBranchMemberRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out var tenantId, out _))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            var member = await branchService.UpdateMemberAsync(
+                userId,
+                tenantId,
+                branchId,
+                membershipId,
+                request?.DisplayName ?? string.Empty,
+                request?.Phone,
+                request?.RoleKey,
+                cancellationToken);
+            return Ok(ToMemberResponse(member));
+        }
+        catch (EntitlementException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
+        }
+        catch (CustomerExperienceException exception)
+        {
+            var status = exception.Code switch
+            {
+                "BRANCH_NOT_FOUND" or "MEMBERSHIP_NOT_FOUND" => StatusCodes.Status404NotFound,
+                "FORBIDDEN" or "MEMBER_ROLE_FORBIDDEN" or "MEMBER_TARGET_FORBIDDEN" => StatusCodes.Status403Forbidden,
+                _ => StatusCodes.Status400BadRequest,
+            };
+            return ApiProblem.Create(status, exception.Code, exception.Message);
+        }
+    }
+
+    [HttpPost("{branchId:guid}/members/{membershipId:guid}/reset-password")]
+    [Authorize(Policy = ManagementPolicies.BranchMembers)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ResetMemberPasswordAsync(
+        Guid branchId,
+        Guid membershipId,
+        [FromBody] ManagementResetBranchMemberPasswordRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out var tenantId, out _))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            await branchService.ResetMemberPasswordAsync(
+                userId,
+                tenantId,
+                branchId,
+                membershipId,
+                request?.NewPassword ?? string.Empty,
+                cancellationToken);
+            return NoContent();
+        }
+        catch (CustomerExperienceException exception)
+        {
+            var status = exception.Code switch
+            {
+                "BRANCH_NOT_FOUND" or "MEMBERSHIP_NOT_FOUND" => StatusCodes.Status404NotFound,
+                "FORBIDDEN" or "MEMBER_TARGET_FORBIDDEN" => StatusCodes.Status403Forbidden,
                 _ => StatusCodes.Status400BadRequest,
             };
             return ApiProblem.Create(status, exception.Code, exception.Message);
@@ -247,7 +330,7 @@ public sealed class ManagementBranchesController(IManagementBranchService branch
     }
 
     [HttpPost("{branchId:guid}/members/{membershipId:guid}/deactivate")]
-    [Authorize(Policy = ManagementPolicies.BranchManage)]
+    [Authorize(Policy = ManagementPolicies.BranchMembers)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeactivateMemberAsync(
         Guid branchId,
@@ -275,6 +358,46 @@ public sealed class ManagementBranchesController(IManagementBranchService branch
             {
                 "BRANCH_NOT_FOUND" or "MEMBERSHIP_NOT_FOUND" => StatusCodes.Status404NotFound,
                 "CANNOT_DEACTIVATE_SELF" => StatusCodes.Status400BadRequest,
+                "FORBIDDEN" or "MEMBER_TARGET_FORBIDDEN" => StatusCodes.Status403Forbidden,
+                _ => StatusCodes.Status400BadRequest,
+            };
+            return ApiProblem.Create(status, exception.Code, exception.Message);
+        }
+    }
+
+    [HttpPost("{branchId:guid}/members/{membershipId:guid}/activate")]
+    [Authorize(Policy = ManagementPolicies.BranchMembers)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ActivateMemberAsync(
+        Guid branchId,
+        Guid membershipId,
+        CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out var userId, out var tenantId, out _))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            await branchService.ActivateMemberAsync(
+                userId,
+                tenantId,
+                branchId,
+                membershipId,
+                cancellationToken);
+            return NoContent();
+        }
+        catch (EntitlementException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
+        }
+        catch (CustomerExperienceException exception)
+        {
+            var status = exception.Code switch
+            {
+                "BRANCH_NOT_FOUND" or "MEMBERSHIP_NOT_FOUND" => StatusCodes.Status404NotFound,
+                "FORBIDDEN" or "MEMBER_TARGET_FORBIDDEN" => StatusCodes.Status403Forbidden,
                 _ => StatusCodes.Status400BadRequest,
             };
             return ApiProblem.Create(status, exception.Code, exception.Message);
@@ -296,6 +419,8 @@ public sealed class ManagementBranchesController(IManagementBranchService branch
             member.MembershipId,
             member.UserId,
             member.Email,
+            member.DisplayName,
+            member.Phone,
             member.RoleName,
             member.RoleKey,
             member.IsActive,

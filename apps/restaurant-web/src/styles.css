@@ -453,6 +453,202 @@ select {
   flex: 1;
 }
 
+.order-card__items {
+  margin: 0.45rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--ops-ink, #e8edf2);
+}
+
+.close-check-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 55%);
+}
+
+.close-check-dialog {
+  width: min(32rem, 100%);
+  max-height: min(90dvh, 44rem);
+  overflow: auto;
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.1rem 1.2rem;
+  border-radius: 0.9rem;
+  background: var(--ops-surface, #12161a);
+  border: 1px solid var(--ops-border, #2a3238);
+  color: var(--ops-ink, #f5f5f4);
+}
+
+.close-check-dialog h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--ops-ink, #f5f5f4);
+}
+
+.close-check-dialog .muted,
+.close-check-dialog .close-check-lines-empty {
+  color: color-mix(in srgb, var(--ops-ink, #f5f5f4) 72%, var(--ops-muted, #90999f));
+}
+
+.close-check-dialog header > .muted {
+  margin: 0.35rem 0 0;
+  font-size: 0.95rem;
+  color: color-mix(in srgb, var(--ops-ink, #f5f5f4) 78%, transparent);
+}
+
+.close-check-rounds {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+  max-height: min(42dvh, 18rem);
+  overflow: auto;
+}
+
+.close-check-round {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--ops-border, #2a3238);
+  color: var(--ops-ink, #f5f5f4);
+}
+
+.close-check-round__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.close-check-round__head div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.close-check-round__head em {
+  font-style: normal;
+  font-size: 0.8rem;
+  opacity: 1;
+  color: color-mix(in srgb, var(--ops-ink, #f5f5f4) 70%, transparent);
+}
+
+.close-check-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0 0;
+  display: grid;
+  gap: 0.3rem;
+  border-top: 1px solid var(--ops-border, #2a3238);
+}
+
+.close-check-lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font-size: 0.9rem;
+  color: var(--ops-ink, #f5f5f4);
+}
+
+.close-check-lines em {
+  font-style: normal;
+  opacity: 1;
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--ops-ink, #f5f5f4) 68%, transparent);
+}
+
+.close-check-lines-empty {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.close-check-grand-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--ops-accent, #1f6b4a) 22%, #e7f4ec);
+  border: 1px solid color-mix(in srgb, var(--ops-accent, #1f6b4a) 40%, transparent);
+  color: #0f2a1c;
+  font-size: 1rem;
+}
+
+.close-check-grand-total strong {
+  font-size: 1.15rem;
+  color: #0a1f14;
+  font-weight: 700;
+}
+
+.close-check-dialog fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: var(--ops-ink, #f5f5f4);
+}
+
+.close-check-dialog legend {
+  margin: 0 0 0.35rem;
+  padding: 0;
+  width: 100%;
+  font-weight: 650;
+  color: var(--ops-ink, #f5f5f4);
+}
+
+.close-check-dialog fieldset label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ops-ink, #f5f5f4);
+  font-size: 0.95rem;
+}
+
+.close-check-note,
+.close-check-force {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--ops-ink, #f5f5f4);
+}
+
+.close-check-note input {
+  min-height: 2.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--ops-border, #2a3238);
+  border-radius: 0.45rem;
+  background: var(--ops-raised, #171c20);
+  color: var(--ops-ink, #f5f5f4);
+}
+
+.close-check-note input::placeholder {
+  color: color-mix(in srgb, var(--ops-ink, #f5f5f4) 52%, transparent);
+  opacity: 1;
+}
+
+.close-check-error {
+  margin: 0;
+  color: #ff8f8f;
+}
+
+.close-check-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .order-detail-backdrop {
   position: fixed;
   inset: 0;

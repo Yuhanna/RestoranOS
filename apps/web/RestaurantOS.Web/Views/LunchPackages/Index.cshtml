@@ -1,0 +1,279 @@
+@model RestaurantOS.Web.Models.LunchPackagesPageViewModel
+@{
+    ViewData["Title"] = "Günün menüsü";
+    var selectedDays = Model.Create.WeekdayBits?.ToHashSet() ?? new HashSet<int> { 1, 2, 3, 4, 5 };
+    var weekdays = new (string Label, int Bit)[]
+    {
+        ("Pzt", 1), ("Sal", 2), ("Çar", 3), ("Per", 4), ("Cum", 5), ("Cmt", 6), ("Paz", 0),
+    };
+    string Money(long minor) => $"₺{(minor / 100m):N0}";
+}
+
+<div class="page-head">
+    <div>
+        <h1>Günün menüsü</h1>
+        <p class="muted">
+            İsteğe bağlı özellik. Ofis / öğle seti gibi sabit fiyatlı günlük menüler tanımlayın
+            (ör. Tavuk + Pilav + Çorba + Salata + İçecek). Kullanmayan şubelerde müşteri menüsünde hiç görünmez.
+            Siparişte her bileşen ayrı satır yazılır; menü fiyatı ürün fiyatlarına oranlanarak dağıtılır —
+            istatistiklerde ürün adetleri ve ciro buna göre görünür.
+        </p>
+    </div>
+</div>
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert success" role="status">@message</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert" role="alert">@error</div>
+}
+@if (!ViewData.ModelState.IsValid)
+{
+    <div asp-validation-summary="All" class="alert"></div>
+}
+
+<section class="panel">
+    <h2>Yeni menü</h2>
+    @if (Model.PublishedMenu is null)
+    {
+        <p class="muted">Önce yayında bir menü ve ürünler olmalı. <a asp-controller="Menus" asp-action="Index">Menüler</a></p>
+    }
+    else
+    {
+        <form asp-action="Create" method="post" class="form-grid-wide" id="lunch-package-form">
+            @Html.AntiForgeryToken()
+            <label class="span-2">
+                Menü adı
+                <input asp-for="Create.Name" placeholder="Öğle menüsü A — Tavuk" required />
+            </label>
+            <label class="span-2">
+                Açıklama (isteğe bağlı)
+                <input asp-for="Create.Description" placeholder="Günün öğle seti" />
+            </label>
+            <label>
+                Menü fiyatı (₺)
+                <input asp-for="Create.PriceLira" placeholder="ör. 280" inputmode="decimal" required />
+            </label>
+            <label class="check" style="align-self:end">
+                <input asp-for="Create.IsActive" />
+                Hemen yayında
+            </label>
+            <label>
+                Günlük başlangıç
+                <input asp-for="Create.DailyStartLocal" type="time" />
+            </label>
+            <label>
+                Günlük bitiş
+                <input asp-for="Create.DailyEndLocal" type="time" />
+            </label>
+            <fieldset class="span-2" style="border:none;padding:0;margin:0">
+                <legend style="font-size:0.9rem;margin-bottom:0.35rem">Günler</legend>
+                <div style="display:flex;flex-wrap:wrap;gap:0.65rem">
+                    @foreach (var day in weekdays)
+                    {
+                        <label class="check" style="display:inline-flex;gap:0.3rem;align-items:center">
+                            <input type="checkbox"
+                                   name="Create.WeekdayBits"
+                                   value="@day.Bit"
+                                   @(selectedDays.Contains(day.Bit) ? "checked" : null) />
+                            @day.Label
+                        </label>
+                    }
+                </div>
+            </fieldset>
+
+            <div class="span-2" id="package-components">
+                <p style="margin:0 0 0.5rem;font-weight:600">Menü içeriği (en az 2 ürün)</p>
+                <p class="muted" style="margin-top:0">Kategori seç → ürün seç → «Ekle». Sıra mutfak ve müşteri listesinde böyle görünür.</p>
+                <div class="form-grid-wide" style="margin-bottom:0.75rem">
+                    <label>
+                        Kategori
+                        <select id="pkg-category" data-ros-category-filter>
+                            <option value="">—</option>
+                            @foreach (var category in Model.PublishedMenu.Categories.OrderBy(c => c.SortOrder).ThenBy(c => c.Name))
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        Ürün
+                        <select id="pkg-product"
+                                data-ros-product-select
+                                data-ros-category-source="pkg-category"
+                                data-ros-require-category="true">
+                            <option value="">— önce kategori —</option>
+                            @foreach (var item in Model.PublishedMenu.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Name))
+                            {
+                                <option value="@item.Id"
+                                        data-category-id="@item.CategoryId"
+                                        data-name="@item.Name"
+                                        data-price="@item.AmountMinor">@item.Name · @Money(item.AmountMinor)</option>
+                            }
+                        </select>
+                    </label>
+                    <label>
+                        Slot etiketi (isteğe bağlı)
+                        <input id="pkg-slot" list="slot-suggestions" placeholder="Ana yemek, Pilav, İçecek…" />
+                        <datalist id="slot-suggestions">
+                            <option value="Ana yemek"></option>
+                            <option value="Pilav / garnitür"></option>
+                            <option value="Çorba"></option>
+                            <option value="Salata"></option>
+                            <option value="İçecek"></option>
+                            <option value="Tatlı"></option>
+                        </datalist>
+                    </label>
+                    <div class="form-actions" style="align-self:end">
+                        <button type="button" class="btn btn-ghost" id="pkg-add-btn">Ürünü ekle</button>
+                    </div>
+                </div>
+                <ul id="pkg-selected" style="list-style:none;padding:0;margin:0"></ul>
+                <div id="pkg-hidden-inputs"></div>
+            </div>
+
+            <div class="form-actions span-2">
+                <button type="submit" class="btn">Menüyü kaydet</button>
+            </div>
+        </form>
+    }
+</section>
+
+<section class="panel">
+    <h2>Kayıtlı menüler</h2>
+    @if (Model.Packages.Count == 0)
+    {
+        <p class="muted">Henüz günlük menü yok — bu özellik kullanılmıyor demektir; müşteri menüsünde boş bölüm gösterilmez.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Ad</th>
+                    <th>İçerik</th>
+                    <th>Fiyat</th>
+                    <th>Saat</th>
+                    <th>Durum</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var package in Model.Packages)
+            {
+                var savings = package.ComponentsListTotalMinor - package.PriceAmountMinor;
+                <tr>
+                    <td>
+                        <strong>@package.Name</strong>
+                        @if (!string.IsNullOrWhiteSpace(package.Description))
+                        {
+                            <div class="muted">@package.Description</div>
+                        }
+                    </td>
+                    <td>
+                        @string.Join(" · ", package.Components.OrderBy(c => c.SortOrder).Select(c =>
+                            string.IsNullOrWhiteSpace(c.SlotLabel) ? c.MenuItemName : $"{c.SlotLabel}: {c.MenuItemName}"))
+                    </td>
+                    <td>
+                        @Money(package.PriceAmountMinor)
+                        @if (savings > 0)
+                        {
+                            <div class="muted">Liste @Money(package.ComponentsListTotalMinor)</div>
+                        }
+                    </td>
+                    <td class="muted">
+                        @(string.IsNullOrWhiteSpace(package.DailyStartLocal) ? "Tüm gün" : $"{package.DailyStartLocal?[..Math.Min(5, package.DailyStartLocal.Length)]}–{package.DailyEndLocal?[..Math.Min(5, package.DailyEndLocal?.Length ?? 0)]}")
+                    </td>
+                    <td>
+                        <span class="badge @(package.IsActive ? "badge-ok" : "badge-muted")">
+                            @(package.IsActive ? "Aktif" : "Pasif")
+                        </span>
+                    </td>
+                    <td style="white-space:nowrap">
+                        <form asp-action="Toggle" method="post" class="inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@package.Id" />
+                            <input type="hidden" name="isActive" value="@package.IsActive.ToString().ToLowerInvariant()" />
+                            <button type="submit" class="linkish">@(package.IsActive ? "Durdur" : "Aç")</button>
+                        </form>
+                        ·
+                        <form asp-action="Delete" method="post" class="inline" onsubmit="return confirm('Bu günün menüsü silinsin mi?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@package.Id" />
+                            <button type="submit" class="linkish">Sil</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</section>
+
+@section Scripts {
+<script>
+(function () {
+    var list = document.getElementById('pkg-selected');
+    var hidden = document.getElementById('pkg-hidden-inputs');
+    var addBtn = document.getElementById('pkg-add-btn');
+    var productEl = document.getElementById('pkg-product');
+    var slotEl = document.getElementById('pkg-slot');
+    if (!list || !hidden || !addBtn || !productEl) return;
+
+    var items = [];
+
+    function money(minor) {
+        return '₺' + Math.round(Number(minor) / 100);
+    }
+
+    function render() {
+        list.innerHTML = '';
+        hidden.innerHTML = '';
+        items.forEach(function (item, index) {
+            var li = document.createElement('li');
+            li.style.cssText = 'display:flex;justify-content:space-between;gap:0.75rem;padding:0.45rem 0;border-bottom:1px solid var(--border, #ddd)';
+            li.innerHTML = '<span><strong>' + (item.slot ? item.slot + ': ' : '') + item.name + '</strong> <span class="muted">' + money(item.price) + '</span></span>';
+            var remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'linkish';
+            remove.textContent = 'Kaldır';
+            remove.addEventListener('click', function () {
+                items = items.filter(function (x) { return x.id !== item.id; });
+                render();
+            });
+            li.appendChild(remove);
+            list.appendChild(li);
+
+            var idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = 'Create.ComponentMenuItemIds';
+            idInput.value = item.id;
+            hidden.appendChild(idInput);
+
+            var slotInput = document.createElement('input');
+            slotInput.type = 'hidden';
+            slotInput.name = 'Create.ComponentSlotLabels';
+            slotInput.value = item.slot || '';
+            hidden.appendChild(slotInput);
+        });
+    }
+
+    addBtn.addEventListener('click', function () {
+        var opt = productEl.options[productEl.selectedIndex];
+        if (!opt || !opt.value) return;
+        if (items.some(function (x) { return x.id === opt.value; })) return;
+        items.push({
+            id: opt.value,
+            name: opt.getAttribute('data-name') || opt.textContent,
+            price: Number(opt.getAttribute('data-price') || 0),
+            slot: (slotEl && slotEl.value || '').trim()
+        });
+        productEl.value = '';
+        if (slotEl) slotEl.value = '';
+        render();
+    });
+})();
+</script>
+}

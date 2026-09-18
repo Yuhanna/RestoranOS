@@ -1,0 +1,97 @@
+@model TenantDetailPageViewModel
+@{
+    ViewData["Title"] = Model.RestaurantName;
+    var canWrite = AdminAccess.CanWriteTenants(Model.RoleCode);
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Üye sözleşmesi</p>
+        <h1>@Model.RestaurantName</h1>
+        <p class="note">@Model.TenantName. Boş override alanı katalog varsayılanını kullanır. Canlı fiyatlar bu ekrandan değişmez.</p>
+    </div>
+    <a class="btn secondary" asp-action="Index">Listeye dön</a>
+</div>
+
+<dl class="facts">
+    <div>
+        <dt>Fatura e-postası</dt>
+        <dd>@(string.IsNullOrWhiteSpace(Model.BillingEmail) ? "—" : Model.BillingEmail)</dd>
+    </div>
+    <div>
+        <dt>Deneme</dt>
+        <dd>@(Model.IsTrial ? "aktif" : "yok")</dd>
+    </div>
+    <div>
+        <dt>Başlangıç</dt>
+        <dd>@Model.StartedAtUtc.ToLocalTime().ToString("g")</dd>
+    </div>
+    <div>
+        <dt>Kullanım</dt>
+        <dd>
+            @Model.ActiveBranchCount / @AdminAccess.LimitLabel(Model.MaxBranches) şube
+            · @Model.ActiveUserCount / @AdminAccess.LimitLabel(Model.MaxActiveUsers) kullanıcı
+            · geçmiş @AdminAccess.HoursLabel(Model.MaxOrderHistoryHours)
+            · QR @AdminAccess.LimitLabel(Model.MaxActiveQrCodes)
+            @if (Model.FrozenBranchCount > 0)
+            {
+                <span class="muted"> · @Model.FrozenBranchCount dondurulmuş şube</span>
+            }
+        </dd>
+    </div>
+</dl>
+
+@if (canWrite)
+{
+    <form asp-action="Update" asp-route-id="@Model.TenantId" method="post" class="stack" style="max-width:40rem">
+        @Html.AntiForgeryToken()
+        <label>
+            Plan
+            <select asp-for="Form.PlanCode">
+                <option value="Free">Free</option>
+                <option value="Pro">Pro</option>
+                <option value="Enterprise">Enterprise</option>
+            </select>
+        </label>
+        <label>
+            Bitiş (isteğe bağlı)
+            <input asp-for="Form.ExpiresAtLocal" type="datetime-local" />
+            <span asp-validation-for="Form.ExpiresAtLocal" class="field-error"></span>
+            <span class="muted">Boş = süresiz ücretli sözleşme. Dolu ve gelecekte ise deneme/süre sınırı.</span>
+        </label>
+        <label>
+            Satın alınan ek şube
+            <input asp-for="Form.PurchasedBranchAddonCount" type="number" min="0" max="10000" />
+            <span asp-validation-for="Form.PurchasedBranchAddonCount" class="field-error"></span>
+        </label>
+        <div class="form-row">
+            <label>
+                Override şube tavanı
+                <input asp-for="Form.OverrideMaxBranches" type="number" min="1" />
+            </label>
+            <label>
+                Override kullanıcı tavanı
+                <input asp-for="Form.OverrideMaxActiveUsers" type="number" min="1" />
+            </label>
+            <label>
+                Override geçmiş (saat)
+                <input asp-for="Form.OverrideMaxOrderHistoryHours" type="number" min="1" />
+            </label>
+            <label>
+                Override aktif QR
+                <input asp-for="Form.OverrideMaxActiveQrCodes" type="number" min="1" />
+            </label>
+        </div>
+        <p class="muted">Boş bırakılan tavan katalog varsayılanına döner. Enterprise’da şube tavanı boş = sınırsız.</p>
+        <label>
+            Sözleşme notu
+            <textarea asp-for="Form.ContractNote" rows="3" maxlength="2000"></textarea>
+            <span asp-validation-for="Form.ContractNote" class="field-error"></span>
+        </label>
+        <button class="btn" type="submit">Sözleşmeyi kaydet</button>
+    </form>
+}
+else
+{
+    <p class="muted">Bu rol üye aboneliğini değiştiremez. Owner veya Billing yazabilir.</p>
+}

@@ -67,6 +67,7 @@ public sealed class PromotionsController(IWebApiExecuter api) : Controller
                     categoryId = model.Scope == "category" ? model.CategoryId : null,
                     menuItemId = model.Scope == "product" ? model.MenuItemId : null,
                     isActive = true,
+                    daysOfWeekMask = ToDaysOfWeekMask(model.WeekdayBits),
                 },
                 cancellationToken);
             TempData["Message"] = $"«{model.Name}» kampanyası oluşturuldu. QR menüde otomatik uygulanır.";
@@ -148,6 +149,25 @@ public sealed class PromotionsController(IWebApiExecuter api) : Controller
 
     private static string? ParseTime(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static byte? ToDaysOfWeekMask(int[]? bits)
+    {
+        if (bits is null || bits.Length == 0 || bits.Length >= 7)
+        {
+            return null;
+        }
+
+        byte mask = 0;
+        foreach (var bit in bits.Distinct())
+        {
+            if (bit is >= 0 and <= 6)
+            {
+                mask |= (byte)(1 << bit);
+            }
+        }
+
+        return mask == 0 ? null : mask;
+    }
 
     private bool EnsureAuthenticated() => api.IsAuthenticated;
 

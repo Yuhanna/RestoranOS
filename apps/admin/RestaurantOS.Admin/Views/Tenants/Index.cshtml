@@ -1,0 +1,91 @@
+@model TenantsPageViewModel
+@{
+    ViewData["Title"] = "Üyeler";
+}
+
+<div class="page-head">
+    <div>
+        <h1>Üyeler</h1>
+        <p class="note">Restoran tenant abonelikleri. Listede fatura e-postası yoktur; PII yalnızca üye detayında ve denetim kaydıyla açılır. Plan matrisi bu dilimde düzenlenmez — tavanlar üye bazında override edilir.</p>
+    </div>
+</div>
+
+<form method="get" class="form-row" style="margin-bottom:1rem">
+    <label>
+        Ara
+        <input name="q" value="@Model.Query" placeholder="Tenant veya restoran adı" />
+    </label>
+    <label>
+        Plan
+        <select name="plan">
+            <option value="">Tümü</option>
+            <option value="Free" selected="@(string.Equals(Model.Plan, "Free", StringComparison.Ordinal) ? "selected" : null)">Free</option>
+            <option value="Pro" selected="@(string.Equals(Model.Plan, "Pro", StringComparison.Ordinal) ? "selected" : null)">Pro</option>
+            <option value="Enterprise" selected="@(string.Equals(Model.Plan, "Enterprise", StringComparison.Ordinal) ? "selected" : null)">Enterprise</option>
+        </select>
+    </label>
+    <button class="btn secondary" type="submit">Filtrele</button>
+</form>
+
+<table class="data">
+    <thead>
+        <tr>
+            <th>Üye</th>
+            <th>Plan</th>
+            <th>Şube</th>
+            <th>Açık teklif</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @if (Model.Items.Count == 0)
+    {
+        <tr>
+            <td colspan="5" class="muted">Üye yok</td>
+        </tr>
+    }
+    else
+    {
+        foreach (var item in Model.Items)
+        {
+            <tr>
+                <td>
+                    <div>@item.RestaurantName</div>
+                    <div class="muted">@item.TenantName</div>
+                </td>
+                <td>
+                    @item.PlanCode
+                    @if (item.IsTrial)
+                    {
+                        <span class="muted"> · deneme</span>
+                    }
+                    @if (item.ExpiresAtUtc is DateTimeOffset expires)
+                    {
+                        <div class="muted">bitiş @expires.ToLocalTime().ToString("g")</div>
+                    }
+                </td>
+                <td>@item.ActiveBranchCount / @AdminAccess.LimitLabel(item.MaxBranches)</td>
+                <td>@(item.OpenQuoteCount == 0 ? "—" : item.OpenQuoteCount.ToString())</td>
+                <td>
+                    <a asp-action="Detail" asp-route-id="@item.TenantId">Sözleşme</a>
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+
+@if (Model.Total > Model.Take)
+{
+    <p class="muted" style="margin-top:1rem">
+        @Model.Total üye ·
+        @if (Model.Skip > 0)
+        {
+            <a asp-action="Index" asp-route-q="@Model.Query" asp-route-plan="@Model.Plan" asp-route-skip="@(Model.Skip < Model.Take ? 0 : Model.Skip - Model.Take)">Önceki</a>
+        }
+        @if (Model.Skip + Model.Take < Model.Total)
+        {
+            <a asp-action="Index" asp-route-q="@Model.Query" asp-route-plan="@Model.Plan" asp-route-skip="@(Model.Skip + Model.Take)">Sonraki</a>
+        }
+    </p>
+}

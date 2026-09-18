@@ -1,0 +1,124 @@
+@model StaffPageViewModel
+@{
+    ViewData["Title"] = "Platform operatörleri";
+    var canManage = AdminAccess.CanManageStaff(Model.RoleCode);
+    var roles = new[] { "Owner", "Billing", "Support", "ReadOnly" };
+}
+
+<div class="page-head">
+    <div>
+        <h1>Platform operatörleri</h1>
+        <p class="note">Pasa Admin girişi buradan tanımlanır. Restoran paneli kullanıcıları bu listeye otomatik girmez. Son aktif Owner düşürülemez ve kapatılamaz.</p>
+    </div>
+</div>
+
+@if (canManage)
+{
+    <form asp-action="Invite" method="post" class="stack" style="max-width:32rem;margin-bottom:1.5rem">
+        @Html.AntiForgeryToken()
+        <label>
+            E-posta
+            <input asp-for="Invite.Email" autocomplete="off" />
+            <span asp-validation-for="Invite.Email" class="field-error"></span>
+        </label>
+        <label>
+            Rol
+            <select asp-for="Invite.RoleCode">
+                <option value="Support">Support — duyuru ve kampanya</option>
+                <option value="Billing">Billing — fiyat ve kampanya</option>
+                <option value="ReadOnly">ReadOnly — yalnız okuma</option>
+                <option value="Owner">Owner — tam yetki, kadro yönetimi</option>
+            </select>
+        </label>
+        <label>
+            İlk parola
+            <input asp-for="Invite.Password" type="password" autocomplete="new-password" />
+            <span class="muted">Yeni hesap için 12–128 karakter. Var olan kullanıcıya kadro eklerken boş bırakın; mevcut parola değişmez.</span>
+        </label>
+        <button class="btn" type="submit">Operatör ekle</button>
+    </form>
+}
+else
+{
+    <p class="muted">Kadro yönetimini yalnızca Owner yapar.</p>
+}
+
+<table class="data">
+    <thead>
+        <tr>
+            <th>E-posta</th>
+            <th>Rol</th>
+            <th>Durum</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @if (Model.Members.Count == 0)
+    {
+        <tr>
+            <td colspan="4" class="muted">Operatör yok</td>
+        </tr>
+    }
+    else
+    {
+        foreach (var member in Model.Members)
+        {
+            var isSelf = member.UserId == Model.CurrentUserId;
+            var lastOwner = Model.IsLastActiveOwner(member);
+            <tr>
+                <td>
+                    @member.Email
+                    @if (isSelf)
+                    {
+                        <span class="muted"> · siz</span>
+                    }
+                    <div class="muted">eklenme @member.GrantedAtUtc.ToLocalTime().ToString("g")</div>
+                </td>
+                <td>
+                    @if (canManage && !lastOwner)
+                    {
+                        <form asp-action="ChangeRole" method="post" class="inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="userId" value="@member.UserId" />
+                            <select name="roleCode">
+                                @foreach (var role in roles)
+                                {
+                                    if (member.RoleCode == role)
+                                    {
+                                        <option value="@role" selected="selected">@role</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@role">@role</option>
+                                    }
+                                }
+                            </select>
+                            <button class="btn secondary" type="submit">Kaydet</button>
+                        </form>
+                    }
+                    else
+                    {
+                        @member.RoleCode
+                        @if (lastOwner)
+                        {
+                            <div class="muted">son Owner</div>
+                        }
+                    }
+                </td>
+                <td>@(member.IsActive ? "aktif" : "pasif")</td>
+                <td>
+                    @if (canManage && !isSelf && !lastOwner)
+                    {
+                        <form asp-action="SetActive" method="post" class="inline" onsubmit="return confirm('@(member.IsActive ? "Bu operatörün Pasa Admin girişi kapanır. Devam?" : "Operatör yeniden açılsın mı?")');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="userId" value="@member.UserId" />
+                            <input type="hidden" name="isActive" value="@(member.IsActive ? "false" : "true")" />
+                            <button class="btn secondary" type="submit">@(member.IsActive ? "Pasifleştir" : "Aç")</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>

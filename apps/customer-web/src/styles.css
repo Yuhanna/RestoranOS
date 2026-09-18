@@ -660,6 +660,20 @@ a:focus-visible {
   z-index: 1;
 }
 
+.app-shell.dialog-portal-host {
+  min-height: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.app-shell.dialog-portal-host .ds-dialog-layer {
+  pointer-events: auto;
+  z-index: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-shell[data-brand-watermark="soft"]::before,
   .app-shell[data-brand-watermark="medium"]::before {
@@ -892,6 +906,12 @@ a:focus-visible {
   background: #e2f2e9;
 }
 
+.badge--custom {
+  color: var(--color-ink, #1c1208);
+  background: color-mix(in srgb, var(--color-brand, #c4622d) 14%, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-brand, #c4622d) 28%, transparent);
+}
+
 .sticky-cart {
   position: fixed;
   inset-inline: 0;
@@ -902,6 +922,12 @@ a:focus-visible {
   padding: var(--space-5) var(--space-4) max(var(--space-4), env(safe-area-inset-bottom));
   background: linear-gradient(transparent, var(--color-canvas) 36%);
   pointer-events: none;
+}
+
+/* Beat `.app-shell > * { position: relative; z-index: 1 }` so the dock stays viewport-fixed. */
+.app-shell > .sticky-cart {
+  position: fixed;
+  z-index: 30;
 }
 
 .sticky-cart .ds-button {
@@ -937,7 +963,7 @@ a:focus-visible {
 .ds-dialog-layer {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 80;
   display: grid;
   align-items: end;
 }
@@ -1481,27 +1507,52 @@ a:focus-visible {
   font-weight: 700;
 }
 
-.lunch-package-detail {
-  display: grid;
-  gap: var(--space-3);
+.lunch-package-card__actions {
+  padding: 0 var(--space-4) var(--space-4);
 }
 
-.lunch-package-detail h2 {
+.lunch-package-card__actions .ds-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3rem;
+}
+
+.lunch-package-detail {
+  display: grid;
+  gap: 0;
+}
+
+.lunch-package-detail__head {
+  padding-block-end: var(--space-3);
+}
+
+.lunch-package-detail__head .eyebrow {
+  margin: 0 0 var(--space-2);
+  letter-spacing: 0.1em;
+}
+
+.lunch-package-detail__head h2 {
   margin: 0;
   font: 1.5rem / 1.2 var(--font-display);
 }
 
 .lunch-package-detail__hours {
-  margin: 0;
+  margin: var(--space-2) 0 0;
   color: var(--color-ink-muted);
   font-size: 0.875rem;
   font-weight: 600;
 }
 
+.lunch-package-detail__lede {
+  margin: 0;
+  padding: 0 var(--space-5) var(--space-3);
+}
+
 .lunch-package-detail__items {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 var(--space-5) var(--space-4);
   display: grid;
   gap: 0.75rem;
 }

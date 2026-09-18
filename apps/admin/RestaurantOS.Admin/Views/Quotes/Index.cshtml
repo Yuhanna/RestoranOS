@@ -1,0 +1,59 @@
+@model QuotesPageViewModel
+@{
+    ViewData["Title"] = "Teklif kuyruğu";
+}
+
+<div class="page-head">
+    <div>
+        <h1>Teklif kuyruğu</h1>
+        <p class="note">Restoranların gönderdiği Enterprise talepleri. Listede iletişim e-postası yoktur; kişi bilgisi yalnızca teklif detayında görünür. Onaylayan Owner/Billing, reddeden Support da olabilir.</p>
+    </div>
+</div>
+
+<form method="get" class="form-row" style="margin-bottom:1rem">
+    <label>
+        Durum
+        <select name="status">
+            <option value="Open" selected="@(string.Equals(Model.Status, "Open", StringComparison.Ordinal) ? "selected" : null)">Açık</option>
+            <option value="Accepted" selected="@(string.Equals(Model.Status, "Accepted", StringComparison.Ordinal) ? "selected" : null)">Onaylandı</option>
+            <option value="Rejected" selected="@(string.Equals(Model.Status, "Rejected", StringComparison.Ordinal) ? "selected" : null)">Reddedildi</option>
+            <option value="all" selected="@(string.Equals(Model.Status, "all", StringComparison.Ordinal) ? "selected" : null)">Tümü</option>
+        </select>
+    </label>
+    <button class="btn secondary" type="submit">Filtrele</button>
+</form>
+
+<table class="data">
+    <thead>
+        <tr>
+            <th>Üye</th>
+            <th>Tahmini şube</th>
+            <th>Durum</th>
+            <th>Tarih</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @if (Model.Items.Count == 0)
+    {
+        <tr>
+            <td colspan="5" class="muted">Teklif yok</td>
+        </tr>
+    }
+    else
+    {
+        foreach (var item in Model.Items)
+        {
+            <tr>
+                <td>@item.TenantName</td>
+                <td>@item.EstimatedBranchCount</td>
+                <td>@AdminAccess.QuoteStatusLabel(item.Status)</td>
+                <td>@item.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                <td>
+                    <a asp-action="Detail" asp-route-id="@item.Id">İncele</a>
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>

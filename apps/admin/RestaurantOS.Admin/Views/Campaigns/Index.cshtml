@@ -1,0 +1,85 @@
+@model CampaignsPageViewModel
+@{
+    ViewData["Title"] = "Üyelik kampanyaları";
+    var canWrite = AdminAccess.CanWriteCampaigns(Model.RoleCode);
+}
+
+<div class="page-head">
+    <div>
+        <h1>Üyelik kampanyaları</h1>
+        <p class="note">Bu restoran menü indirimi değildir. SaaS yükseltme teklifidir.</p>
+    </div>
+</div>
+
+@if (canWrite)
+{
+    <form asp-action="Create" method="post" class="stack" style="max-width:32rem;margin-bottom:1.5rem">
+        @Html.AntiForgeryToken()
+        <label>
+            Başlık
+            <input asp-for="Create.Title" />
+            <span asp-validation-for="Create.Title" class="field-error"></span>
+        </label>
+        <label>
+            Metin
+            <input asp-for="Create.Body" />
+            <span asp-validation-for="Create.Body" class="field-error"></span>
+        </label>
+        <div class="form-row">
+            <label>
+                İndirim %
+                <input asp-for="Create.DiscountPercent" type="number" min="1" max="100" />
+                <span asp-validation-for="Create.DiscountPercent" class="field-error"></span>
+            </label>
+            <label>
+                Süre (ay)
+                <input asp-for="Create.DurationMonths" type="number" min="1" max="36" />
+                <span asp-validation-for="Create.DurationMonths" class="field-error"></span>
+            </label>
+        </div>
+        <button class="btn" type="submit">Kampanya oluştur</button>
+    </form>
+}
+
+<table class="data">
+    <thead>
+        <tr>
+            <th>Başlık</th>
+            <th>Plan</th>
+            <th>İndirim</th>
+            <th>Durum</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @if (Model.Offers.Count == 0)
+    {
+        <tr>
+            <td colspan="5" class="muted">Kampanya yok</td>
+        </tr>
+    }
+    else
+    {
+        foreach (var offer in Model.Offers)
+        {
+            <tr>
+                <td>@offer.Title</td>
+                <td>@offer.TargetPlanCode</td>
+                <td>%@offer.DiscountPercent / @offer.DurationMonths ay</td>
+                <td>@(offer.IsActive ? "aktif" : "kapalı")</td>
+                <td>
+                    @if (canWrite)
+                    {
+                        <form asp-action="Toggle" method="post" class="inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@offer.Id" />
+                            <input type="hidden" name="isActive" value="@(offer.IsActive ? "true" : "false")" />
+                            <button class="btn secondary" type="submit">@(offer.IsActive ? "Durdur" : "Aç")</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>

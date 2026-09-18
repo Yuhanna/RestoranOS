@@ -2,29 +2,132 @@
 @{
     ViewData["Title"] = "QR yazdır";
     Layout = null;
+    string StatusTr(string? status) => status?.Trim().ToLowerInvariant() switch
+    {
+        "active" => "Aktif",
+        "revoked" => "İptal",
+        "replaced" => "Değiştirildi",
+        "expired" => "Süresi dolmuş",
+        _ => string.IsNullOrWhiteSpace(status) ? "—" : status,
+    };
 }
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="utf-8" />
+    <meta name="color-scheme" content="light" />
     <title>@Model.TableLabel — QR</title>
     <style>
-        body { font-family: Georgia, serif; margin: 2rem; text-align: center; color: #111; }
-        .sub { color: #555; margin: 0 0 0.4rem; font-size: 0.95rem; }
-        h1 { font-size: 2.4rem; margin: 0 0 1.25rem; letter-spacing: 0.02em; }
-        .svg { margin: 0.5rem auto 1.25rem; max-width: 280px; }
-        .svg svg { width: 100%; height: auto; }
-        a { color: #1a1a1a; word-break: break-all; font-size: 0.85rem; }
-        @@media print { .no-print { display: none; } }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: #f4f4f5;
+            color: #18181b;
+            text-align: center;
+        }
+        .toolbar {
+            padding: 1rem;
+            font-size: 0.9rem;
+        }
+        .toolbar button {
+            font: inherit;
+            padding: 0.35rem 0.75rem;
+            border: 1px solid #d4d4d8;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+        }
+        .toolbar a { color: #3f3f46; }
+        .sheet {
+            max-width: 26rem;
+            margin: 0 auto 2rem;
+            padding: 1.5rem 1.25rem 1.75rem;
+            background: #fff;
+            border: 1px solid #e4e4e7;
+            border-radius: 12px;
+        }
+        .sub {
+            margin: 0 0 0.35rem;
+            color: #71717a;
+            font-size: 0.9rem;
+        }
+        h1 {
+            margin: 0 0 1.1rem;
+            font-size: 1.85rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            line-height: 1.2;
+        }
+        /* Equal white frame: padding on the box + block SVG (no baseline gap). */
+        .qr-frame {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.15rem;
+            padding: 1rem;
+            background: #fff;
+            border: 1px solid #e4e4e7;
+            border-radius: 8px;
+            line-height: 0;
+        }
+        .qr-frame svg {
+            display: block;
+            width: 240px;
+            height: 240px;
+        }
+        .status {
+            margin: 0 0 0.75rem;
+            color: #52525b;
+            font-size: 0.95rem;
+        }
+        .hint {
+            margin: 0 auto 0.85rem;
+            max-width: 22rem;
+            color: #3f3f46;
+            font-size: 0.92rem;
+            line-height: 1.45;
+        }
+        .url {
+            margin: 0;
+            padding: 0.55rem 0.65rem;
+            word-break: break-all;
+            font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+            font-size: 0.75rem;
+            color: #52525b;
+            background: #f4f4f5;
+            border-radius: 6px;
+        }
+        @@media print {
+            body { background: #fff; }
+            .no-print { display: none !important; }
+            .sheet {
+                margin: 0 auto;
+                border: none;
+                border-radius: 0;
+                max-width: none;
+            }
+            .qr-frame { border: none; }
+        }
     </style>
 </head>
 <body>
-    <p class="no-print"><button onclick="window.print()">Yazdır</button> · <a href="@Url.Action("Index")">Geri</a></p>
-    <p class="sub">Masaya özel sipariş QR kodu</p>
-    <h1>@(string.IsNullOrWhiteSpace(Model.TableLabel) ? "Masa" : Model.TableLabel)</h1>
-    <div class="svg">@Html.Raw(Model.SvgMarkup)</div>
-    <p class="no-print muted">Durum: @Model.Status</p>
-    <p class="no-print muted">Menüyü telefon kamerasıyla açın. Aşağıdaki bağlantıyı bilgisayarda tıklamayın; tıklamak masayı DOLU gösterir.</p>
-    <p class="no-print"><code>@Model.EntryUrl</code></p>
+    <p class="toolbar no-print">
+        <button type="button" onclick="window.print()">Yazdır</button>
+        ·
+        <a href="@Url.Action("Index")">Geri</a>
+    </p>
+    <div class="sheet">
+        <p class="sub">Masaya özel sipariş QR kodu</p>
+        <h1>@(string.IsNullOrWhiteSpace(Model.TableLabel) ? "Masa" : Model.TableLabel)</h1>
+        <div class="qr-frame">@Html.Raw(Model.SvgMarkup)</div>
+        <p class="status no-print">Durum: @StatusTr(Model.Status)</p>
+        <p class="hint no-print">
+            Menüyü telefon kamerasıyla açın.
+            Aşağıdaki bağlantıyı bilgisayardan açmayın; açmak masayı <strong>dolu</strong> gösterir.
+        </p>
+        <p class="url no-print">@Model.EntryUrl</p>
+    </div>
 </body>
 </html>

@@ -1,0 +1,76 @@
+@model RestaurantOS.Web.Models.UpgradePromptViewModel
+@{
+    var tone = Model.Tone switch
+    {
+        "critical" => "upgrade-prompt--critical",
+        "warn" => "upgrade-prompt--warn",
+        _ => "upgrade-prompt--info",
+    };
+    var compact = Model.Compact ? "upgrade-prompt--compact" : null;
+}
+<aside class="upgrade-prompt @tone @compact"
+       data-upgrade-prompt
+       data-feature-key="@Model.FeatureKey"
+       data-event-seen="upgrade_seen_@Model.FeatureKey"
+       role="status">
+    <div class="upgrade-prompt__copy">
+        <strong class="upgrade-prompt__title">@Model.Title</strong>
+        <p class="upgrade-prompt__body">@Model.Body</p>
+        @if (!string.IsNullOrWhiteSpace(Model.Proof))
+        {
+            <p class="upgrade-prompt__proof muted">@Model.Proof</p>
+        }
+    </div>
+    <div class="upgrade-prompt__actions">
+        @if (string.Equals(Model.PrimaryAction, "trial", StringComparison.Ordinal))
+        {
+            <form asp-controller="Subscription" asp-action="StartTrial" method="post" class="inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn" data-upgrade-cta>@Model.PrimaryLabel</button>
+            </form>
+        }
+        else
+        {
+            <form asp-controller="Subscription" asp-action="UpgradePro" method="post" class="inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn" data-upgrade-cta>@Model.PrimaryLabel</button>
+            </form>
+        }
+        <a class="btn btn-ghost" asp-controller="Subscription" asp-action="Index">Paketler</a>
+        @if (Model.Dismissible)
+        {
+            <button type="button" class="linkish" data-upgrade-dismiss>Şimdi değil</button>
+        }
+    </div>
+</aside>
+@* Dialog clone source — locked SoftDiscover controls reopen this even if the banner was dismissed. *@
+<template data-upgrade-template="@Model.FeatureKey">
+    <div class="upgrade-prompt @tone upgrade-prompt--dialog" data-feature-key="@Model.FeatureKey">
+        <div class="upgrade-prompt__copy">
+            <strong class="upgrade-prompt__title">@Model.Title</strong>
+            <p class="upgrade-prompt__body">@Model.Body</p>
+            @if (!string.IsNullOrWhiteSpace(Model.Proof))
+            {
+                <p class="upgrade-prompt__proof muted">@Model.Proof</p>
+            }
+        </div>
+        <div class="upgrade-prompt__actions">
+            @if (string.Equals(Model.PrimaryAction, "trial", StringComparison.Ordinal))
+            {
+                <form asp-controller="Subscription" asp-action="StartTrial" method="post" class="inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn" data-upgrade-cta>@Model.PrimaryLabel</button>
+                </form>
+            }
+            else
+            {
+                <form asp-controller="Subscription" asp-action="UpgradePro" method="post" class="inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn" data-upgrade-cta>@Model.PrimaryLabel</button>
+                </form>
+            }
+            <a class="btn btn-ghost" asp-controller="Subscription" asp-action="Index">Paketler</a>
+            <button type="button" class="linkish" data-upgrade-dialog-close>Kapat</button>
+        </div>
+    </div>
+</template>

@@ -44,6 +44,27 @@ public sealed class ManagementSubscriptionController(IFeatureEntitlementService 
         }
     }
 
+    [HttpPost("start-trial")]
+    [Authorize(Policy = ManagementPolicies.SubscriptionManage)]
+    [ProducesResponseType(typeof(ManagementEntitlementUsageResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> StartTrialAsync(CancellationToken cancellationToken)
+    {
+        if (!PermissionAuthorizationHandler.TryGetScope(User, out _, out var tenantId, out var branchId))
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            var usage = await entitlements.StartProTrialAsync(tenantId, branchId, cancellationToken);
+            return Ok(ToUsageResponse(usage));
+        }
+        catch (EntitlementException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status400BadRequest, exception.Code, exception.Message);
+        }
+    }
+
     [HttpPost("enterprise-quote")]
     [Authorize(Policy = ManagementPolicies.SubscriptionManage)]
     [ProducesResponseType(typeof(ManagementEnterpriseQuoteResponse), StatusCodes.Status201Created)]
@@ -107,5 +128,13 @@ public sealed class ManagementSubscriptionController(IFeatureEntitlementService 
             ActiveBranchCount: usage.ActiveBranchCount,
             ExtraBranchMonthlyPriceMinor: usage.ExtraBranchMonthlyPriceMinor,
             BillingCurrency: usage.BillingCurrency,
-            NextBranchRequiresAddon: usage.NextBranchRequiresAddon);
+            NextBranchRequiresAddon: usage.NextBranchRequiresAddon,
+            CanUseMenuThemes: usage.CanUseMenuThemes,
+            CanUseBrandWatermark: usage.CanUseBrandWatermark,
+            ActiveQrCount: usage.ActiveQrCount,
+            MaxActiveQrCodes: usage.MaxActiveQrCodes,
+            MaxConcurrentLiveSessions: usage.MaxConcurrentLiveSessions,
+            CanUsePromotions: usage.CanUsePromotions,
+            CanUseAnalytics: usage.CanUseAnalytics,
+            MaxOrderHistoryHours: usage.MaxOrderHistoryHours);
 }

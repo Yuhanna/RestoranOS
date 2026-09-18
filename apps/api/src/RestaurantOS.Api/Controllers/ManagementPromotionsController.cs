@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantOS.Api.Models.Dto;
 using RestaurantOS.Application;
+using RestaurantOS.Domain;
 
 namespace RestaurantOS.Api.Controllers;
 
@@ -62,13 +63,18 @@ public sealed class ManagementPromotionsController(IPromotionManagementService p
                     request.DailyEndLocal,
                     request.CategoryId,
                     request.MenuItemId,
-                    request.IsActive),
+                    request.IsActive,
+                    request.DaysOfWeekMask),
                 cancellationToken);
             return Created($"/api/v1/management/promotions/menu/{created.Id}", ToResponse(created));
         }
         catch (CustomerExperienceException exception)
         {
             return ApiProblem.Create(StatusCodes.Status400BadRequest, exception.Code, exception.Message);
+        }
+        catch (EntitlementException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
         }
     }
 
@@ -105,6 +111,10 @@ public sealed class ManagementPromotionsController(IPromotionManagementService p
                 : StatusCodes.Status400BadRequest;
             return ApiProblem.Create(status, exception.Code, exception.Message);
         }
+        catch (EntitlementException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
+        }
     }
 
     private static ManagementMenuPromotionResponse ToResponse(MenuPromotionResult promotion) =>
@@ -120,5 +130,6 @@ public sealed class ManagementPromotionsController(IPromotionManagementService p
             promotion.DailyEndLocal,
             promotion.CategoryId,
             promotion.MenuItemId,
-            promotion.IsActive);
+            promotion.IsActive,
+            promotion.DaysOfWeekMask);
 }

@@ -77,10 +77,10 @@ else
 
     @if (!Model.CanUseMultiBranch)
     {
+        var multiPrompt = MonetizationUi.FromFeature(RestaurantOS.Domain.MonetizationPolicy.MultiBranchFeature, "warn");
         <section class="panel panel-locked" style="margin-top:1rem">
-            <h2 style="margin-top:0">Çok şube Pro / deneme ile açılır</h2>
-            <p>
-                Free planda tek şube ile çalışırsınız. Denemede en fazla 3 şube deneyebilirsiniz.
+            <partial name="_UpgradePrompt" model="multiPrompt" />
+            <p class="muted" style="margin:0.75rem 0 0">
                 Ücretli Pro’da 2 şube dahildir; ek şube @addonPrice @currency / ay.
             </p>
         </section>
@@ -205,81 +205,20 @@ else
             </div>
         </section>
 
-        @if (selected is Guid selectedBranchId)
+        @if (Model.CanManageMembers && selected is Guid selectedBranchId)
         {
-            var selectedBranch = Model.Branches.FirstOrDefault(x => x.Id == selectedBranchId);
-            <section class="panel" style="margin-top:1rem">
-                <h2 style="margin-top:0">@(selectedBranch?.Name ?? "Şube") hesapları</h2>
-                @if (selectedBranch?.IsFrozen == true)
+            var selectedBranch = Model.Branches.FirstOrDefault(x => x.Id == selectedBranchId)
+                ?? new BranchListItemViewModel
                 {
-                    <p class="muted">Dondurulmuş şubeye yeni hesap eklenemez. Pro’ya geçin veya ek koltuk alın.</p>
+                    Id = selectedBranchId,
+                    Name = Model.Workspace?.BranchName ?? "Şube",
+                    IsCurrent = true,
+                };
+            <section class="panel" style="margin-top:1rem" id="branch-accounts-panel">
+                @{
+                    ViewData["AccountsBranch"] = selectedBranch;
                 }
-                else
-                {
-                    <form asp-action="Invite" method="post" class="form-grid form-grid-wide">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" asp-for="InviteMember.BranchId" value="@selectedBranchId" />
-                        <label>
-                            <span>E-posta</span>
-                            <input asp-for="InviteMember.Email" placeholder="sube@ornek.com" />
-                        </label>
-                        <label>
-                            <span>Şifre (yalnızca yeni hesap)</span>
-                            <input asp-for="InviteMember.Password" type="password" autocomplete="new-password" />
-                        </label>
-                        <label>
-                            <span>Rol</span>
-                            <select asp-for="InviteMember.RoleKey">
-                                <option value="manager">Şube yöneticisi</option>
-                                <option value="staff">Personel</option>
-                                <option value="owner">Merkez sahibi</option>
-                            </select>
-                        </label>
-                        <div class="span-2">
-                            @{
-                                var inviteEnabled = entitlements?.CanManageAdditionalRoles == true;
-                            }
-                            <button type="submit" class="btn" disabled="@(!inviteEnabled)">Hesap oluştur / ekle</button>
-                        </div>
-                    </form>
-                }
-
-                @if (Model.SelectedMembers.Count > 0)
-                {
-                    <div class="table-wrap" style="margin-top:1rem">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>E-posta</th>
-                                    <th>Rol</th>
-                                    <th>Durum</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var member in Model.SelectedMembers)
-                                {
-                                    <tr>
-                                        <td>@member.Email</td>
-                                        <td>@member.RoleName</td>
-                                        <td>@(member.IsActive ? "Aktif" : "Pasif")</td>
-                                        <td>
-                                            @if (member.IsActive)
-                                            {
-                                                <form asp-action="DeactivateMember" method="post" class="inline">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="branchId" value="@selectedBranchId" />
-                                                    <input type="hidden" name="membershipId" value="@member.MembershipId" />
-                                                    <button type="submit" class="linkish">Pasifleştir</button>
-                                                </form>
-                                            }
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
+                <partial name="_BranchAccounts" model="Model" />
             </section>
         }
 
@@ -335,5 +274,22 @@ else
                 }
             </ul>
         </section>
+
+        @if (Model.CanManageMembers && Model.SelectedBranchId is Guid managerAccountsBranchId)
+        {
+            var accountsBranch = Model.Branches.FirstOrDefault(x => x.Id == managerAccountsBranchId)
+                ?? new BranchListItemViewModel
+                {
+                    Id = managerAccountsBranchId,
+                    Name = Model.Workspace?.BranchName ?? "Şube",
+                    IsCurrent = true,
+                };
+            <section class="panel" style="margin-top:1rem" id="branch-accounts-panel">
+                @{
+                    ViewData["AccountsBranch"] = accountsBranch;
+                }
+                <partial name="_BranchAccounts" model="Model" />
+            </section>
+        }
     }
 }

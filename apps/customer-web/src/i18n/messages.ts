@@ -108,6 +108,7 @@ export const messages = {
   submitSessionExpired:
     "Oturumunuz sona erdi. Masadaki güncel QR kodunu yeniden okutun ve siparişi tekrar gönderin.",
   submitOrderRejected: "Sipariş kabul edilmedi. Ürünleri kontrol edip yeniden deneyin.",
+  submitRateLimited: "Çok hızlı sipariş verdiniz. Biraz bekleyip Günün Menüsü’nü yeniden deneyin.",
   orderReceived: "Siparişiniz alındı",
   orderReceivedBody: "Mutfak hazırlığa başlayacak. Durumu bu ekrandan takip edebilirsiniz.",
   orderReceivedBodyMulti:

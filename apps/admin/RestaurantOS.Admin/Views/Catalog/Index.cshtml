@@ -1,0 +1,105 @@
+@model CatalogPageViewModel
+@{
+    ViewData["Title"] = "Planlar ve fiyatlar";
+    var canWrite = AdminAccess.CanWriteCatalog(Model.RoleCode);
+    var canPublish = AdminAccess.CanPublishCatalog(Model.RoleCode);
+}
+
+<div class="page-head">
+    <div>
+        <h1>Planlar ve fiyatlar</h1>
+        <p class="note">@Model.Note</p>
+    </div>
+</div>
+
+@if (canWrite)
+{
+    <form asp-action="Create" method="post" class="form-row">
+        @Html.AntiForgeryToken()
+        <label>
+            Ürün
+            <select asp-for="Create.ProductCode">
+                <option value="Free">Free</option>
+                <option value="Pro">Pro</option>
+                <option value="Enterprise">Enterprise</option>
+                <option value="ExtraBranch">Ek şube</option>
+            </select>
+        </label>
+        <label>
+            Aralık
+            <select asp-for="Create.Interval">
+                <option value="month">Aylık</option>
+                <option value="year">Yıllık</option>
+            </select>
+        </label>
+        <label>
+            Tutar (KDV dahil, ₺)
+            <input asp-for="Create.Amount" />
+            <span asp-validation-for="Create.Amount" class="field-error"></span>
+        </label>
+        <button class="btn" type="submit">Taslak oluştur</button>
+    </form>
+}
+else
+{
+    <p class="muted">Bu rol katalog yazamaz.</p>
+}
+
+@foreach (var product in Model.Products)
+{
+    <section class="card" style="margin-bottom:1rem">
+        <h2>
+            @product.DisplayName
+            <span class="muted">@(product.ProductKind == "addon" ? "ek ürün" : "plan")</span>
+        </h2>
+        <table class="data">
+            <thead>
+                <tr>
+                    <th>Aralık</th>
+                    <th>Tutar</th>
+                    <th>Durum</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (product.Prices.Count == 0)
+            {
+                <tr>
+                    <td colspan="4" class="muted">Fiyat yok</td>
+                </tr>
+            }
+            else
+            {
+                foreach (var price in product.Prices)
+                {
+                    var statusClass = price.Status == "published" ? "status-published" : price.Status == "draft" ? "status-draft" : "status-archived";
+                    <tr>
+                        <td>@(price.Interval == "year" ? "Yıllık" : "Aylık")</td>
+                        <td>@((price.AmountMinor / 100m).ToString("N2") + " " + price.Currency)</td>
+                        <td class="@statusClass">@price.Status</td>
+                        <td>
+                            @if (canPublish && price.Status == "draft")
+                            {
+                                <form asp-action="Publish" method="post" class="inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@price.Id" />
+                                    <button class="btn" type="submit">Yayınla</button>
+                                </form>
+                            }
+                            @if (AdminAccess.CanArchiveCatalog(Model.RoleCode, price.Status))
+                            {
+                                <form asp-action="Archive" method="post" class="inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@price.Id" />
+                                    <input type="hidden" name="status" value="@price.Status" />
+                                    <button class="btn secondary" type="submit">Arşivle</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </section>
+}

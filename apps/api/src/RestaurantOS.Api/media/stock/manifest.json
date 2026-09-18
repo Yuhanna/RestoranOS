@@ -1,5 +1,5 @@
 {
-    "version": 19,
+    "version": 24,
     "license": "Mixed: Wikimedia Commons (CC) and Unsplash License (https://unsplash.com/license)",
     "attribution": "See ATTRIBUTION.md for per-file source URLs.",
     "categories": [
@@ -91,11 +91,7 @@
                 "izgara",
                 "lokanta",
                 "ana yemek",
-                "türk",
-                "urfa kebap",
-                "urfa",
-                "beyti kebap",
-                "beyti"
+                "türk"
             ],
             "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Shish_kebab_%28lamb%29.jpg/960px-Shish_kebab_%28lamb%29.jpg"
         },
@@ -358,8 +354,7 @@
                 "izgara",
                 "lokanta",
                 "türk",
-                "ana yemek",
-                "urfa kebap"
+                "ana yemek"
             ],
             "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Adana_kebab.jpg/960px-Adana_kebab.jpg"
         },
@@ -1551,8 +1546,7 @@
                 "döner",
                 "bufe",
                 "fast food",
-                "ana yemek",
-                "beyti kebap"
+                "ana yemek"
             ],
             "sourceUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f1/D%C3%BCr%C3%BCm_D%C3%B6ner.jpg"
         },
@@ -1584,10 +1578,6 @@
                 "lokanta",
                 "ana yemek",
                 "karides güveç",
-                "tas kebab",
-                "tas kebabı",
-                "hünkar beğendi",
-                "hunkar begendi",
                 "ev yemeği"
             ],
             "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Etli_g%C3%BCve%C3%A7.jpg/960px-Etli_g%C3%BCve%C3%A7.jpg"
@@ -2118,9 +2108,7 @@
                 "mantı",
                 "manti",
                 "türk",
-                "lokanta",
-                "islim kebab",
-                "islim kebabı"
+                "lokanta"
             ],
             "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Manti_in_a_metal_plate.jpg/960px-Manti_in_a_metal_plate.jpg"
         },
@@ -2607,6 +2595,435 @@
                 "fast food"
             ],
             "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/Margherita_Originale.JPG/960px-Margherita_Originale.JPG"
+        },
+        {
+            "id": "bal-kaymak",
+            "category": "breakfast",
+            "file": "breakfast/bal-kaymak.jpg",
+            "title": "Bal kaymak",
+            "alt": "Bal ve kaymak",
+            "tags": [
+                "bal",
+                "kaymak",
+                "kahvaltı",
+                "tatlı"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "pogaca",
+            "category": "breakfast",
+            "file": "breakfast/pogaca.jpg",
+            "title": "Poğaça",
+            "alt": "Peynirli poğaça",
+            "tags": [
+                "poğaça",
+                "kahvaltı",
+                "hamur"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "tost",
+            "category": "breakfast",
+            "file": "breakfast/tost.jpg",
+            "title": "Tost",
+            "alt": "Kaşarlı tost",
+            "tags": [
+                "tost",
+                "kahvaltı",
+                "kaşar"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "mihlama",
+            "category": "breakfast",
+            "file": "breakfast/mihlama.jpg",
+            "title": "Mıhlama",
+            "alt": "Kuymak / mıhlama",
+            "tags": [
+                "mıhlama",
+                "kuymak",
+                "kahvaltı",
+                "peynir"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "sekerpare",
+            "category": "desserts",
+            "file": "desserts/sekerpare.jpg",
+            "title": "Şekerpare",
+            "alt": "Şerbetli şekerpare",
+            "tags": [
+                "şekerpare",
+                "tatlı",
+                "şerbet"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "revani",
+            "category": "desserts",
+            "file": "desserts/revani.jpg",
+            "title": "Revani",
+            "alt": "İrmik revani",
+            "tags": [
+                "revani",
+                "tatlı",
+                "irmik"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "irmik-helvasi",
+            "category": "desserts",
+            "file": "desserts/irmik-helvasi.jpg",
+            "title": "İrmik helvası",
+            "alt": "Sıcak irmik helvası",
+            "tags": [
+                "helva",
+                "irmik",
+                "tatlı"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "gullac",
+            "category": "desserts",
+            "file": "desserts/gullac.jpg",
+            "title": "Güllaç",
+            "alt": "Güllaç tatlısı",
+            "tags": [
+                "güllaç",
+                "tatlı",
+                "ramazan"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "lokma",
+            "category": "desserts",
+            "file": "desserts/lokma.jpg",
+            "title": "Lokma",
+            "alt": "Şerbetli lokma",
+            "tags": [
+                "lokma",
+                "tatlı",
+                "kızartma"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "muhallebi",
+            "category": "desserts",
+            "file": "desserts/muhallebi.jpg",
+            "title": "Muhallebi",
+            "alt": "Fıstıklı muhallebi",
+            "tags": [
+                "muhallebi",
+                "tatlı",
+                "sütlü"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "tulumba",
+            "category": "desserts",
+            "file": "desserts/tulumba.jpg",
+            "title": "Tulumba",
+            "alt": "Şerbetli tulumba",
+            "tags": [
+                "tulumba",
+                "tatlı",
+                "şerbet"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "sahlep",
+            "category": "drinks",
+            "file": "drinks/sahlep.jpg",
+            "title": "Salep",
+            "alt": "Tarçınlı salep",
+            "tags": [
+                "salep",
+                "içecek",
+                "sıcak"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "milkshake",
+            "category": "drinks",
+            "file": "drinks/milkshake.jpg",
+            "title": "Milkshake",
+            "alt": "Çikolatalı milkshake",
+            "tags": [
+                "milkshake",
+                "içecek",
+                "tatlı"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "buzlu-kahve",
+            "category": "drinks",
+            "file": "drinks/buzlu-kahve.jpg",
+            "title": "Buzlu kahve",
+            "alt": "Buzlu kahve",
+            "tags": [
+                "buzlu kahve",
+                "içecek",
+                "kahve"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "beyaz-sarap",
+            "category": "drinks",
+            "file": "drinks/beyaz-sarap.jpg",
+            "title": "Beyaz şarap",
+            "alt": "Beyaz şarap kadehi",
+            "tags": [
+                "şarap",
+                "beyaz şarap",
+                "içecek"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "karniyarik",
+            "category": "mains",
+            "file": "mains/karniyarik.jpg",
+            "title": "Karnıyarık",
+            "alt": "Karnıyarık",
+            "tags": [
+                "karnıyarık",
+                "patlıcan",
+                "ana yemek",
+                "ev yemeği"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "imam-bayildi",
+            "category": "mains",
+            "file": "mains/imam-bayildi.jpg",
+            "title": "İmam bayıldı",
+            "alt": "İmam bayıldı",
+            "tags": [
+                "imam bayıldı",
+                "patlıcan",
+                "zeytinyağlı",
+                "ana yemek"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "hunkar-begendi",
+            "category": "mains",
+            "file": "mains/hunkar-begendi.jpg",
+            "title": "Hünkar beğendi",
+            "alt": "Hünkar beğendi",
+            "tags": [
+                "hünkar beğendi",
+                "patlıcan",
+                "kuzu",
+                "ana yemek"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "beyti",
+            "category": "mains",
+            "file": "mains/beyti.jpg",
+            "title": "Beyti",
+            "alt": "Beyti kebap",
+            "tags": [
+                "beyti",
+                "kebap",
+                "ana yemek"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "icli-kofte",
+            "category": "mains",
+            "file": "mains/icli-kofte.jpg",
+            "title": "İçli köfte",
+            "alt": "İçli köfte",
+            "tags": [
+                "içli köfte",
+                "köfte",
+                "ana yemek"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "tantuni",
+            "category": "mains",
+            "file": "mains/tantuni.jpg",
+            "title": "Tantuni",
+            "alt": "Tantuni",
+            "tags": [
+                "tantuni",
+                "dürüm",
+                "ana yemek",
+                "mersin"
+            ],
+            "sourceUrl": "studio-replacement"
+        },
+        {
+            "id": "urfa-kebap",
+            "category": "mains",
+            "file": "mains/urfa-kebap.jpg",
+            "title": "Urfa kebap",
+            "alt": "Urfa kebap şiş tabak sunumu",
+            "tags": [
+                "urfa kebap",
+                "urfa",
+                "kebap",
+                "acısız",
+                "şiş",
+                "ana yemek",
+                "türk"
+            ],
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/Urfa_kebap.jpg/960px-Urfa_kebap.jpg"
+        },
+        {
+            "id": "ali-nazik",
+            "category": "mains",
+            "file": "mains/ali-nazik.jpg",
+            "title": "Ali nazik",
+            "alt": "Ali nazik kebap tabak sunumu",
+            "tags": [
+                "ali nazik",
+                "alinazik",
+                "kebap",
+                "patlıcan",
+                "yoğurt",
+                "gaziantep",
+                "ana yemek"
+            ],
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Ali_Nazik.jpg/960px-Ali_Nazik.jpg"
+        },
+        {
+            "id": "cag-kebap",
+            "category": "mains",
+            "file": "mains/cag-kebap.jpg",
+            "title": "Cağ kebap",
+            "alt": "Cağ kebap şiş sunumu",
+            "tags": [
+                "cağ kebap",
+                "cag kebap",
+                "kebap",
+                "erzurum",
+                "döner",
+                "ana yemek",
+                "türk"
+            ],
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/20250104_Ca%C4%9F_kebab%C4%B1.jpg/960px-20250104_Ca%C4%9F_kebab%C4%B1.jpg"
+        },
+        {
+            "id": "cig-kofte",
+            "category": "mains",
+            "file": "mains/cig-kofte.jpg",
+            "title": "Çiğ köfte",
+            "alt": "Çiğ köfte porsiyon sunumu",
+            "tags": [
+                "çiğ köfte",
+                "cig kofte",
+                "köfte",
+                "meze",
+                "başlangıç",
+                "türk",
+                "ana yemek"
+            ],
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2d/Turkish_%C3%A7i%C4%9F_k%C3%B6fte.jpg/960px-Turkish_%C3%A7i%C4%9F_k%C3%B6fte.jpg"
+        },
+        {
+            "id": "ciger-sis",
+            "category": "mains",
+            "file": "mains/ciger-sis.jpg",
+            "title": "Ciğer şiş",
+            "alt": "Izgara ciğer şiş",
+            "tags": [
+                "ciğer şiş",
+                "ciğer",
+                "ciger",
+                "şiş",
+                "kebap",
+                "izgara",
+                "ana yemek"
+            ],
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/Ci%C4%9Fer_%C5%9Fi%C5%9F.jpg/960px-Ci%C4%9Fer_%C5%9Fi%C5%9F.jpg"
+        },
+        {
+            "id": "patlican-kebap",
+            "category": "mains",
+            "file": "mains/patlican-kebap.jpg",
+            "title": "Patlıcan kebap",
+            "alt": "Patlıcan kebap ve isot biber",
+            "tags": [
+                "patlıcan kebap",
+                "patlıcanlı kebap",
+                "patlıcan",
+                "kebap",
+                "urfa",
+                "ana yemek"
+            ],
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/Eggplant_kebab_and_isot.jpg/960px-Eggplant_kebab_and_isot.jpg"
+        },
+        {
+            "id": "tas-kebabi",
+            "category": "mains",
+            "file": "mains/tas-kebabi.jpg",
+            "title": "Tas kebabı",
+            "alt": "Tas kebabı pilav ile",
+            "tags": [
+                "tas kebabı",
+                "tas kebab",
+                "kebap",
+                "güveç",
+                "ev yemeği",
+                "ana yemek"
+            ],
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Tas_kebab%C4%B1.jpg/960px-Tas_kebab%C4%B1.jpg"
+        },
+        {
+            "id": "islim-kebabi",
+            "category": "mains",
+            "file": "mains/islim-kebabi.jpg",
+            "title": "İslim kebabı",
+            "alt": "Patlıcan islim kebabı",
+            "tags": [
+                "islim kebabı",
+                "islim kebab",
+                "patlıcan",
+                "kebap",
+                "ana yemek",
+                "türk"
+            ],
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Patl%C4%B1can_islim_kebab%C4%B1.jpg/960px-Patl%C4%B1can_islim_kebab%C4%B1.jpg"
+        },
+        {
+            "id": "cop-sis",
+            "category": "mains",
+            "file": "mains/cop-sis.jpg",
+            "title": "Çöp şiş",
+            "alt": "Çöp şiş ızgara",
+            "tags": [
+                "çöp şiş",
+                "cop sis",
+                "şiş",
+                "kebap",
+                "kuzu",
+                "izgara",
+                "ana yemek"
+            ],
+            "sourceUrl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2d/%C3%87%C3%B6p_%C5%9Fi%C5%9F.jpg/960px-%C3%87%C3%B6p_%C5%9Fi%C5%9F.jpg"
         }
     ]
 }

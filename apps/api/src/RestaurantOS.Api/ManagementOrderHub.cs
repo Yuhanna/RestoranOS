@@ -8,7 +8,9 @@ using RestaurantOS.Infrastructure;
 namespace RestaurantOS.Api;
 
 [Authorize(Policy = ManagementPolicies.OrderView)]
-public sealed class ManagementOrderHub : Hub
+public sealed class ManagementOrderHub(
+    IFeatureEntitlementService entitlements,
+    ILivePanelSessionLeaseService livePanelSessions) : Hub
 {
     public override async Task OnConnectedAsync()
     {
@@ -22,6 +24,44 @@ public sealed class ManagementOrderHub : Hub
             return;
         }
 
+        try
+        {
+            var plan = await entitlements.EnsureLivePanelSessionAllowedAsync(
+                tenantId,
+                Context.ConnectionAborted);
+            var lease = await livePanelSessions.TryAcquireAsync(
+                tenantId,
+                branchId,
+                Context.ConnectionId,
+                plan.MaxConcurrentLiveSessions,
+                Context.ConnectionAborted);
+            if (!lease.Acquired)
+            {
+                await Clients.Caller.SendAsync(
+                    "livePanelDenied",
+                    new
+                    {
+                        code = "ENTITLEMENT_LIVE_SESSION_LIMIT",
+                        message = lease.DenialMessage
+                            ?? "Canlı panel oturum limiti doldu. Pro’ya geçerek ekibinizle birlikte takip edebilirsiniz.",
+                        activeCount = lease.ActiveCount,
+                        maxSessions = lease.MaxSessions,
+                    },
+                    Context.ConnectionAborted);
+                Context.Abort();
+                return;
+            }
+        }
+        catch (EntitlementException exception)
+        {
+            await Clients.Caller.SendAsync(
+                "livePanelDenied",
+                new { code = exception.Code, message = exception.Message },
+                Context.ConnectionAborted);
+            Context.Abort();
+            return;
+        }
+
         await Groups.AddToGroupAsync(
             Context.ConnectionId,
             ManagementOrderGroup.Name(tenantId, branchId));
@@ -29,6 +69,24 @@ public sealed class ManagementOrderHub : Hub
             Context.ConnectionId,
             ManagementTenantGroup.Name(tenantId));
         await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        if (PermissionAuthorizationHandler.TryGetScope(
+                Context.User!,
+                out _,
+                out var tenantId,
+                out var branchId))
+        {
+            await livePanelSessions.ReleaseAsync(
+                tenantId,
+                branchId,
+                Context.ConnectionId,
+                CancellationToken.None);
+        }
+
+        await base.OnDisconnectedAsync(exception);
     }
 }
 
@@ -44,6 +102,7 @@ public sealed class SignalRManagementOrderNotifier(
     {
         Guid tableId = Guid.Empty;
         string tableLabel = "—";
+        string itemSummary = string.Empty;
         await using (var scope = scopeFactory.CreateAsyncScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<RestaurantOsDbContext>();
@@ -64,6 +123,14 @@ public sealed class SignalRManagementOrderNotifier(
                 tableId = table.TableId;
                 tableLabel = table.TableLabel ?? "—";
             }
+
+            var itemLines = await dbContext.CustomerOrderItems
+                .AsNoTracking()
+                .Where(item => item.OrderId == order.Id)
+                .Select(item => new { item.Name, item.Quantity })
+                .ToListAsync(cancellationToken);
+            itemSummary = ManagementOrderService.BuildItemSummary(
+                itemLines.Select(item => (item.Name, item.Quantity)));
         }
 
         await hubContext.Clients
@@ -80,7 +147,8 @@ public sealed class SignalRManagementOrderNotifier(
                     order.AmountMinor,
                     order.Currency,
                     tableId,
-                    tableLabel),
+                    tableLabel,
+                    itemSummary),
                 cancellationToken);
     }
 

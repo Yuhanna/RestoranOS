@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantOS.Api.Models.Dto;
 using RestaurantOS.Application;
+using RestaurantOS.Infrastructure;
 
 namespace RestaurantOS.Api.Controllers;
 
@@ -118,6 +119,12 @@ public sealed class ManagementOrdersController(IManagementOrderService orderServ
                 request.ExpectedStatusChangedAtUtc,
                 cancellationToken,
                 request.EstimatedReadyAtUtc);
+            var detail = await orderService.GetOrderByIdAsync(
+                userId,
+                tenantId,
+                branchId,
+                orderId,
+                cancellationToken);
             return Ok(new ManagementOrderResponse(
                 result.Id,
                 result.DisplayNumber,
@@ -127,8 +134,12 @@ public sealed class ManagementOrdersController(IManagementOrderService orderServ
                 result.EstimatedReadyAtUtc,
                 result.AmountMinor,
                 result.Currency,
-                Guid.Empty,
-                string.Empty));
+                detail?.TableId ?? Guid.Empty,
+                detail?.TableLabel ?? string.Empty,
+                detail is null
+                    ? string.Empty
+                    : ManagementOrderService.BuildItemSummary(
+                        detail.Items.Select(item => (item.Name, item.Quantity)))));
         }
         catch (CustomerExperienceException exception)
         {
@@ -157,7 +168,8 @@ public sealed class ManagementOrdersController(IManagementOrderService orderServ
             order.AmountMinor,
             order.Currency,
             order.TableId,
-            order.TableLabel);
+            order.TableLabel,
+            order.ItemSummary);
 
     private static ManagementOrderDetailResponse ToOrderDetailResponse(ManagementOrderDetailResult detail) =>
         new(
@@ -182,7 +194,9 @@ public sealed class ManagementOrdersController(IManagementOrderService orderServ
                 item.DiscountUnitAmountMinor,
                 item.UnitPriceAmountMinor,
                 item.Currency,
-                item.Note)).ToArray(),
+                item.Note,
+                item.SourcePackageId,
+                item.SourcePackageName)).ToArray(),
             detail.StatusHistory.Select(entry => new ManagementOrderStatusHistoryResponse(
                 entry.Status,
                 entry.ChangedAtUtc,

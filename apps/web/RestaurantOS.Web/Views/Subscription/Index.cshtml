@@ -1,0 +1,151 @@
+@model RestaurantOS.Web.Models.SubscriptionPageViewModel
+@using RestaurantOS.Web.Models
+@{
+    ViewData["Title"] = "Paketler";
+    var entitlements = Model.Workspace?.Entitlements;
+    var canManage = Model.Workspace?.CanManageSubscription == true;
+    var isTrial = entitlements?.IsTrial == true;
+    var isPaidPro = entitlements is { PlanCode: "Pro", IsTrial: false };
+    var isEnterprise = string.Equals(entitlements?.PlanCode, "Enterprise", StringComparison.OrdinalIgnoreCase);
+    var maxHistoryHours = entitlements?.MaxOrderHistoryHours ?? 72;
+    UsageMeterViewModel? qrMeter = null;
+    UsageMeterViewModel? userMeter = null;
+    UsageMeterViewModel? liveMeter = null;
+    UsageMeterViewModel? historyMeter = null;
+    if (entitlements is not null)
+    {
+        qrMeter = MonetizationUi.Meter("Aktif QR", entitlements.ActiveQrCount, entitlements.MaxActiveQrCodes, "active_qr");
+        userMeter = MonetizationUi.Meter("Aktif kullanıcı", entitlements.ActiveUserCount, entitlements.MaxActiveUsers, "active_users");
+        liveMeter = MonetizationUi.Meter(
+            "Canlı panel",
+            entitlements.MaxConcurrentLiveSessions is 1 ? 1 : 0,
+            entitlements.MaxConcurrentLiveSessions,
+            "live_panel_sessions",
+            entitlements.MaxConcurrentLiveSessions is 1 ? "Free’de tek eşzamanlı oturum" : null);
+        historyMeter = MonetizationUi.Meter(
+            "İstatistik penceresi (saat)",
+            maxHistoryHours,
+            maxHistoryHours,
+            "analytics_lookback",
+            $"En fazla {maxHistoryHours} saat geriye bakabilirsiniz");
+    }
+}
+
+<div class="page-head">
+    <div>
+        <h1>Paketler</h1>
+        <p class="muted">Free güven verir; Pro büyümeyi açar. Satış özellik listesi değil — ihtiyaç anında kazanç.</p>
+    </div>
+</div>
+
+@if (TempData["Error"] is string error)
+{
+    <div class="alert" role="alert">@error</div>
+}
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert--success" role="status">@message</div>
+}
+
+@if (entitlements is not null && qrMeter is not null && userMeter is not null && liveMeter is not null && historyMeter is not null)
+{
+    <section class="panel">
+        <h2 style="margin-top:0">Mevcut plan</h2>
+        <p>
+            <strong>@entitlements.PlanDisplayName</strong>
+            @if (isTrial && entitlements.TrialEndsAtUtc is not null)
+            {
+                <span class="muted"> · deneme @entitlements.TrialEndsAtUtc.Value.ToLocalTime().ToString("d") tarihine kadar</span>
+            }
+        </p>
+        <div class="usage-meter-grid" style="margin-top:1rem">
+            <partial name="_UsageMeter" model="qrMeter" />
+            <partial name="_UsageMeter" model="userMeter" />
+            <partial name="_UsageMeter" model="liveMeter" />
+            <partial name="_UsageMeter" model="historyMeter" />
+        </div>
+    </section>
+}
+
+<section class="panel" style="margin-top:1rem">
+    <h2 style="margin-top:0">Karşılaştırma</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Free</th>
+                    <th>Pro</th>
+                    <th>Enterprise</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>QR → sipariş</td>
+                    <td>Açık</td>
+                    <td>Açık</td>
+                    <td>Açık</td>
+                </tr>
+                <tr>
+                    <td>İstatistik / geçmiş</td>
+                    <td>~3 gün</td>
+                    <td>~30 gün</td>
+                    <td>~90 gün+</td>
+                </tr>
+                <tr>
+                    <td>QR menü görünümü</td>
+                    <td>Modern</td>
+                    <td>Tüm temalar + filigran</td>
+                    <td>Tüm temalar + filigran</td>
+                </tr>
+                <tr>
+                    <td>Aktif QR / kullanıcı / panel</td>
+                    <td>8 / 2 / 1</td>
+                    <td>Sınırsız / 25 / sınırsız</td>
+                    <td>Özel sözleşme</td>
+                </tr>
+                <tr>
+                    <td>Şube / roller / kampanya / çeviri</td>
+                    <td>Tek şube, personel</td>
+                    <td>2 şube dahil + büyüme araçları</td>
+                    <td>Özel limitler</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    @if (canManage && !isEnterprise)
+    {
+        <div class="upgrade-prompt__actions" style="margin-top:1rem">
+            @if (!isPaidPro && !isTrial)
+            {
+                <form asp-action="StartTrial" method="post" class="inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-ghost">30 gün denemeyi başlat</button>
+                </form>
+            }
+            @if (!isPaidPro)
+            {
+                <form asp-action="UpgradePro" method="post" class="inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn">Pro’ya geç</button>
+                </form>
+            }
+            else
+            {
+                <p class="muted" style="margin:0">Ücretli Pro aktif.</p>
+            }
+        </div>
+    }
+</section>
+
+@if (Model.Highlights.Count > 0)
+{
+    <section class="panel" style="margin-top:1rem">
+        <h2 style="margin-top:0">Sizin için öne çıkanlar</h2>
+        @foreach (var prompt in Model.Highlights)
+        {
+            <partial name="_UpgradePrompt" model="prompt" />
+        }
+    </section>
+}

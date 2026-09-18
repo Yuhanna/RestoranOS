@@ -101,7 +101,15 @@ public sealed class ManagementWorkspaceController(
                 usage.ActiveBranchCount,
                 usage.ExtraBranchMonthlyPriceMinor,
                 usage.BillingCurrency,
-                usage.NextBranchRequiresAddon),
+                usage.NextBranchRequiresAddon,
+                usage.CanUseMenuThemes,
+                usage.CanUseBrandWatermark,
+                usage.ActiveQrCount,
+                usage.MaxActiveQrCodes,
+                usage.MaxConcurrentLiveSessions,
+                usage.CanUsePromotions,
+                usage.CanUseAnalytics,
+                usage.MaxOrderHistoryHours),
             (usage.Notifications ?? [])
                 .Select(x => new ManagementAudienceNotificationResponse(x.Id, x.Title, x.Body, x.ActionUrl))
                 .ToArray(),

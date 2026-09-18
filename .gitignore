@@ -16,3 +16,7 @@
 apps/api/src/RestaurantOS.Api/media/*
 !apps/api/src/RestaurantOS.Api/media/stock/
 !apps/api/src/RestaurantOS.Api/media/stock/**
+
+# Local agent/build scratch outputs
+.tmp-*/
+.tmp-*

@@ -11,6 +11,7 @@ This repository contains the Release 0/1 foundation:
 - self-serve restaurant registration (account → restaurant → branch → owner)
 - ASP.NET Core API on .NET 10 (`Controllers` / `Models/Dto`)
 - ASP.NET Core MVC management site (`RestaurantOS.Web`) that calls the API
+- ASP.NET Core MVC Pasa Admin (`RestaurantOS.Admin`, `admin.pasa.app`) that calls `/api/v1/platform`
 - setup checklist after signup (tables → QR → menu → publish)
 - SQL Server / Entity Framework Core infrastructure
 - Problem Details error handling
@@ -41,6 +42,9 @@ apps/api/tests/
   RestaurantOS.Api.Tests
 apps/web/
   RestaurantOS.Web          # MVC management UI + server-side API client
+apps/admin/
+  RestaurantOS.Admin        # Pasa Admin MVC (admin.pasa.app), not the restaurant panel
+  RestaurantOS.Admin.Tests
 apps/customer-web/
   src
 apps/restaurant-web/
@@ -128,8 +132,15 @@ Run the MVC management site (server-side API client; default API base
 dotnet run --project apps/web/RestaurantOS.Web --launch-profile https
 ```
 
+Run Pasa Admin (separate MVC; not `RestaurantOS.Web`):
+
+```powershell
+dotnet run --project apps/admin/RestaurantOS.Admin --launch-profile https
+```
+
 - API HTTPS: `https://localhost:7297` (HTTP `http://localhost:5183`)
 - Web HTTPS: `https://localhost:7288` (HTTP `http://localhost:5288`)
+- Admin HTTPS: `https://localhost:7295` (HTTP `http://localhost:5295`)
 
 - `GET /api/v1/system` — versioned service metadata
 - `POST /api/v1/customer/sessions/resolve` — validates an opaque QR, creates a
@@ -186,10 +197,12 @@ dotnet ef database update --project apps/api/src/RestaurantOS.Infrastructure --s
 ```
 
 4. Multiple startup: Solution Properties → Multiple startup projects →
-   **RestaurantOS.Api** ve **RestaurantOS.Web** için Action = Start.
-   Her ikisinde de `https` launch profile seçili olsun
-   (Api: `https://localhost:7297`, Web: `https://localhost:7288`).
-   Alternatif: Api'ye F5, sonra Web'e F5.
+   **RestaurantOS.Api**, **RestaurantOS.Web** ve (Pasa Admin için)
+   **RestaurantOS.Admin** için Action = Start.
+   `https` launch profile seçili olsun
+   (Api: `https://localhost:7297`, Web: `https://localhost:7288`,
+   Admin: `https://localhost:7295`).
+   Alternatif: Api'ye F5, sonra Web veya Admin'e F5.
 5. **Test > Test Explorer** → **Run All** (35+ entegrasyon testi).
 
 ### English — open and run tomorrow
@@ -204,16 +217,20 @@ dotnet ef database update --project apps/api/src/RestaurantOS.Infrastructure --s
 dotnet ef database update --project apps/api/src/RestaurantOS.Infrastructure --startup-project apps/api/src/RestaurantOS.Api
 ```
 
-4. Configure **multiple startup projects**: start **RestaurantOS.Api** and
-   **RestaurantOS.Web** together with the `https` profiles
-   (Api `https://localhost:7297`, Web `https://localhost:7288`).
-   Or press F5 on Api, then F5 on Web.
+4. Configure **multiple startup projects**: start **RestaurantOS.Api**,
+   **RestaurantOS.Web**, and (for Pasa Admin) **RestaurantOS.Admin** with the
+   `https` profiles (Api `https://localhost:7297`, Web `https://localhost:7288`,
+   Admin `https://localhost:7295`).
+   Or press F5 on Api, then F5 on Web or Admin.
 5. Open **Test Explorer** and **Run All** (35+ tests).
 
 `RestaurantOS.Web` keeps the access token in ASP.NET session and the API
 refresh cookie in a **server-side** `CookieContainer` (ZiraatApp-style). The
 browser never sees the API refresh cookie. Configure `Api:BaseUrl` in
 `apps/web/RestaurantOS.Web/appsettings.json` if the API port changes.
+`RestaurantOS.Admin` uses the same pattern against `/api/v1/platform/auth`
+(`apps/admin/RestaurantOS.Admin/appsettings.json`). Do not add Pasa Admin
+features to `RestaurantOS.Web` `/admin` or `/platform`.
 
 Pending migrations include customer foundation, order lifecycle, management
 security, table QR, menu archive, and menu translations.
@@ -221,7 +238,8 @@ security, table QR, menu archive, and menu translations.
 The API launch profile also serves the SignalR hubs. Trust the ASP.NET Core
 development certificate if the browser asks. Restaurant Web's Vite proxy still
 targets `https://localhost:7297` by default. React apps remain available and
-are not replaced by the MVC site.
+are not replaced by the MVC site. Pasa Admin is the separate MVC project
+`RestaurantOS.Admin`; the React `apps/admin-web` tree is frozen.
 
 The management order-status endpoint derives tenant and branch from the signed
 access token, revalidates the membership and permission in SQL on every request,

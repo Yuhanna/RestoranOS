@@ -29,6 +29,7 @@ internal static class MenuCatalogMapper
             item.Catalog?.ServingNote,
             item.Catalog?.PriceLabel,
             item.Catalog?.CertificationNotes,
+            item.Catalog?.CustomLabels.ToArray() ?? [],
             BuildPricing(item),
             item.PromotionLabel,
             item.PromotionDiscountKind,
@@ -57,7 +58,12 @@ internal static class MenuCatalogMapper
             settings.ShowProductAllergens,
             settings.ShowProductModifiers,
             settings.AllergenDisclaimer,
-            settings.AllergenMatrixUrl);
+            settings.AllergenMatrixUrl,
+            settings.ThemeId,
+            settings.LogoUrl,
+            settings.LogoAlt,
+            settings.ShowBrandWatermark,
+            settings.BrandWatermarkIntensity);
 
     public static CustomerMenuSettingsData ToSettingsData(ManagementUpdateCustomerMenuSettingsRequest request) =>
         new()
@@ -71,6 +77,11 @@ internal static class MenuCatalogMapper
             ShowProductModifiers = request.ShowProductModifiers,
             AllergenDisclaimer = request.AllergenDisclaimer,
             AllergenMatrixUrl = request.AllergenMatrixUrl,
+            ThemeId = request.ThemeId ?? "modern",
+            LogoUrl = request.LogoUrl,
+            LogoAlt = request.LogoAlt,
+            ShowBrandWatermark = request.ShowBrandWatermark,
+            BrandWatermarkIntensity = request.BrandWatermarkIntensity ?? "soft",
         };
 
     public static ManagementMenuItemResponse ToManagementItem(ManagementMenuItemResult item) =>

@@ -12,6 +12,7 @@ namespace RestaurantOS.Api.Controllers;
 [Route("api/v1/management/analytics")]
 public sealed class ManagementAnalyticsController(
     IManagementAnalyticsService analytics,
+    IFeatureEntitlementService entitlements,
     RestaurantOsDbContext dbContext) : ControllerBase
 {
     [HttpGet("summary")]
@@ -35,9 +36,10 @@ public sealed class ManagementAnalyticsController(
             ManagementPermissions.AnalyticsFinancialView,
             cancellationToken);
 
-        var (from, to) = ResolveRange(fromUtc, toUtc);
         try
         {
+            await entitlements.EnsureCanUseAnalyticsAsync(tenantId, cancellationToken);
+            var (from, to) = await ResolveRangeAsync(tenantId, branchId, fromUtc, toUtc, cancellationToken);
             var summary = await analytics.GetSummaryAsync(tenantId, branchId, from, to, cancellationToken);
             return Ok(new ManagementAnalyticsSummaryResponse(
                 summary.GrossSalesMinor,
@@ -50,6 +52,10 @@ public sealed class ManagementAnalyticsController(
                 summary.AverageTicketMinor,
                 summary.Currency,
                 canViewFinancials));
+        }
+        catch (EntitlementException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
         }
         catch (CustomerExperienceException exception)
         {
@@ -79,9 +85,10 @@ public sealed class ManagementAnalyticsController(
             ManagementPermissions.AnalyticsFinancialView,
             cancellationToken);
 
-        var (from, to) = ResolveRange(fromUtc, toUtc);
         try
         {
+            await entitlements.EnsureCanUseAnalyticsAsync(tenantId, cancellationToken);
+            var (from, to) = await ResolveRangeAsync(tenantId, branchId, fromUtc, toUtc, cancellationToken);
             var rows = await analytics.GetSalesByPeriodAsync(
                 tenantId,
                 branchId,
@@ -94,6 +101,10 @@ public sealed class ManagementAnalyticsController(
                 row.GrossSalesMinor,
                 canViewFinancials ? row.GrossProfitMinor : null,
                 row.OrderCount)).ToArray());
+        }
+        catch (EntitlementException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
         }
         catch (CustomerExperienceException exception)
         {
@@ -123,9 +134,10 @@ public sealed class ManagementAnalyticsController(
             ManagementPermissions.AnalyticsFinancialView,
             cancellationToken);
 
-        var (from, to) = ResolveRange(fromUtc, toUtc);
         try
         {
+            await entitlements.EnsureCanUseAnalyticsAsync(tenantId, cancellationToken);
+            var (from, to) = await ResolveRangeAsync(tenantId, branchId, fromUtc, toUtc, cancellationToken);
             var rows = await analytics.GetTopItemsAsync(tenantId, branchId, from, to, limit, cancellationToken);
             return Ok(rows.Select(row => new ManagementTopItemResponse(
                 row.MenuItemId,
@@ -135,18 +147,39 @@ public sealed class ManagementAnalyticsController(
                 canViewFinancials ? row.EstimatedCostMinor : null,
                 canViewFinancials ? row.GrossProfitMinor : null)).ToArray());
         }
+        catch (EntitlementException exception)
+        {
+            return ApiProblem.Create(StatusCodes.Status403Forbidden, exception.Code, exception.Message);
+        }
         catch (CustomerExperienceException exception)
         {
             return ApiProblem.Create(StatusCodes.Status400BadRequest, exception.Code, exception.Message);
         }
     }
 
-    private static (DateTimeOffset From, DateTimeOffset To) ResolveRange(
+    private async Task<(DateTimeOffset From, DateTimeOffset To)> ResolveRangeAsync(
+        Guid tenantId,
+        Guid branchId,
         DateTimeOffset? fromUtc,
-        DateTimeOffset? toUtc)
+        DateTimeOffset? toUtc,
+        CancellationToken cancellationToken)
     {
+        var usage = await entitlements.GetUsageAsync(tenantId, branchId, cancellationToken);
+        var maxHours = Math.Max(1, usage.MaxOrderHistoryHours);
         var to = (toUtc ?? DateTimeOffset.UtcNow).ToUniversalTime();
-        var from = (fromUtc ?? to.AddDays(-30)).ToUniversalTime();
-        return (from, to);
+        var defaultDays = MonetizationPolicy.ResolveMaxAnalyticsDays(maxHours);
+        var requestedFrom = (fromUtc ?? to.AddDays(-defaultDays)).ToUniversalTime();
+        if (requestedFrom > to)
+        {
+            requestedFrom = to.AddHours(-Math.Min(24, maxHours));
+        }
+
+        var span = to - requestedFrom;
+        if (span > TimeSpan.FromHours(maxHours))
+        {
+            requestedFrom = to.AddHours(-maxHours);
+        }
+
+        return (requestedFrom, to);
     }
 }

@@ -238,6 +238,38 @@ public sealed class PlatformNotificationsController(
             return ApiProblem.Create(status, exception.Code, exception.Message);
         }
     }
+
+    [HttpPatch("{notificationId:guid}")]
+    [Authorize(Policy = ManagementPolicies.PlatformManage)]
+    [ProducesResponseType(typeof(ManagementManagedNotificationResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetActiveAsync(
+        Guid notificationId,
+        [FromBody] ManagementSetPlatformNotificationActiveRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return ApiProblem.Create(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "isActive is required.");
+        }
+
+        if (await PlatformGate.ForbidCampaignWriteAsync(User, dbContext, cancellationToken) is { } denied)
+        {
+            return denied;
+        }
+
+        try
+        {
+            var updated = await notifications.SetPlatformActiveAsync(notificationId, request.IsActive, cancellationToken);
+            return Ok(PlatformNotificationMapper.ToResponse(updated));
+        }
+        catch (CustomerExperienceException exception)
+        {
+            var status = exception.Code == "NOTIFICATION_NOT_FOUND"
+                ? StatusCodes.Status404NotFound
+                : StatusCodes.Status400BadRequest;
+            return ApiProblem.Create(status, exception.Code, exception.Message);
+        }
+    }
 }
 
 [ApiController]
@@ -439,6 +471,121 @@ public sealed class PlatformCatalogController(IPlatformCatalogService catalog) :
     }
 }
 
+[ApiController]
+[Route("api/v1/platform/staff")]
+public sealed class PlatformStaffController(
+    IPlatformStaffService staff,
+    RestaurantOsDbContext dbContext) : ControllerBase
+{
+    [HttpGet]
+    [Authorize(Policy = ManagementPolicies.PlatformManage)]
+    [ProducesResponseType(typeof(IReadOnlyList<ManagementPlatformStaffResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListAsync(CancellationToken cancellationToken)
+    {
+        var items = await staff.ListAsync(cancellationToken);
+        return Ok(items.Select(PlatformStaffMapper.ToResponse).ToArray());
+    }
+
+    [HttpPost]
+    [Authorize(Policy = ManagementPolicies.PlatformManage)]
+    [ProducesResponseType(typeof(ManagementPlatformStaffResponse), StatusCodes.Status201Created)]
+    public async Task<IActionResult> InviteAsync(
+        [FromBody] ManagementInvitePlatformStaffRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.RoleCode))
+        {
+            return ApiProblem.Create(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "Email and roleCode are required.");
+        }
+
+        if (await PlatformGate.ForbidStaffWriteAsync(User, dbContext, cancellationToken) is { } denied)
+        {
+            return denied;
+        }
+
+        var actor = await PermissionAuthorizationHandler.TryGetLivePlatformActorAsync(User, dbContext, cancellationToken);
+        if (actor is null)
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            var created = await staff.InviteAsync(
+                actor.Value.UserId,
+                actor.Value.RoleCode,
+                new InvitePlatformStaffCommand(request.Email, request.RoleCode, request.Password),
+                cancellationToken);
+            return Created($"/api/v1/platform/staff/{created.UserId}", PlatformStaffMapper.ToResponse(created));
+        }
+        catch (CustomerExperienceException exception)
+        {
+            var status = exception.Code switch
+            {
+                "PLATFORM_ROLE_DENIED" => StatusCodes.Status403Forbidden,
+                "STAFF_EXISTS" => StatusCodes.Status409Conflict,
+                _ => StatusCodes.Status400BadRequest,
+            };
+            return ApiProblem.Create(status, exception.Code, exception.Message);
+        }
+    }
+
+    [HttpPatch("{userId:guid}")]
+    [Authorize(Policy = ManagementPolicies.PlatformManage)]
+    [ProducesResponseType(typeof(ManagementPlatformStaffResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateAsync(
+        Guid userId,
+        [FromBody] ManagementUpdatePlatformStaffRequest? request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null || (request.RoleCode is null && request.IsActive is null))
+        {
+            return ApiProblem.Create(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "roleCode or isActive is required.");
+        }
+
+        if (await PlatformGate.ForbidStaffWriteAsync(User, dbContext, cancellationToken) is { } denied)
+        {
+            return denied;
+        }
+
+        var actor = await PermissionAuthorizationHandler.TryGetLivePlatformActorAsync(User, dbContext, cancellationToken);
+        if (actor is null)
+        {
+            return ApiProblem.Create(StatusCodes.Status401Unauthorized, "INVALID_ACCESS_TOKEN", "Access token is invalid.");
+        }
+
+        try
+        {
+            PlatformStaffMemberResult updated;
+            if (request.RoleCode is not null)
+            {
+                updated = await staff.ChangeRoleAsync(actor.Value.UserId, actor.Value.RoleCode, userId, request.RoleCode, cancellationToken);
+            }
+            else
+            {
+                updated = await staff.SetActiveAsync(actor.Value.UserId, actor.Value.RoleCode, userId, request.IsActive!.Value, cancellationToken);
+            }
+
+            if (request.RoleCode is not null && request.IsActive is bool isActive)
+            {
+                updated = await staff.SetActiveAsync(actor.Value.UserId, actor.Value.RoleCode, userId, isActive, cancellationToken);
+            }
+
+            return Ok(PlatformStaffMapper.ToResponse(updated));
+        }
+        catch (CustomerExperienceException exception)
+        {
+            var status = exception.Code switch
+            {
+                "PLATFORM_ROLE_DENIED" or "SELF_LOCKOUT" or "LAST_OWNER" => StatusCodes.Status403Forbidden,
+                "STAFF_NOT_FOUND" => StatusCodes.Status404NotFound,
+                _ => StatusCodes.Status400BadRequest,
+            };
+            return ApiProblem.Create(status, exception.Code, exception.Message);
+        }
+    }
+}
+
 file static class PlatformGate
 {
     public static async Task<IActionResult?> ForbidCampaignWriteAsync(
@@ -460,6 +607,32 @@ file static class PlatformGate
 
         return null;
     }
+
+    public static async Task<IActionResult?> ForbidStaffWriteAsync(
+        System.Security.Claims.ClaimsPrincipal user,
+        RestaurantOsDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var actor = await PermissionAuthorizationHandler.TryGetLivePlatformActorAsync(
+            user,
+            dbContext,
+            cancellationToken);
+        if (actor is null || !PlatformStaffRoles.CanManageStaff(actor.Value.RoleCode))
+        {
+            return ApiProblem.Create(
+                StatusCodes.Status403Forbidden,
+                "PLATFORM_ROLE_DENIED",
+                "Operatör kadrosunu yalnızca Owner yönetebilir.");
+        }
+
+        return null;
+    }
+}
+
+file static class PlatformStaffMapper
+{
+    public static ManagementPlatformStaffResponse ToResponse(PlatformStaffMemberResult staff) =>
+        new(staff.UserId, staff.Email, staff.RoleCode, staff.IsActive, staff.GrantedAtUtc);
 }
 
 file static class PlatformNotificationMapper

@@ -1,0 +1,29 @@
+@model RestaurantOS.Web.Models.UsageMeterViewModel
+@{
+    var maxLabel = Model.Max?.ToString() ?? "∞";
+    var pct = Model.Max is > 0
+        ? Math.Clamp((int)Math.Round(Model.Used * 100.0 / Model.Max.Value), 0, 100)
+        : 0;
+    var tone = Model.Tone switch
+    {
+        "critical" => "usage-meter--critical",
+        "warn" => "usage-meter--warn",
+        _ => "usage-meter--ok",
+    };
+}
+<div class="usage-meter @tone" data-usage-meter data-feature-key="@(Model.FeatureKey ?? "")">
+    <div class="usage-meter__head">
+        <span class="usage-meter__label">@Model.Label</span>
+        <span class="usage-meter__value">@Model.Used / @maxLabel</span>
+    </div>
+    @if (Model.Max is > 0)
+    {
+        <div class="usage-meter__track" aria-hidden="true">
+            <div class="usage-meter__fill" style="width:@pct%"></div>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.Hint))
+    {
+        <p class="usage-meter__hint muted">@Model.Hint</p>
+    }
+</div>

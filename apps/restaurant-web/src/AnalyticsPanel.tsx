@@ -99,7 +99,7 @@ export function AnalyticsPanel({ managementApi, onError }: AnalyticsPanelProps) 
       workspace.entitlements.planCode === "Free" &&
       !workspace.entitlements.isTrial ? (
         <div className="notice">
-          Free plandasınız. Pro ile sınırsız masa, çeviri, canlı panel ve 2 şube dahildir; ek şube ücretlidir.
+          Free planda istatistikler açıktır; bakış penceresi kısadır (~3 gün). Pro ile ~30 gün trend, temalar ve çok şube açılır.
           <Button variant="secondary" disabled={checkoutBusy} onClick={() => void checkout("Pro")}>
             Pro&apos;ya yükselt (demo)
           </Button>

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using RestaurantOS.Application;
+using RestaurantOS.Domain;
 
 namespace RestaurantOS.Infrastructure;
 
@@ -42,7 +43,8 @@ public static class MenuCatalogJson
 
         try
         {
-            return JsonSerializer.Deserialize<CustomerMenuSettingsData>(json, Options) ?? DefaultSettings();
+            return NormalizeSettings(
+                JsonSerializer.Deserialize<CustomerMenuSettingsData>(json, Options) ?? DefaultSettings());
         }
         catch (JsonException)
         {
@@ -61,6 +63,7 @@ public static class MenuCatalogJson
             Badge = TrimOrNull(data.Badge),
             IsNew = data.IsNew,
             DietaryTags = FilterKnown(data.DietaryTags, MenuCatalogDefaults.AllDietaryTags),
+            CustomLabels = NormalizeCustomLabels(data.CustomLabels),
             AllergenKeys = FilterKnown(data.AllergenKeys, MenuCatalogDefaults.AllAllergenKeys),
             MayContainAllergenKeys = FilterKnown(data.MayContainAllergenKeys, MenuCatalogDefaults.AllAllergenKeys),
             Ingredients = data.Ingredients
@@ -103,6 +106,18 @@ public static class MenuCatalogJson
                 .ToArray(),
         };
 
+    private static string[] NormalizeCustomLabels(IReadOnlyList<string> values) =>
+        values
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Length > MenuCatalogDefaults.MaxCustomLabelLength
+                ? x[..MenuCatalogDefaults.MaxCustomLabelLength].Trim()
+                : x)
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(MenuCatalogDefaults.MaxCustomLabels)
+            .ToArray();
+
     private static CustomerMenuSettingsData NormalizeSettings(CustomerMenuSettingsData data) =>
         new()
         {
@@ -113,9 +128,40 @@ public static class MenuCatalogJson
             ShowProductNutrition = data.ShowProductNutrition,
             ShowProductAllergens = data.ShowProductAllergens,
             ShowProductModifiers = data.ShowProductModifiers,
-            AllergenDisclaimer = TrimOrNull(data.AllergenDisclaimer) ?? MenuCatalogDefaults.DefaultAllergenDisclaimer,
+            AllergenDisclaimer = SanitizeDisclaimer(TrimOrNull(data.AllergenDisclaimer))
+                ?? MenuCatalogDefaults.DefaultAllergenDisclaimer,
             AllergenMatrixUrl = TrimOrNull(data.AllergenMatrixUrl),
+            ThemeId = CustomerMenuThemes.Normalize(data.ThemeId),
+            LogoUrl = NormalizeBrandingMediaPath(data.LogoUrl),
+            LogoAlt = TrimOrNull(data.LogoAlt),
+            ShowBrandWatermark = data.ShowBrandWatermark,
+            BrandWatermarkIntensity = BrandWatermarkIntensities.Normalize(data.BrandWatermarkIntensity),
         };
+
+    private static string? SanitizeDisclaimer(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (string.Equals(value, "Menü altı uyarı metni", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "Allergen disclaimer", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return value;
+    }
+
+    /// <summary>Only locally served media paths are stored so the logo cannot point at a remote origin.</summary>
+    private static string? NormalizeBrandingMediaPath(string? value)
+    {
+        var trimmed = TrimOrNull(value);
+        return trimmed is not null && trimmed.StartsWith("/media/", StringComparison.Ordinal)
+            ? trimmed
+            : null;
+    }
 
     private static string[] FilterKnown(IReadOnlyList<string> values, IReadOnlyList<string> allowed) =>
         values

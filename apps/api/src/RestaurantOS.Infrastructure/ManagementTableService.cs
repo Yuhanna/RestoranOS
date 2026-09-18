@@ -208,6 +208,7 @@ public sealed class ManagementTableService(
     {
         await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.TableEdit, cancellationToken);
         var table = await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
+        await entitlements.EnsureCanActivateQrCodeAsync(tenantId, branchId, table.Id, cancellationToken);
         var now = timeProvider.GetUtcNow();
         var token = OpaqueToken.Create();
         var protector = dataProtectionProvider.CreateProtector(ProtectorPurpose);
@@ -276,6 +277,15 @@ public sealed class ManagementTableService(
             switch (nextStatus)
             {
                 case QrCodeStatus.Active:
+                    if (qr.Status != QrCodeStatus.Active)
+                    {
+                        await entitlements.EnsureCanActivateQrCodeAsync(
+                            tenantId,
+                            branchId,
+                            qr.TableId,
+                            cancellationToken);
+                    }
+
                     var siblings = await dbContext.TableQrCodes
                         .Where(existing =>
                             existing.Id != qr.Id
@@ -429,12 +439,9 @@ public sealed class ManagementTableService(
         CancellationToken cancellationToken)
     {
         await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.OrderView, cancellationToken);
-        _ = await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
-        var open = await LoadOpenRoundsAsync(tenantId, branchId, tableId, cancellationToken);
-        return new ManagementTableCheckResult(
-            open.Count,
-            open.Sum(order => order.TotalAmountMinor),
-            open.Any(IsIncompleteKitchen));
+        var table = await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
+        var rounds = await LoadActiveRoundsAsync(tenantId, branchId, tableId, cancellationToken);
+        return ToCheckResult(table.Id, table.Label, rounds);
     }
 
     public async Task<ManagementTableCheckCloseResult> CloseTableCheckAsync(
@@ -448,7 +455,7 @@ public sealed class ManagementTableService(
         CancellationToken cancellationToken)
     {
         await EnsurePermissionAsync(userId, tenantId, branchId, ManagementPermissions.OrderModify, cancellationToken);
-        _ = await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
+        var table = await FindTableAsync(tenantId, branchId, tableId, cancellationToken);
         var normalizedTender = NormalizeTender(tender);
         var open = await LoadOpenRoundsAsync(tenantId, branchId, tableId, cancellationToken);
         if (open.Count == 0)
@@ -480,6 +487,8 @@ public sealed class ManagementTableService(
         }
 
         var total = open.Sum(order => order.TotalAmountMinor);
+        var currency = open[0].TotalCurrency;
+        var closedIds = open.Select(order => order.Id).ToArray();
         dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
             Guid.NewGuid(),
             "TableCheckClose",
@@ -492,10 +501,77 @@ public sealed class ManagementTableService(
             $"{normalizedTender}:{open.Count}:{note}"));
         await dbContext.SaveChangesAsync(cancellationToken);
         return new ManagementTableCheckCloseResult(
-            open.Count,
-            total,
+            table.Id,
+            table.Label,
             normalizedTender,
-            incomplete && confirmIncompleteKitchen);
+            total,
+            currency,
+            open.Count,
+            incomplete && confirmIncompleteKitchen,
+            now,
+            closedIds);
+    }
+
+    private async Task<IReadOnlyList<ManagementTableCheckRoundResult>> LoadActiveRoundsAsync(
+        Guid tenantId,
+        Guid branchId,
+        Guid tableId,
+        CancellationToken cancellationToken)
+    {
+        var orders = await dbContext.CustomerOrders
+            .AsNoTracking()
+            .Include(order => order.Items)
+            .Where(order =>
+                order.TenantId == tenantId
+                && order.BranchId == branchId
+                && order.TableId == tableId
+                && order.Status != OrderStatus.Completed
+                && order.Status != OrderStatus.Cancelled)
+            .OrderBy(order => order.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return orders
+            .Select(order => new ManagementTableCheckRoundResult(
+                order.Id,
+                order.DisplayNumber,
+                order.Status.ToString().ToLowerInvariant(),
+                order.TotalAmountMinor,
+                order.TotalCurrency,
+                order.CreatedAtUtc,
+                order.StatusChangedAtUtc,
+                IsIncompleteKitchen(order),
+                order.Items
+                    .OrderBy(item => item.Name)
+                    .Select(item => new ManagementOrderLineResult(
+                        item.Id,
+                        item.MenuItemId,
+                        item.Name,
+                        item.Quantity,
+                        item.ListUnitPriceAmountMinor,
+                        item.DiscountUnitAmountMinor,
+                        item.UnitPriceAmountMinor,
+                        item.UnitPriceCurrency,
+                        item.Note,
+                        item.SourcePackageId,
+                        item.SourcePackageName))
+                    .ToArray()))
+            .ToArray();
+    }
+
+    private static ManagementTableCheckResult ToCheckResult(
+        Guid tableId,
+        string tableLabel,
+        IReadOnlyList<ManagementTableCheckRoundResult> rounds)
+    {
+        var currency = rounds.Count > 0 ? rounds[0].Currency : "TRY";
+        return new ManagementTableCheckResult(
+            tableId,
+            tableLabel,
+            rounds.Count,
+            rounds.Sum(x => x.AmountMinor),
+            currency,
+            rounds.Any(x => x.IsKitchenIncomplete),
+            rounds);
     }
 
     private async Task<List<CustomerOrder>> LoadOpenRoundsAsync(
@@ -522,7 +598,10 @@ public sealed class ManagementTableService(
         {
             "cash" or "nakit" => "cash",
             "card" or "kart" => "card",
-            _ => throw new CustomerExperienceException("INVALID_TENDER", "Ödeme türü nakit veya kart olmalıdır."),
+            "other" or "diger" or "diğer" => "other",
+            _ => throw new CustomerExperienceException(
+                "INVALID_TENDER",
+                "Tahsilat yöntemi nakit, kart veya diğer olmalıdır."),
         };
     }
 
@@ -731,6 +810,11 @@ public sealed class ManagementTableService(
     {
         using var generator = new QRCodeGenerator();
         using var data = generator.CreateQrCode(payload, QRCodeGenerator.ECCLevel.Q);
-        return new SvgQRCode(data).GetGraphic(6);
+        // Equal quiet zones + explicit colours keep the white frame even on all sides.
+        return new SvgQRCode(data).GetGraphic(
+            pixelsPerModule: 8,
+            darkColorHex: "#000000",
+            lightColorHex: "#FFFFFF",
+            drawQuietZones: true);
     }
 }

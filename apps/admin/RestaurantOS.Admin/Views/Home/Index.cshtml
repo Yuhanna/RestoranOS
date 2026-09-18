@@ -1,0 +1,39 @@
+@model OverviewViewModel
+@{
+    ViewData["Title"] = "Pasa Admin özeti";
+}
+
+<div class="page-head">
+    <div>
+        <p class="eyebrow">Pasa Admin</p>
+        <h1>Kontrol özeti</h1>
+        <p class="note">Restoran operasyonu değil; SaaS üyelik kataloğu. Yayınlanan fiyat yeni yükseltmelerde geçerlidir.</p>
+    </div>
+</div>
+<div class="cards">
+    <article class="card">
+        <h2>Oturum</h2>
+        <p>@Model.Email · @Model.RoleCode</p>
+    </article>
+    <article class="card">
+        <h2>Yayınlı fiyat</h2>
+        <p>@Model.PublishedPriceCount sürüm</p>
+    </article>
+    <article class="card">
+        <h2>Aktif kampanya kaydı</h2>
+        <p>@Model.OfferCount</p>
+    </article>
+    <article class="card">
+        <h2>Aktif duyuru</h2>
+        <p>@Model.ActiveNotificationCount</p>
+    </article>
+    <article class="card">
+        <h2>Aktif operatör</h2>
+        <p>@Model.OperatorCount</p>
+    </article>
+    <article class="card">
+        <h2>Açık Enterprise teklif</h2>
+        <p>@Model.OpenQuoteCount</p>
+        <p><a asp-controller="Quotes" asp-action="Index">Kuyruğu aç</a></p>
+    </article>
+</div>

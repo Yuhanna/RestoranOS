@@ -92,28 +92,22 @@
     <button type="submit" class="btn">Göster</button>
 </form>
 
-@if (maxHours <= 72 && planCode is "free")
+@if (wasClamped || (maxHours <= 72 && planCode is "free"))
 {
-    <p class="muted" style="margin:-0.25rem 0 1rem">
-        Free planda geçmiş en fazla <strong>72 saat</strong> (3 gün) görünür.
-        <strong>7–30 gün</strong> için Pro gerekir; Enterprise’ta <strong>90 gün</strong> dahildir, anlaşmaya göre uzatılabilir.
-        @if (canManageSubscription)
-        {
-            <a asp-controller="Subscription" asp-action="Index">Paketi yükselt</a>
-        }
-    </p>
+    var historyPrompt = MonetizationUi.FromFeature(RestaurantOS.Domain.MonetizationPolicy.OrderHistoryFeature, "warn", compact: true);
+    <partial name="_UpgradePrompt" model="historyPrompt" />
 }
 else if (maxHours < 2160 && (planCode is "pro" || isTrial))
 {
-    <p class="muted" style="margin:-0.25rem 0 1rem">
+    <p class="muted" style="margin:0 0 1rem">
         @(isTrial ? "Deneme / Pro" : "Pro") planda geçmiş en fazla <strong>30 gün</strong>.
-        Enterprise’ta <strong>90 gün</strong> dahildir; daha uzun saklama anlaşmaya göre eklenebilir.
+        Enterprise’ta <strong>90 gün</strong> dahildir.
     </p>
 }
 else if (maxHours >= 2160)
 {
-    <p class="muted" style="margin:-0.25rem 0 1rem">
-        Enterprise pakette <strong>90 gün</strong> geçmiş dahildir. Daha uzun saklama ihtiyacı için anlaşmanıza göre ek süre tanımlanabilir.
+    <p class="muted" style="margin:0 0 1rem">
+        Enterprise pakette <strong>90 gün</strong> geçmiş dahildir.
     </p>
 }
 

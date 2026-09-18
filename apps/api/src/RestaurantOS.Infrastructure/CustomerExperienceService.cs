@@ -263,14 +263,23 @@ public sealed class CustomerExperienceService(
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        var packages = await dbContext.MenuPackages
-            .AsNoTracking()
-            .Include(x => x.Components)
-            .ThenInclude(x => x.MenuItem)
-            .Where(x => x.TenantId == tenantId && x.BranchId == branchId && x.IsActive)
-            .OrderBy(x => x.SortOrder)
-            .ThenBy(x => x.Name)
-            .ToListAsync(cancellationToken);
+        List<MenuPackage> packages;
+        try
+        {
+            packages = await dbContext.MenuPackages
+                .AsNoTracking()
+                .Include(x => x.Components)
+                .ThenInclude(x => x.MenuItem)
+                .Where(x => x.TenantId == tenantId && x.BranchId == branchId && x.IsActive)
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.Name)
+                .ToListAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // Offer packages are additive. A schema mismatch must not block table QR resolve.
+            return [];
+        }
 
         var tz = PromotionPricingService.DefaultBranchTimeZone;
         return packages
@@ -562,6 +571,8 @@ public sealed class CustomerExperienceService(
 
             return MapOrder(concurrentOrder);
         }
+
+        customerOrderGuard.RecordSuccessfulOrder(session.Id, client);
 
         var created = MapOrder(order);
         await managementOrderNotifier.NotifyAsync(

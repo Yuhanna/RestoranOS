@@ -5,26 +5,8 @@ namespace RestaurantOS.Infrastructure;
 
 public static class PromotionPricingService
 {
-    public static readonly TimeZoneInfo DefaultBranchTimeZone = ResolveIstanbul();
+    public static TimeZoneInfo DefaultBranchTimeZone { get; } = ResolveDefaultBranchTimeZone();
 
-    private static TimeZoneInfo ResolveIstanbul()
-    {
-        foreach (var id in new[] { "Europe/Istanbul", "Turkey Standard Time" })
-        {
-            try
-            {
-                return TimeZoneInfo.FindSystemTimeZoneById(id);
-            }
-            catch (TimeZoneNotFoundException)
-            {
-            }
-            catch (InvalidTimeZoneException)
-            {
-            }
-        }
-
-        return TimeZoneInfo.Utc;
-    }
     public static MenuPromotion? ResolveBestPromotion(
         IReadOnlyList<MenuPromotion> promotions,
         Guid menuItemId,
@@ -32,11 +14,12 @@ public static class PromotionPricingService
         DateTimeOffset utcNow,
         TimeZoneInfo? branchTimeZone = null)
     {
+        var tz = branchTimeZone ?? DefaultBranchTimeZone;
         MenuPromotion? best = null;
         long bestDiscount = 0;
         foreach (var promotion in promotions)
         {
-            if (!promotion.IsActiveAt(utcNow, branchTimeZone) || !promotion.AppliesTo(menuItemId, categoryId))
+            if (!promotion.IsActiveAt(utcNow, tz) || !promotion.AppliesTo(menuItemId, categoryId))
             {
                 continue;
             }
@@ -58,6 +41,28 @@ public static class PromotionPricingService
     public static IReadOnlyList<MenuPromotion> FilterActivePromotions(
         IEnumerable<MenuPromotion> promotions,
         DateTimeOffset utcNow,
-        TimeZoneInfo? branchTimeZone = null) =>
-        promotions.Where(x => x.IsActiveAt(utcNow, branchTimeZone)).ToArray();
+        TimeZoneInfo? branchTimeZone = null)
+    {
+        var tz = branchTimeZone ?? DefaultBranchTimeZone;
+        return promotions.Where(x => x.IsActiveAt(utcNow, tz)).ToArray();
+    }
+
+    private static TimeZoneInfo ResolveDefaultBranchTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time");
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                return TimeZoneInfo.Local;
+            }
+        }
+    }
 }

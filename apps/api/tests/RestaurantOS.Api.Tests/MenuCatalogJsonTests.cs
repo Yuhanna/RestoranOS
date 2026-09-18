@@ -21,6 +21,7 @@ public sealed class MenuCatalogJsonTests
         {
             Badge = "Yeni",
             DietaryTags = ["vegetarian"],
+            CustomLabels = ["Ev yapımı", "  Fırından  ", "ev yapımı", "çokuzundetikkirmakistenilenetiketxxxxxxxx"],
             Ingredients = ["domates", "peynir"],
         });
 
@@ -28,6 +29,20 @@ public sealed class MenuCatalogJsonTests
 
         Assert.Equal("Yeni", parsed.Badge);
         Assert.Contains("vegetarian", parsed.DietaryTags);
+        Assert.Equal(["Ev yapımı", "Fırından", "çokuzundetikkirmakistenilenetike"], parsed.CustomLabels);
         Assert.Equal(["domates", "peynir"], parsed.Ingredients);
+    }
+
+    [Fact]
+    public void NormalizeItemDropsUnknownDietaryButKeepsCustomLabels()
+    {
+        var parsed = MenuCatalogJson.ParseItem(MenuCatalogJson.SerializeItem(new()
+        {
+            DietaryTags = ["vegetarian", "notARealTag"],
+            CustomLabels = ["Şefin tarifi"],
+        }));
+
+        Assert.Equal(["vegetarian"], parsed.DietaryTags);
+        Assert.Equal(["Şefin tarifi"], parsed.CustomLabels);
     }
 }

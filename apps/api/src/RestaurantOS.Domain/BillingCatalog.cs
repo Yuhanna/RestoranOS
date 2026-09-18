@@ -58,6 +58,14 @@ public static class PlatformStaffRoles
         return role is Owner or Billing or Support;
     }
 
+    public static bool CanManageStaff(string roleCode) => Normalize(roleCode) == Owner;
+
+    public static bool CanWriteTenants(string roleCode) => CanWriteCatalog(roleCode);
+
+    public static bool CanAcceptQuotes(string roleCode) => CanWriteCatalog(roleCode);
+
+    public static bool CanRejectQuotes(string roleCode) => CanManageCampaigns(roleCode);
+
     public static bool CanArchiveCatalog(string roleCode, bool isPublished) =>
         isPublished ? CanPublishCatalog(roleCode) : CanWriteCatalog(roleCode);
 }

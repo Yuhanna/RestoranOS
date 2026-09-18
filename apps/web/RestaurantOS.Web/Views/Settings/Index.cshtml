@@ -1,4 +1,7 @@
 @model RestaurantOS.Web.Models.SettingsViewModel
+@using Microsoft.Extensions.Options
+@using RestaurantOS.Web.Data
+@inject IOptions<ApiOptions> ApiOptions
 @{
     ViewData["Title"] = "Ayarlar";
     var workspace = Model.Workspace;
@@ -48,7 +51,13 @@ else
                 {
                     <div>
                         <dt>Plan</dt>
-                        <dd>@entitlements.PlanDisplayName (@entitlements.PlanCode)</dd>
+                        <dd>
+                            @entitlements.PlanDisplayName (@entitlements.PlanCode)
+                            @if (workspace.CanManageSubscription)
+                            {
+                                <a asp-controller="Subscription" asp-action="Index" style="margin-left:0.5rem">Paketler</a>
+                            }
+                        </dd>
                     </div>
                     <div>
                         <dt>Şube kotası</dt>
@@ -58,6 +67,30 @@ else
                         <dt>Masa kotası</dt>
                         <dd>@entitlements.TableCount / @(entitlements.MaxTablesPerBranch?.ToString() ?? "∞")</dd>
                     </div>
+                    <div class="span-2 usage-meter-grid" style="margin-top:0.75rem">
+                        @{
+                            var qrMeter = MonetizationUi.Meter("Aktif QR", entitlements.ActiveQrCount, entitlements.MaxActiveQrCodes, "active_qr");
+                            var userMeter = MonetizationUi.Meter("Aktif kullanıcı", entitlements.ActiveUserCount, entitlements.MaxActiveUsers, "active_users");
+                            var liveMeter = MonetizationUi.Meter(
+                                "Canlı panel",
+                                entitlements.MaxConcurrentLiveSessions is 1 ? 1 : 0,
+                                entitlements.MaxConcurrentLiveSessions,
+                                "live_panel_sessions");
+                        }
+                        <partial name="_UsageMeter" model="qrMeter" />
+                        <partial name="_UsageMeter" model="userMeter" />
+                        <partial name="_UsageMeter" model="liveMeter" />
+                    </div>
+                    @if (qrMeter.Tone is "warn" or "critical")
+                    {
+                        var qrPrompt = MonetizationUi.FromFeature(
+                            RestaurantOS.Domain.MonetizationPolicy.ActiveQrFeature,
+                            qrMeter.Tone,
+                            compact: true);
+                        <div class="span-2" style="margin-top:0.75rem">
+                            <partial name="_UpgradePrompt" model="qrPrompt" />
+                        </div>
+                    }
                 @if (entitlements.IsTrial && entitlements.TrialEndsAtUtc is not null)
                 {
                     <div>
@@ -67,6 +100,43 @@ else
                 }
             }
         </dl>
+    </section>
+
+    <section class="panel" style="margin-top:1rem">
+        <h2 style="margin-top:0">Profilim</h2>
+        <p class="muted">Ad soyad boşsa listelerde tire görünür; buradan doldurun.</p>
+        <form asp-action="UpdateProfile" method="post" class="form-grid" style="margin-top:0.75rem">
+            @Html.AntiForgeryToken()
+            <label>
+                <span>Ad Soyad <span class="req">*</span></span>
+                <input asp-for="Profile.DisplayName" required maxlength="120" />
+            </label>
+            <label>
+                <span>Telefon <span class="opt">opsiyonel</span></span>
+                <input asp-for="Profile.Phone" maxlength="40" />
+            </label>
+            <div>
+                <button type="submit" class="btn">Profili kaydet</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel" style="margin-top:1rem">
+        <h2 style="margin-top:0">Şifremi değiştir</h2>
+        <form asp-action="ChangePassword" method="post" class="form-grid" style="margin-top:0.75rem">
+            @Html.AntiForgeryToken()
+            <label>
+                <span>Mevcut şifre <span class="req">*</span></span>
+                <input asp-for="ChangePassword.CurrentPassword" type="password" autocomplete="current-password" required />
+            </label>
+            <label>
+                <span>Yeni şifre <span class="req">*</span> <span class="opt">min. 12</span></span>
+                <input asp-for="ChangePassword.NewPassword" type="password" autocomplete="new-password" minlength="12" required />
+            </label>
+            <div>
+                <button type="submit" class="btn">Şifreyi güncelle</button>
+            </div>
+        </form>
     </section>
 
     @if (entitlements?.Warnings is { Count: > 0 })
@@ -85,14 +155,19 @@ else
 
 @if (workspace?.CanEditMenus == true)
 {
+    var canUseMenuThemes = entitlements?.CanUseMenuThemes == true || entitlements?.IsTrial == true;
+    var canUseWatermark = entitlements?.CanUseBrandWatermark == true || entitlements?.IsTrial == true;
+    var selectedTheme = canUseMenuThemes
+        ? (string.IsNullOrWhiteSpace(Model.CustomerMenu.ThemeId) ? "modern" : Model.CustomerMenu.ThemeId)
+        : "modern";
 <section class="panel cms-panel" style="margin-top:1rem">
     <div class="cms-hero">
         <div>
             <p class="cms-kicker">Müşteri uygulaması</p>
             <h2 style="margin:0">Müşteri menü ayarları</h2>
             <p class="muted" style="margin:0.5rem 0 0; max-width:40rem">
-                Varsayılan kapalıdır. Her kart, telefonda menünün farklı bir bölgesini kontrol eder.
-                Açtığınız alanlar misafir QR menüsünde görünür.
+                Yeni şubelerde alanlar kapalı başlar. Her kart, telefonda menünün farklı bir bölgesini kontrol eder;
+                açtığınız alanlar misafir QR menüsünde görünür.
             </p>
         </div>
         <div class="cms-phone-hint" aria-hidden="true">
@@ -105,8 +180,174 @@ else
         </div>
     </div>
 
-    <form asp-action="SaveCustomerMenu" method="post" class="cms-form">
+    <form asp-action="SaveCustomerMenu" method="post" class="cms-form" enctype="multipart/form-data">
         @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="CustomerMenu.LogoUrl" />
+
+        <article class="cms-card" id="branch-branding">
+            <header class="cms-card__head">
+                <span class="cms-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg>
+                </span>
+                <div>
+                    <p class="cms-where">Marka</p>
+                    <h3>Şube logosu</h3>
+                    <p class="muted">QR menü başlığında ve (Pro'da) isteğe bağlı silik arka planda görünür. Logo yüklemezseniz <strong>Pasa</strong> markası gösterilir. PNG / JPG / WebP · en fazla 2 MB · kare veya yatay logo önerilir.</p>
+                </div>
+            </header>
+
+            @{
+                var apiBase = ApiOptions.Value.BaseUrl.TrimEnd('/');
+                var logoPreview = Model.CustomerMenu.LogoUrl;
+            }
+            @if (!string.IsNullOrWhiteSpace(logoPreview))
+            {
+                <div class="brand-logo-preview" style="margin:0.75rem 0;display:flex;align-items:center;gap:1rem">
+                    <img src="@(logoPreview.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? logoPreview : apiBase + logoPreview)"
+                         alt="@(Model.CustomerMenu.LogoAlt ?? "Logo")"
+                         style="max-height:4rem;max-width:10rem;object-fit:contain;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:0.35rem" />
+                    <label class="cms-choice" style="display:inline-flex;gap:0.4rem;align-items:center">
+                        <input asp-for="CustomerMenu.ClearLogo" type="checkbox" />
+                        Logoyu kaldır
+                    </label>
+                </div>
+            }
+
+            <div class="form-grid" style="margin-top:0.5rem">
+                <label>
+                    <span>Yeni logo yükle</span>
+                    <input asp-for="CustomerMenu.LogoFile" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
+                </label>
+                <label>
+                    <span>Logo açıklaması <span class="opt">opsiyonel</span></span>
+                    <input asp-for="CustomerMenu.LogoAlt" maxlength="120" placeholder="Örn. Restoran logosu" />
+                </label>
+            </div>
+        </article>
+
+        <article class="cms-card cms-card--theme" id="qr-menu-theme">
+            <header class="cms-card__head">
+                <span class="cms-icon cms-icon--theme" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M3 12h2.2M18.8 12H21M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/></svg>
+                </span>
+                <div>
+                    <p class="cms-where">QR menü görünümü</p>
+                    <h3>Misafir menü teması</h3>
+                    <p class="muted">Aynı menü iskeleti; renk ve tipografi restoran karakterine uyar. Değişiklik bir sonraki QR oturumunda yansır.</p>
+                </div>
+            </header>
+            @if (!canUseMenuThemes)
+            {
+                var themePrompt = MonetizationUi.FromFeature(RestaurantOS.Domain.MonetizationPolicy.MenuThemesFeature, compact: true);
+                <partial name="_UpgradePrompt" model="themePrompt" />
+            }
+            <div class="cms-theme-grid" role="radiogroup" aria-label="QR menü teması">
+                @{
+                    var themes = new (string Id, string Title, string Hint, string Accent, bool Premium)[]
+                    {
+                        ("modern", "Modern", "Premium food · krem + terracotta", "#c4622d", false),
+                        ("luxury", "Luxury", "Gece lacivert + altın", "#c8aa5a", true),
+                        ("cafe", "Kafe", "Yumuşak krem + yeşil", "#4a7c59", true),
+                        ("bar", "Bar", "Kömür + amber", "#d4a017", true),
+                        ("meyhane", "Meyhane", "Koyu ahşap + bordo", "#8b3a3a", true),
+                        ("fast_casual", "Fast casual", "Parlak + turuncu", "#e85d04", true),
+                        ("minimal", "Minimal", "Beyaz + sistem mavisi", "#007aff", true),
+                        ("seafood", "Balık", "Buz mavisi + köpük beyaz", "#1a6f95", true),
+                        ("grill", "Ocakbaşı", "Kömür + köz kırmızısı", "#e0452f", true),
+                        ("brunch", "Brunch", "Pudra + yumuşak krem", "#d4848c", true),
+                        ("asian", "Asya", "Lake siyah + vermilyon", "#e11d2e", true),
+                        ("hotel", "Butik otel", "Taş nötr + bronz", "#8b7355", true),
+                        ("healthy", "Sağlıklı", "Yaprak yeşili + ferah", "#3f8f4a", true),
+                    };
+                }
+                @foreach (var theme in themes)
+                {
+                    var locked = theme.Premium && !canUseMenuThemes;
+                    var isChecked = string.Equals(selectedTheme, theme.Id, StringComparison.OrdinalIgnoreCase);
+                    <label class="cms-theme-card @(locked ? "is-locked" : null) @(isChecked ? "is-selected" : null)"
+                           data-theme-preview="@theme.Id"
+                           @(locked ? Html.Raw($"data-upgrade-trigger=\"{RestaurantOS.Domain.MonetizationPolicy.MenuThemes}\" title=\"Pro ile açılır — tıklayın\"") : null)>
+                        <input type="radio"
+                               name="CustomerMenu.ThemeId"
+                               value="@theme.Id"
+                               @(isChecked ? "checked" : null)
+                               @(locked ? "disabled" : null) />
+                        <span class="cms-theme-card__swatch" style="--theme-accent:@theme.Accent" aria-hidden="true"></span>
+                        <span class="cms-theme-card__body">
+                            <strong>@theme.Title</strong>
+                            <small>@theme.Hint</small>
+                        </span>
+                        @if (locked)
+                        {
+                            <span class="cms-theme-card__lock" aria-hidden="true">Pro</span>
+                        }
+                        else if (!theme.Premium)
+                        {
+                            <span class="cms-theme-card__badge">Varsayılan</span>
+                        }
+                    </label>
+                }
+            </div>
+            <div class="cms-theme-preview" aria-hidden="true">
+                <div class="cms-theme-preview__phone" data-preview-theme="@selectedTheme">
+                    <span class="cms-theme-preview__bar"></span>
+                    <span class="cms-theme-preview__title">Menü</span>
+                    <span class="cms-theme-preview__card"></span>
+                    <span class="cms-theme-preview__card cms-theme-preview__card--muted"></span>
+                    <span class="cms-theme-preview__cta"></span>
+                </div>
+                <p class="muted cms-theme-preview__caption">Önizleme — canlı menüde tipografi ve yüzeyler de değişir.</p>
+            </div>
+        </article>
+
+        <article class="cms-card" id="brand-watermark">
+            <header class="cms-card__head">
+                <span class="cms-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg>
+                </span>
+                <div>
+                    <p class="cms-where">Marka</p>
+                    <h3>Arka plan filigranı</h3>
+                    <p class="muted">Yüklü şube logosunu QR menüde silik arka plan olarak kullanır. Free planda kapalıdır.</p>
+                </div>
+            </header>
+            @if (!canUseWatermark)
+            {
+                var watermarkPrompt = MonetizationUi.FromFeature(RestaurantOS.Domain.MonetizationPolicy.BrandWatermarkFeature, compact: true);
+                <partial name="_UpgradePrompt" model="watermarkPrompt" />
+                <button type="button"
+                        class="cms-locked-control"
+                        data-upgrade-trigger="@RestaurantOS.Domain.MonetizationPolicy.BrandWatermark">
+                    <span class="cms-locked-control__row">
+                        <span class="cms-locked-control__switch" aria-hidden="true"></span>
+                        <span>
+                            <strong>Arka planda silik logo</strong>
+                            <span class="muted" style="display:block">Pro ile açılır — dokunarak yükseltme seçeneklerini görün.</span>
+                        </span>
+                        <span class="cms-theme-card__lock">Pro</span>
+                    </span>
+                </button>
+                <input type="hidden" asp-for="CustomerMenu.ShowBrandWatermark" value="false" />
+                <input type="hidden" asp-for="CustomerMenu.BrandWatermarkIntensity" value="soft" />
+            }
+            else
+            {
+                <label class="cms-toggle" style="margin-top:0.5rem">
+                    <input asp-for="CustomerMenu.ShowBrandWatermark" />
+                    <span>
+                        <strong>Arka planda silik logo</strong>
+                        <span class="muted" style="display:block">Dekoratif filigran; metin okunabilirliğini bozmaz.</span>
+                    </span>
+                </label>
+                <label style="margin-top:0.75rem;display:block;max-width:16rem">
+                    <span>Yoğunluk</span>
+                    <select asp-for="CustomerMenu.BrandWatermarkIntensity">
+                        <option value="soft">Hafif (önerilen)</option>
+                        <option value="medium">Orta</option>
+                    </select>
+                </label>
+            }
+        </article>
 
         <article class="cms-card cms-card--detail">
             <header class="cms-card__head">
@@ -121,7 +362,7 @@ else
             </header>
             <div class="cms-toggles">
                 <label class="cms-toggle">
-                    <span class="cms-toggle__dot cms-toggle__dot--nutrition" aria-hidden="true"></span>
+                    <span class="cms-toggle__dot" aria-hidden="true"></span>
                     <span class="cms-toggle__text">
                         <strong>Beslenme bilgisi</strong>
                         <small>Kalori, protein, yağ vb.</small>
@@ -129,7 +370,7 @@ else
                     <input asp-for="CustomerMenu.ShowProductNutrition" />
                 </label>
                 <label class="cms-toggle">
-                    <span class="cms-toggle__dot cms-toggle__dot--allergen" aria-hidden="true"></span>
+                    <span class="cms-toggle__dot" aria-hidden="true"></span>
                     <span class="cms-toggle__text">
                         <strong>Alerjen / içindekiler</strong>
                         <small>Ürün detayındaki alerjen listesi</small>
@@ -137,7 +378,7 @@ else
                     <input asp-for="CustomerMenu.ShowProductAllergens" />
                 </label>
                 <label class="cms-toggle">
-                    <span class="cms-toggle__dot cms-toggle__dot--modifier" aria-hidden="true"></span>
+                    <span class="cms-toggle__dot" aria-hidden="true"></span>
                     <span class="cms-toggle__text">
                         <strong>Ek seçenekler</strong>
                         <small>Modifier, porsiyon, ekstra malzemeler</small>
@@ -163,10 +404,15 @@ else
                     <strong>Filtre çubuğunu göster</strong>
                     <small>Kapalıysa aşağıdaki seçenekler misafire görünmez</small>
                 </span>
-                <input asp-for="CustomerMenu.ShowDietaryFilters" />
+                <input asp-for="CustomerMenu.ShowDietaryFilters" data-cms-master="dietary" />
             </label>
-            <div class="cms-chip-block">
-                <p class="cms-chip-block__label">Hangi tercihler listelensin?</p>
+            <div class="cms-chip-block@(Model.CustomerMenu.ShowDietaryFilters ? null : " cms-chip-block--inactive")"
+                 data-cms-depends="dietary"
+                 aria-disabled="@(Model.CustomerMenu.ShowDietaryFilters ? "false" : "true")">
+                <p class="cms-chip-block__label">
+                    Hangi tercihler listelensin?
+                    <span class="cms-chip-block__hint">Ana anahtar kapalıyken misafire görünmez; seçimler saklanır.</span>
+                </p>
                 <div class="cms-chips">
                     <label class="cms-chip"><input asp-for="CustomerMenu.FilterVegetarian" /><span>Vejetaryen</span></label>
                     <label class="cms-chip"><input asp-for="CustomerMenu.FilterVegan" /><span>Vegan</span></label>
@@ -196,10 +442,15 @@ else
                     <strong>Dışlama filtrelerini göster</strong>
                     <small>Kapalıysa alerjen dışlama çubuğu gizlenir</small>
                 </span>
-                <input asp-for="CustomerMenu.ShowAllergenExclusions" />
+                <input asp-for="CustomerMenu.ShowAllergenExclusions" data-cms-master="allergen" />
             </label>
-            <div class="cms-chip-block">
-                <p class="cms-chip-block__label">Dışlanabilecek alerjenler</p>
+            <div class="cms-chip-block@(Model.CustomerMenu.ShowAllergenExclusions ? null : " cms-chip-block--inactive")"
+                 data-cms-depends="allergen"
+                 aria-disabled="@(Model.CustomerMenu.ShowAllergenExclusions ? "false" : "true")">
+                <p class="cms-chip-block__label">
+                    Dışlanabilecek alerjenler
+                    <span class="cms-chip-block__hint">Ana anahtar kapalıyken misafire görünmez; seçimler saklanır.</span>
+                </p>
                 <div class="cms-chips cms-chips--dense">
                     <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeGluten" /><span>Gluten</span></label>
                     <label class="cms-chip"><input asp-for="CustomerMenu.ExcludeCrustaceans" /><span>Kabuklu deniz</span></label>
@@ -233,7 +484,9 @@ else
             <div class="cms-fields">
                 <label>
                     <span>Menü altı uyarı metni</span>
-                    <textarea asp-for="CustomerMenu.AllergenDisclaimer" rows="3" placeholder="Örn. Alerjen bilgileri mutfak beyanına göredir…"></textarea>
+                    <textarea asp-for="CustomerMenu.AllergenDisclaimer"
+                              rows="3"
+                              placeholder="Örn. Alerjen bilgileri mutfak beyanına göredir…"></textarea>
                 </label>
                 <label>
                     <span>Yazılı alerjen matrisi URL</span>
@@ -248,6 +501,49 @@ else
         </div>
     </form>
 </section>
+@section Scripts {
+<script>
+(() => {
+  const syncMaster = (master) => {
+    const key = master.getAttribute("data-cms-master");
+    if (!key) return;
+    document.querySelectorAll(`[data-cms-depends="${key}"]`).forEach((block) => {
+      const on = master.checked;
+      block.classList.toggle("cms-chip-block--inactive", !on);
+      block.setAttribute("aria-disabled", on ? "false" : "true");
+    });
+  };
+  document.querySelectorAll("[data-cms-master]").forEach((master) => {
+    syncMaster(master);
+    master.addEventListener("change", () => syncMaster(master));
+  });
+
+  const root = document.getElementById("qr-menu-theme");
+  if (!root) return;
+  const phone = root.querySelector(".cms-theme-preview__phone");
+  const cards = root.querySelectorAll(".cms-theme-card");
+  const sync = () => {
+    cards.forEach((card) => {
+      const input = card.querySelector('input[type="radio"]');
+      card.classList.toggle("is-selected", Boolean(input?.checked));
+      if (input?.checked && phone) {
+        phone.setAttribute("data-preview-theme", input.value);
+      }
+    });
+  };
+  root.addEventListener("change", sync);
+  cards.forEach((card) => {
+    card.addEventListener("click", () => {
+      const id = card.getAttribute("data-theme-preview");
+      // SoftDiscover: locked themes still preview; upgrade dialog opens via data-upgrade-trigger.
+      if (id && phone) {
+        phone.setAttribute("data-preview-theme", id);
+      }
+    });
+  });
+})();
+</script>
+}
 }
 
 <p class="muted" style="margin-top:1.5rem">

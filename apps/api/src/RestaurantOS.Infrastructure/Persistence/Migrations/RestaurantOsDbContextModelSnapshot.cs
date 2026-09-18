@@ -277,6 +277,10 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -296,6 +300,12 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("RequestedByUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset?>("ReviewedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -305,6 +315,8 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Status", "CreatedAtUtc");
 
                     b.HasIndex("TenantId", "CreatedAtUtc");
 
@@ -360,6 +372,117 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "BranchId", "LastActivityAtUtc");
 
                     b.ToTable("GuestSessions", "customer");
+                });
+
+            modelBuilder.Entity("RestaurantOS.Domain.IncidentEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActorType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("ClientFingerprintHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nchar(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("ClientIpHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nchar(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<Guid?>("CustomerSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DedupeKey")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("DetailJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("GuestSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("HttpStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RequestMethod")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("RequestPath")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<Guid?>("RestaurantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<Guid?>("TableId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CorrelationId");
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("TableId");
+
+                    b.HasIndex("Code", "OccurredAtUtc");
+
+                    b.HasIndex("TenantId", "BranchId", "OccurredAtUtc");
+
+                    b.ToTable("IncidentEvents", "ops");
                 });
 
             modelBuilder.Entity("RestaurantOS.Domain.ManagementAuditLog", b =>
@@ -547,6 +670,10 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(320)
@@ -570,6 +697,10 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
 
                     b.HasKey("Id");
 
@@ -761,6 +892,9 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.Property<TimeOnly?>("DailyStartLocal")
                         .HasColumnType("time");
 
+                    b.Property<byte?>("DaysOfWeekMask")
+                        .HasColumnType("tinyint");
+
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -789,6 +923,8 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId", "BranchId", "IsActive", "SortOrder");
+
                     b.ToTable("MenuPackages", "customer");
                 });
 
@@ -811,6 +947,8 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("MenuItemId");
 
+                    b.HasIndex("MenuPackageId", "SortOrder");
+
                     b.ToTable("MenuPackageComponents", "customer");
                 });
 
@@ -831,6 +969,9 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
 
                     b.Property<TimeOnly?>("DailyStartLocal")
                         .HasColumnType("time");
+
+                    b.Property<byte?>("DaysOfWeekMask")
+                        .HasColumnType("tinyint");
 
                     b.Property<string>("DiscountKind")
                         .IsRequired()
@@ -1228,8 +1369,24 @@ namespace RestaurantOS.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ContractNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
                     b.Property<DateTimeOffset?>("ExpiresAtUtc")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("OverrideMaxActiveQrCodes")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OverrideMaxActiveUsers")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OverrideMaxBranches")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OverrideMaxOrderHistoryHours")
+                        .HasColumnType("int");
 
                     b.Property<string>("PlanCode")
                         .IsRequired()

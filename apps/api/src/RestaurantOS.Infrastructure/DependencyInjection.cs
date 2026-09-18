@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using RestaurantOS.Application;
 
 namespace RestaurantOS.Infrastructure;
@@ -9,7 +10,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment? environment = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -24,6 +26,35 @@ public static class DependencyInjection
         services.Configure<CustomerOrderRateLimitOptions>(
             configuration.GetSection(CustomerOrderRateLimitOptions.SectionName));
         services.AddSingleton<ICustomerOrderGuard, CustomerOrderGuard>();
+        services.Configure<IncidentRecorderOptions>(
+            configuration.GetSection(IncidentRecorderOptions.SectionName));
+        services.AddSingleton<IncidentDraftChannel>();
+        services.AddSingleton<IIncidentRecorder, ChannelIncidentRecorder>();
+        services.AddHostedService<IncidentEventWriterHostedService>();
+        services.AddHostedService<IncidentEventPurgeHostedService>();
+        services.AddScoped<IIncidentQueryService, IncidentQueryService>();
+
+        var livePanelRedis = configuration.GetConnectionString("SignalRRedis");
+        if (!string.IsNullOrWhiteSpace(livePanelRedis))
+        {
+            services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(_ =>
+                StackExchange.Redis.ConnectionMultiplexer.Connect(livePanelRedis));
+            services.AddSingleton<ILivePanelSessionLeaseService, RedisLivePanelSessionLeaseService>();
+        }
+        else
+        {
+            if (environment is not null
+                && !string.Equals(
+                    environment.EnvironmentName,
+                    Environments.Development,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                services.AddHostedService<LivePanelInMemoryLeaseWarningHostedService>();
+            }
+
+            services.AddSingleton<ILivePanelSessionLeaseService, InMemoryLivePanelSessionLeaseService>();
+        }
+
         services.AddScoped<ICustomerExperienceService, CustomerExperienceService>();
         services.AddScoped<IManagementOrderService, ManagementOrderService>();
         services.AddScoped<IManagementTableService, ManagementTableService>();
@@ -34,9 +65,12 @@ public static class DependencyInjection
         services.AddScoped<IManagementDashboardService, ManagementDashboardService>();
         services.AddScoped<IManagementBranchService, ManagementBranchService>();
         services.AddScoped<IPromotionManagementService, PromotionManagementService>();
+        services.AddScoped<IMenuPackageManagementService, MenuPackageManagementService>();
         services.AddScoped<INotificationManagementService, NotificationManagementService>();
         services.AddScoped<IPlatformSubscriptionOfferService, PlatformSubscriptionOfferService>();
         services.AddScoped<IPlatformCatalogService, PlatformCatalogService>();
+        services.AddScoped<IPlatformStaffService, PlatformStaffService>();
+        services.AddScoped<IPlatformTenantBillingService, PlatformTenantBillingService>();
         services.AddScoped<ICustomerMenuSettingsService, CustomerMenuSettingsService>();
         services.AddSingleton<IStockPhotoLibrary, StockPhotoLibrary>();
 

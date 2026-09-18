@@ -90,7 +90,7 @@
 <div id="orders-by-table" class="table-order-list">
     @foreach (var group in tableGroups)
     {
-        <section class="table-order-group" data-table-id="@group.TableId">
+        <section class="table-order-group table-order-group--accent-@((group.TableId.GetHashCode() & 0x7FFFFFFF) % 6) @(group.HasIncomplete ? "table-order-group--kitchen" : "table-order-group--settle")" data-table-id="@group.TableId">
             <header class="table-order-group__head">
                 <div>
                     <h2 class="table-order-group__title">@(string.IsNullOrWhiteSpace(group.TableLabel) ? "—" : group.TableLabel)</h2>
@@ -101,9 +101,10 @@
                     </p>
                 </div>
                 <button type="button"
-                        class="btn table-close-check"
+                        class="btn table-close-check @(group.HasIncomplete ? "btn-ghost table-close-check--muted" : "table-close-check--ready")"
                         data-table-id="@group.TableId"
-                        data-table-label="@(group.TableLabel ?? "")">
+                        data-table-label="@(group.TableLabel ?? "")"
+                        title="@(group.HasIncomplete ? "Mutfak henüz bitmedi — önce turları ilerletin veya onaylayarak kapatın" : "Tüm turlar hazır/servis — hesabı kapatabilirsiniz")">
                     Hesabı kapat
                 </button>
             </header>
@@ -117,13 +118,19 @@
                              data-status-changed="@order.StatusChangedAtUtc.ToString("O")"
                              data-amount-minor="@order.AmountMinor"
                              data-created="@(order.CreatedAtUtc?.ToString("O") ?? "")"
+                             data-estimated-ready="@order.EstimatedReadyAtUtc.ToString("O")"
                              data-display="@order.DisplayNumber"
                              data-table-label="@(order.TableLabel ?? "")"
-                             data-currency="@order.Currency">
+                             data-currency="@order.Currency"
+                             data-item-summary="@(order.ItemSummary ?? "")">
                         <div class="item-card-top">
                             <h3>@order.DisplayNumber</h3>
                             <span class="price">₺@((order.AmountMinor / 100m).ToString("N2"))</span>
                         </div>
+                        @if (!string.IsNullOrWhiteSpace(order.ItemSummary))
+                        {
+                            <p class="order-item-summary">@order.ItemSummary</p>
+                        }
                         <p class="item-desc">
                             Durum: <strong class="order-status-label">@StatusTr(order.Status)</strong><br />
                             Sipariş: <span class="order-created">@(order.CreatedAtUtc?.ToLocalTime().ToString("g") ?? "—")</span><br />
@@ -136,9 +143,7 @@
                                asp-route-id="@order.Id">Detay</a>
                             @if (order.Status is not "served" and not "completed" and not "cancelled")
                             {
-                                <a class="linkish order-change-link"
-                                   asp-action="ChangeStatus"
-                                   asp-route-id="@order.Id">Durumu değiştir</a>
+                                <button type="button" class="linkish order-change-link">Durumu değiştir</button>
                             }
                         </div>
                     </article>
@@ -147,6 +152,29 @@
         </section>
     }
 </div>
+
+<dialog id="status-change-dialog" class="ros-dialog">
+    <form method="dialog" id="status-change-form" class="ros-dialog__body">
+        <header class="ros-dialog__head">
+            <h2 id="status-change-title">Durumu değiştir</h2>
+            <p class="muted" id="status-change-summary"></p>
+        </header>
+        <label class="ros-dialog__note">
+            <span>Yeni durum</span>
+            <select id="status-change-select"></select>
+        </label>
+        <label class="ros-dialog__note">
+            <span>Tahmini hazır <span class="opt">opsiyonel</span></span>
+            <input type="text" id="status-change-eta" inputmode="numeric" maxlength="8" placeholder="örn. 15 veya 09:23" autocomplete="off" />
+        </label>
+        <p class="muted">Dakika (15) veya saat (09:23). Boş = mevcut ETA korunur. Hesap kapanışı masa kartındaki <strong>Hesabı kapat</strong> ile yapılır.</p>
+        <p id="status-change-error" class="alert hidden" role="alert"></p>
+        <footer class="ros-dialog__actions">
+            <button type="button" class="btn btn-ghost" id="status-change-cancel">Vazgeç</button>
+            <button type="submit" class="btn" id="status-change-submit">Kaydet</button>
+        </footer>
+    </form>
+</dialog>
 
 <dialog id="close-check-dialog" class="ros-dialog">
     <form method="dialog" id="close-check-form" class="ros-dialog__body">
@@ -204,6 +232,16 @@
             const noteEl = document.getElementById("close-check-note");
             const roundsDetailEl = document.getElementById("close-check-rounds");
             const cancelBtn = document.getElementById("close-check-cancel");
+            const statusDialog = document.getElementById("status-change-dialog");
+            const statusForm = document.getElementById("status-change-form");
+            const statusTitle = document.getElementById("status-change-title");
+            const statusSummary = document.getElementById("status-change-summary");
+            const statusSelect = document.getElementById("status-change-select");
+            const statusEta = document.getElementById("status-change-eta");
+            const statusError = document.getElementById("status-change-error");
+            const statusCancel = document.getElementById("status-change-cancel");
+            const statusSubmit = document.getElementById("status-change-submit");
+            let activeStatusOrderId = null;
 
             /** @@type {Map<string, object>} */
             const ordersById = new Map();
@@ -221,6 +259,13 @@
                 completed: "Hesap kapandı",
                 cancelled: "İptal"
             };
+            const statusOptionLabels = {
+                accepted: "Onaylandı",
+                preparing: "Hazırlanıyor",
+                ready: "Hazır / pasa çıktı",
+                served: "Servis edildi",
+                cancelled: "İptal"
+            };
             function statusBadgeClass(status) {
                 switch ((status || "").toLowerCase()) {
                     case "submitted": return "badge-status-submitted";
@@ -232,6 +277,47 @@
                     case "cancelled": return "badge-status-cancelled";
                     default: return "badge-warn";
                 }
+            }
+            function statusRank(status) {
+                switch ((status || "").toLowerCase()) {
+                    case "submitted": return 0;
+                    case "accepted": return 1;
+                    case "preparing": return 2;
+                    case "ready": return 3;
+                    case "served": return 4;
+                    case "completed": return 5;
+                    default: return -1;
+                }
+            }
+            function allowedStatusTargets(current) {
+                const cur = (current || "").toLowerCase();
+                return ["accepted", "preparing", "ready", "served", "cancelled"].filter((candidate) => {
+                    if (candidate === "cancelled") {
+                        return cur === "submitted" || cur === "accepted" || cur === "preparing";
+                    }
+                    return statusRank(candidate) > statusRank(cur);
+                });
+            }
+            function parseEtaInput(raw) {
+                const value = (raw || "").trim();
+                if (!value) return null;
+                if (/^\d{1,3}$/.test(value)) {
+                    const minutes = Number(value);
+                    if (minutes <= 0) return null;
+                    return new Date(Date.now() + minutes * 60_000).toISOString();
+                }
+                const match = value.match(/^(\d{1,2}):(\d{2})$/);
+                if (!match) return null;
+                const hours = Number(match[1]);
+                const mins = Number(match[2]);
+                if (hours > 23 || mins > 59) return null;
+                const target = new Date();
+                target.setSeconds(0, 0);
+                target.setHours(hours, mins, 0, 0);
+                if (target.getTime() <= Date.now()) {
+                    target.setDate(target.getDate() + 1);
+                }
+                return target.toISOString();
             }
             const requestTypeTr = {
                 waiter: "Garson çağrısı",
@@ -301,7 +387,7 @@
             }
 
             function seedFromDom() {
-                listEl.querySelectorAll("[data-order-id]").forEach((el) => {
+                listEl.querySelectorAll("article.item-card[data-order-id]").forEach((el) => {
                     ordersById.set(el.dataset.orderId, {
                         id: el.dataset.orderId,
                         tableId: el.dataset.tableId,
@@ -310,8 +396,10 @@
                         status: el.dataset.status || "",
                         statusChangedAtUtc: el.dataset.statusChanged || "",
                         createdAtUtc: el.dataset.created || null,
+                        estimatedReadyAtUtc: el.dataset.estimatedReady || "",
                         amountMinor: Number(el.dataset.amountMinor || 0),
-                        currency: el.dataset.currency || "TRY"
+                        currency: el.dataset.currency || "TRY",
+                        itemSummary: el.dataset.itemSummary || ""
                     });
                 });
                 if (alerts) alerts.seedKnownOrders([...ordersById.keys()]);
@@ -321,14 +409,16 @@
                 return "/Orders/Detail?id=" + encodeURIComponent(order.id);
             }
 
-            function changeStatusUrl(order) {
-                return "/Orders/ChangeStatus?id=" + encodeURIComponent(order.id);
+            function emptyGuid(value) {
+                return !value || value === "00000000-0000-0000-0000-000000000000";
             }
 
             function groupOrders() {
                 const byTable = new Map();
                 for (const order of ordersById.values()) {
-                    const key = order.tableId || ("label:" + (order.tableLabel || "—"));
+                    const key = emptyGuid(order.tableId)
+                        ? ("label:" + (order.tableLabel || "—"))
+                        : order.tableId;
                     if (!byTable.has(key)) byTable.set(key, []);
                     byTable.get(key).push(order);
                 }
@@ -353,13 +443,25 @@
                 return groups;
             }
 
+            function tableAccentIndex(tableId) {
+                const raw = String(tableId || "");
+                let hash = 0;
+                for (let i = 0; i < raw.length; i++) {
+                    hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+                    hash |= 0;
+                }
+                return Math.abs(hash) % 6;
+            }
+
             function renderOrders() {
                 const groups = groupOrders();
                 emptyEl.classList.toggle("hidden", groups.length > 0);
                 listEl.innerHTML = "";
                 for (const group of groups) {
                     const section = document.createElement("section");
-                    section.className = "table-order-group";
+                    const accent = tableAccentIndex(group.tableId);
+                    section.className = "table-order-group table-order-group--accent-" + accent +
+                        (group.hasIncomplete ? " table-order-group--kitchen" : " table-order-group--settle");
                     section.dataset.tableId = group.tableId;
                     section.innerHTML =
                         '<header class="table-order-group__head">' +
@@ -373,6 +475,13 @@
                     const closeBtn = section.querySelector(".table-close-check");
                     closeBtn.dataset.tableId = group.tableId;
                     closeBtn.dataset.tableLabel = group.tableLabel;
+                    if (group.hasIncomplete) {
+                        closeBtn.className = "btn btn-ghost table-close-check table-close-check--muted";
+                        closeBtn.title = "Mutfak henüz bitmedi — önce turları ilerletin veya onaylayarak kapatın";
+                    } else {
+                        closeBtn.className = "btn table-close-check table-close-check--ready";
+                        closeBtn.title = "Tüm turlar hazır/servis — hesabı kapatabilirsiniz";
+                    }
                     closeBtn.addEventListener("click", () => openCloseCheck(group.tableId, group.tableLabel));
                     const roundsEl = section.querySelector(".table-order-group__rounds");
                     for (const order of group.rounds) {
@@ -382,6 +491,9 @@
                         card.dataset.orderId = order.id;
                         card.innerHTML =
                             '<div class="item-card-top"><h3></h3><span class="price"></span></div>' +
+                            (order.itemSummary
+                                ? '<p class="order-item-summary"></p>'
+                                : "") +
                             '<p class="item-desc">Durum: <strong class="order-status-label"></strong><br />' +
                             'Sipariş: <span class="order-created"></span><br />' +
                             'Güncelleme: <span class="order-changed"></span></p>' +
@@ -389,10 +501,12 @@
                             '<a class="linkish order-detail-link">Detay</a>' +
                             (status === "served" || status === "completed" || status === "cancelled"
                                 ? ""
-                                : '<a class="linkish order-change-link">Durumu değiştir</a>') +
+                                : '<button type="button" class="linkish order-change-link">Durumu değiştir</button>') +
                             "</div>";
                         card.querySelector("h3").textContent = order.displayNumber;
                         card.querySelector(".price").textContent = formatMoney(order.amountMinor);
+                        const summaryElCard = card.querySelector(".order-item-summary");
+                        if (summaryElCard) summaryElCard.textContent = order.itemSummary || "";
                         card.querySelector(".order-status-label").textContent = statusTr[status] || order.status;
                         card.querySelector(".order-created").textContent = formatLocal(order.createdAtUtc);
                         card.querySelector(".order-changed").textContent = formatLocal(order.statusChangedAtUtc);
@@ -401,7 +515,9 @@
                         badge.className = "badge order-status-code " + statusBadgeClass(status);
                         card.querySelector(".order-detail-link").href = detailUrl(order);
                         const changeLink = card.querySelector(".order-change-link");
-                        if (changeLink) changeLink.href = changeStatusUrl(order);
+                        if (changeLink) {
+                            changeLink.addEventListener("click", () => openStatusChange(order.id));
+                        }
                         roundsEl.appendChild(card);
                     }
                     listEl.appendChild(section);
@@ -410,15 +526,39 @@
 
             function upsertOrder(order, options) {
                 const silent = options && options.silent;
+                if (!order || !order.id) return;
                 const status = (order.status || "").toLowerCase();
                 const id = order.id;
                 const existed = ordersById.has(id);
+                const previous = ordersById.get(id);
                 if (status === "completed" || status === "cancelled") {
                     ordersById.delete(id);
                     renderOrders();
                     return;
                 }
-                ordersById.set(id, order);
+                // Incomplete live payloads without status/display should not invent ghost cards.
+                if (!order.status && !order.displayNumber && !order.amountMinor && !previous) {
+                    return;
+                }
+                const merged = {
+                    ...previous,
+                    ...order,
+                    id,
+                    tableId: emptyGuid(order.tableId) && previous ? previous.tableId : order.tableId,
+                    tableLabel: order.tableLabel || (previous && previous.tableLabel) || "",
+                    displayNumber: order.displayNumber || (previous && previous.displayNumber) || "",
+                    amountMinor: Number(order.amountMinor ?? (previous && previous.amountMinor) ?? 0),
+                    currency: order.currency || (previous && previous.currency) || "TRY",
+                    itemSummary: order.itemSummary || (previous && previous.itemSummary) || "",
+                    createdAtUtc: order.createdAtUtc || (previous && previous.createdAtUtc) || null,
+                    statusChangedAtUtc: order.statusChangedAtUtc || (previous && previous.statusChangedAtUtc) || "",
+                    estimatedReadyAtUtc: order.estimatedReadyAtUtc || (previous && previous.estimatedReadyAtUtc) || "",
+                    status: order.status || (previous && previous.status) || ""
+                };
+                if (!merged.status && !merged.displayNumber && !merged.amountMinor) {
+                    return;
+                }
+                ordersById.set(id, merged);
                 renderOrders();
                 if (!existed && !silent) {
                     if (alerts) alerts.rememberOrderId(id);
@@ -426,6 +566,27 @@
                 } else if (alerts) {
                     alerts.rememberOrderId(id);
                 }
+            }
+
+            function openStatusChange(orderId) {
+                const order = ordersById.get(orderId);
+                if (!order || !statusDialog || !statusSelect) return;
+                const targets = allowedStatusTargets(order.status);
+                if (targets.length === 0) return;
+                activeStatusOrderId = orderId;
+                statusTitle.textContent = "Durumu değiştir · " + (order.displayNumber || "");
+                statusSummary.textContent = "Mevcut: " + (statusTr[(order.status || "").toLowerCase()] || order.status);
+                statusSelect.innerHTML = "";
+                targets.forEach((value) => {
+                    const option = document.createElement("option");
+                    option.value = value;
+                    option.textContent = statusOptionLabels[value] || value;
+                    statusSelect.appendChild(option);
+                });
+                statusEta.value = "";
+                statusError.classList.add("hidden");
+                statusError.textContent = "";
+                if (typeof statusDialog.showModal === "function") statusDialog.showModal();
             }
 
             async function resync() {
@@ -442,38 +603,12 @@
 
             let activeCloseTableId = null;
 
-            function openCloseCheck(tableId, tableLabel) {
+            async function openCloseCheck(tableId, tableLabel) {
                 activeCloseTableId = tableId;
                 titleEl.textContent = (tableLabel || "Masa") + " · Hesabı kapat";
-                const rounds = [...ordersById.values()]
-                    .filter((o) => o.tableId === tableId)
-                    .sort((a, b) => String(a.displayNumber || "").localeCompare(String(b.displayNumber || "")));
-                const total = rounds.reduce((sum, o) => sum + Number(o.amountMinor || 0), 0);
-                const incomplete = rounds.filter((o) => isKitchenIncomplete(o.status)).length;
-                summaryEl.textContent = rounds.length + " tur · " + formatMoney(total);
-                if (roundsDetailEl) {
-                    if (rounds.length === 0) {
-                        roundsDetailEl.innerHTML = "<p class=\"muted\">Bu masada açık tur yok.</p>";
-                    } else {
-                        roundsDetailEl.innerHTML = rounds.map((order) => {
-                            const status = (order.status || "").toLowerCase();
-                            return "<div class=\"close-check-round\">" +
-                                "<div><strong></strong><span class=\"price\"></span></div>" +
-                                "<span class=\"badge\"></span></div>";
-                        }).join("");
-                        const nodes = roundsDetailEl.querySelectorAll(".close-check-round");
-                        rounds.forEach((order, index) => {
-                            const status = (order.status || "").toLowerCase();
-                            const node = nodes[index];
-                            node.querySelector("strong").textContent = order.displayNumber;
-                            node.querySelector(".price").textContent = formatMoney(order.amountMinor);
-                            const badge = node.querySelector(".badge");
-                            badge.textContent = statusTr[status] || order.status;
-                            badge.className = "badge " + statusBadgeClass(status);
-                        });
-                    }
-                }
-                incompleteBox.classList.toggle("hidden", incomplete === 0);
+                summaryEl.textContent = "Turlar yükleniyor…";
+                if (roundsDetailEl) roundsDetailEl.innerHTML = "";
+                incompleteBox.classList.add("hidden");
                 forceBox.checked = false;
                 errorEl.classList.add("hidden");
                 errorEl.textContent = "";
@@ -481,15 +616,149 @@
                 const cash = form.querySelector('input[name="tender"][value="cash"]');
                 if (cash) cash.checked = true;
                 if (typeof dialog.showModal === "function") dialog.showModal();
+
+                try {
+                    const response = await fetch(
+                        apiBase + "/api/v1/management/tables/" + encodeURIComponent(tableId) + "/check",
+                        { headers: { Authorization: "Bearer " + accessToken } });
+                    if (!response.ok) throw new Error("check_failed");
+                    const check = await response.json();
+                    const rounds = Array.isArray(check.rounds) ? check.rounds : [];
+                    summaryEl.textContent = (check.roundCount || rounds.length) + " tur · " +
+                        formatMoney(check.totalAmountMinor || 0);
+                    if (roundsDetailEl) {
+                        if (rounds.length === 0) {
+                            roundsDetailEl.innerHTML = "<p class=\"muted\">Bu masada açık tur yok.</p>";
+                        } else {
+                            roundsDetailEl.innerHTML = rounds.map(() => {
+                                return "<div class=\"close-check-round\">" +
+                                    "<div class=\"close-check-round__head\">" +
+                                    "<div><strong></strong><span class=\"badge\"></span></div>" +
+                                    "<span class=\"price\"></span></div>" +
+                                    "<ul class=\"close-check-lines\"></ul></div>";
+                            }).join("") +
+                                "<p class=\"close-check-grand-total\"><span>Masa toplamı</span><strong></strong></p>";
+                            const nodes = roundsDetailEl.querySelectorAll(".close-check-round");
+                            rounds.forEach((round, index) => {
+                                const status = (round.status || "").toLowerCase();
+                                const node = nodes[index];
+                                const title = rounds.length > 1
+                                    ? ("Tur " + (index + 1) + " · " + round.displayNumber)
+                                    : round.displayNumber;
+                                node.querySelector("strong").textContent = title;
+                                node.querySelector(".price").textContent = formatMoney(round.amountMinor);
+                                const badge = node.querySelector(".badge");
+                                badge.textContent = statusTr[status] || round.status;
+                                badge.className = "badge " + statusBadgeClass(status);
+                                const linesEl = node.querySelector(".close-check-lines");
+                                const items = Array.isArray(round.items) ? round.items : [];
+                                if (items.length === 0) {
+                                    linesEl.outerHTML = "<p class=\"muted close-check-lines-empty\">Kalem kaydı yok</p>";
+                                } else {
+                                    items.forEach((item) => {
+                                        const li = document.createElement("li");
+                                        const left = document.createElement("span");
+                                        left.textContent = item.quantity + "× " + item.name +
+                                            (item.note ? " · " + item.note : "");
+                                        const right = document.createElement("span");
+                                        const lineTotal = Number(item.unitPriceAmountMinor || 0) * Number(item.quantity || 0);
+                                        right.textContent = formatMoney(lineTotal);
+                                        li.appendChild(left);
+                                        li.appendChild(right);
+                                        linesEl.appendChild(li);
+                                    });
+                                }
+                            });
+                            const grand = roundsDetailEl.querySelector(".close-check-grand-total strong");
+                            if (grand) grand.textContent = formatMoney(check.totalAmountMinor || 0);
+                        }
+                    }
+                    incompleteBox.classList.toggle("hidden", !check.hasIncompleteKitchen);
+                } catch (error) {
+                    summaryEl.textContent = "Turlar yüklenemedi";
+                    if (roundsDetailEl) {
+                        roundsDetailEl.innerHTML = "<p class=\"alert\">Adisyon detayı alınamadı. Sayfayı yenileyip tekrar deneyin.</p>";
+                    }
+                }
             }
 
             listEl.addEventListener("click", (event) => {
+                const changeBtn = event.target.closest(".order-change-link");
+                if (changeBtn) {
+                    event.preventDefault();
+                    const card = changeBtn.closest("article.item-card[data-order-id]");
+                    if (card) openStatusChange(card.dataset.orderId);
+                    return;
+                }
                 const btn = event.target.closest(".table-close-check");
                 if (!btn) return;
                 openCloseCheck(btn.dataset.tableId, btn.dataset.tableLabel);
             });
 
             cancelBtn.addEventListener("click", () => dialog.close());
+            if (statusCancel) statusCancel.addEventListener("click", () => statusDialog.close());
+
+            if (statusForm) {
+                statusForm.addEventListener("submit", async (event) => {
+                    event.preventDefault();
+                    if (!activeStatusOrderId) return;
+                    const order = ordersById.get(activeStatusOrderId);
+                    if (!order) return;
+                    statusError.classList.add("hidden");
+                    statusError.textContent = "";
+                    const nextStatus = statusSelect.value;
+                    let estimatedReadyAtUtc = null;
+                    const etaRaw = statusEta.value.trim();
+                    if (etaRaw) {
+                        estimatedReadyAtUtc = parseEtaInput(etaRaw);
+                        if (!estimatedReadyAtUtc) {
+                            statusError.textContent = "ETA formatı geçersiz. Dakika (15) veya saat (09:23) yazın.";
+                            statusError.classList.remove("hidden");
+                            return;
+                        }
+                    }
+                    statusSubmit.disabled = true;
+                    try {
+                        const body = {
+                            status: nextStatus,
+                            expectedStatusChangedAtUtc: order.statusChangedAtUtc
+                        };
+                        if (estimatedReadyAtUtc) body.estimatedReadyAtUtc = estimatedReadyAtUtc;
+                        const response = await fetch(
+                            apiBase + "/api/v1/management/orders/" + encodeURIComponent(order.id) + "/status",
+                            {
+                                method: "PUT",
+                                headers: {
+                                    Authorization: "Bearer " + accessToken,
+                                    "Content-Type": "application/json"
+                                },
+                                body: JSON.stringify(body)
+                            });
+                        if (!response.ok) {
+                            const problem = await response.json().catch(() => ({}));
+                            statusError.textContent = problem.detail || problem.title || "Durum güncellenemedi.";
+                            statusError.classList.remove("hidden");
+                            return;
+                        }
+                        const updated = await response.json();
+                        statusDialog.close();
+                        upsertOrder({
+                            ...order,
+                            ...updated,
+                            id: order.id,
+                            tableId: emptyGuid(updated.tableId) ? order.tableId : updated.tableId,
+                            tableLabel: updated.tableLabel || order.tableLabel,
+                            itemSummary: updated.itemSummary || order.itemSummary
+                        }, { silent: true });
+                        showToast((order.displayNumber || "Sipariş") + " → " + (statusTr[nextStatus] || nextStatus));
+                    } catch {
+                        statusError.textContent = "Bağlantı hatası. Tekrar deneyin.";
+                        statusError.classList.remove("hidden");
+                    } finally {
+                        statusSubmit.disabled = false;
+                    }
+                });
+            }
 
             form.addEventListener("submit", async (event) => {
                 event.preventDefault();

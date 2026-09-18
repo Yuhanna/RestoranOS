@@ -34,6 +34,10 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Build MVC site
         run: dotnet build apps/web/RestaurantOS.Web/RestaurantOS.Web.csproj -c Release
+      - name: Build Admin MVC
+        run: dotnet build apps/admin/RestaurantOS.Admin/RestaurantOS.Admin.csproj -c Release
+      - name: Test Admin MVC
+        run: dotnet test apps/admin/RestaurantOS.Admin.Tests/RestaurantOS.Admin.Tests.csproj -c Release --verbosity minimal
 
   frontend:
     runs-on: ubuntu-latest
@@ -52,11 +56,7 @@ jobs:
         run: pnpm web:test
       - name: Test restaurant-web
         run: pnpm restaurant:test
-      - name: Test admin-web
-        run: pnpm admin:test
       - name: Build customer-web
         run: pnpm web:build
       - name: Build restaurant-web
         run: pnpm restaurant:build
-      - name: Build admin-web
-        run: pnpm admin:build

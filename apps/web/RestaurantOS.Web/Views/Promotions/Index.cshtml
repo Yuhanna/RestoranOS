@@ -1,6 +1,11 @@
 @model RestaurantOS.Web.Models.PromotionsPageViewModel
 @{
     ViewData["Title"] = "İndirim kampanyaları";
+    var selectedDays = Model.Create.WeekdayBits?.ToHashSet() ?? new HashSet<int> { 1, 2, 3, 4, 5, 6, 0 };
+    var weekdays = new (string Label, int Bit)[]
+    {
+        ("Pzt", 1), ("Sal", 2), ("Çar", 3), ("Per", 4), ("Cum", 5), ("Cmt", 6), ("Paz", 0),
+    };
     string ScopeTr(string scope) => scope switch
     {
         "category" => "Kategori",
@@ -16,7 +21,10 @@
 <div class="page-head">
     <div>
         <h1>İndirim kampanyaları</h1>
-        <p class="muted">QR menüde ve sepette otomatik uygulanır.</p>
+        <p class="muted">
+            Ürün, kategori veya tüm menü için dönemsel / saatlik indirim.
+            QR menüde üstü çizili fiyat, tasarruf ve süre otomatik görünür.
+        </p>
     </div>
 </div>
 
@@ -33,61 +41,86 @@
 
 <section class="panel">
     <h2>Yeni kampanya</h2>
-    <form asp-action="Create" method="post" class="form-grid-wide">
+    <p class="muted" style="margin-top:0">Hızlı şablon — alanları doldurur; sonra ürün/kategori seçip kaydedin.</p>
+    <div class="promo-templates" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin:0 0 1rem">
+        <button type="button" class="btn btn-ghost" data-promo-template="happy_hour">Happy Hour</button>
+        <button type="button" class="btn btn-ghost" data-promo-template="lunch">Öğle</button>
+        <button type="button" class="btn btn-ghost" data-promo-template="weekend">Hafta sonu</button>
+    </div>
+    <form asp-action="Create" method="post" class="form-grid-wide" id="promo-create-form">
         @Html.AntiForgeryToken()
         <label class="span-2">
             Kampanya adı
-            <input asp-for="Create.Name" placeholder="Öğle menüsü %20" required />
+            <input asp-for="Create.Name" id="Create_Name" placeholder="Öğle menüsü %20" required />
         </label>
         <label>
             Kapsam
-            <select asp-for="Create.Scope">
-                <option value="all_menu">Tüm menü</option>
-                <option value="category">Kategori</option>
+            <select asp-for="Create.Scope" id="Create_Scope">
                 <option value="product">Tek ürün</option>
+                <option value="category">Kategori</option>
+                <option value="all_menu">Tüm menü</option>
             </select>
         </label>
         <label>
             İndirim türü
-            <select asp-for="Create.DiscountKind">
+            <select asp-for="Create.DiscountKind" id="Create_DiscountKind">
                 <option value="percent">Yüzde</option>
                 <option value="fixed_minor">Sabit tutar (₺)</option>
             </select>
         </label>
         <label>
             Değer
-            <input asp-for="Create.DiscountValue" />
+            <input asp-for="Create.DiscountValue" id="Create_DiscountValue" />
         </label>
         @if (Model.PublishedMenu is not null)
         {
-            <label>
+            <label id="promo-category-field">
                 Kategori
-                <select asp-for="Create.CategoryId">
+                <select asp-for="Create.CategoryId" id="Create_CategoryId" data-ros-category-filter>
                     <option value="">—</option>
-                    @foreach (var category in Model.PublishedMenu.Categories)
+                    @foreach (var category in Model.PublishedMenu.Categories.OrderBy(c => c.SortOrder).ThenBy(c => c.Name))
                     {
                         <option value="@category.Id">@category.Name</option>
                     }
                 </select>
             </label>
-            <label>
+            <label id="promo-product-field">
                 Ürün
-                <select asp-for="Create.MenuItemId">
-                    <option value="">—</option>
-                    @foreach (var item in Model.PublishedMenu.Items)
+                <select asp-for="Create.MenuItemId"
+                        id="Create_MenuItemId"
+                        data-ros-product-select
+                        data-ros-category-source="Create_CategoryId"
+                        data-ros-require-category="true">
+                    <option value="">— önce kategori seçin —</option>
+                    @foreach (var item in Model.PublishedMenu.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Name))
                     {
-                        <option value="@item.Id">@item.Name</option>
+                        <option value="@item.Id" data-category-id="@item.CategoryId">@item.Name</option>
                     }
                 </select>
             </label>
         }
+        <fieldset class="span-2" style="border:none;padding:0;margin:0">
+            <legend style="font-size:0.9rem;margin-bottom:0.35rem">Günler</legend>
+            <div style="display:flex;flex-wrap:wrap;gap:0.65rem">
+                @foreach (var day in weekdays)
+                {
+                    <label class="check" style="display:inline-flex;gap:0.3rem;align-items:center">
+                        <input type="checkbox"
+                               name="Create.WeekdayBits"
+                               value="@day.Bit"
+                               @(selectedDays.Contains(day.Bit) ? "checked" : null) />
+                        @day.Label
+                    </label>
+                }
+            </div>
+        </fieldset>
         <label>
-            Günlük başlangıç
-            <input asp-for="Create.DailyStartLocal" type="time" />
+            Günlük başlangıç (Happy Hour)
+            <input asp-for="Create.DailyStartLocal" id="Create_DailyStartLocal" type="time" />
         </label>
         <label>
             Günlük bitiş
-            <input asp-for="Create.DailyEndLocal" type="time" />
+            <input asp-for="Create.DailyEndLocal" id="Create_DailyEndLocal" type="time" />
         </label>
         <label>
             Bitiş tarihi
@@ -149,3 +182,74 @@
 <p class="muted">
     Müşteri deneyimi: telefonunuzdan demo QR açın — indirimli fiyatlar menüde ve sepette görünür.
 </p>
+
+<script>
+(function () {
+    var form = document.getElementById('promo-create-form');
+    if (!form) return;
+    var scopeEl = document.getElementById('Create_Scope');
+    var categoryField = document.getElementById('promo-category-field');
+    var productField = document.getElementById('promo-product-field');
+    var categoryEl = document.getElementById('Create_CategoryId');
+    var productEl = document.getElementById('Create_MenuItemId');
+
+    function syncScopeFields() {
+        if (!scopeEl) return;
+        var scope = scopeEl.value;
+        if (categoryField) categoryField.hidden = scope === 'all_menu';
+        if (productField) productField.hidden = scope !== 'product';
+        if (scope !== 'product' && productEl) productEl.value = '';
+        if (scope === 'all_menu' && categoryEl) categoryEl.value = '';
+        if (scope === 'product' && window.RestaurantOsCategoryProductFilter && productEl && categoryEl) {
+            window.RestaurantOsCategoryProductFilter.applyFilter(productEl, categoryEl);
+        }
+    }
+
+    if (scopeEl) {
+        scopeEl.addEventListener('change', syncScopeFields);
+        syncScopeFields();
+    }
+
+    function setDays(bits) {
+        form.querySelectorAll('input[name="Create.WeekdayBits"]').forEach(function (box) {
+            box.checked = bits.indexOf(Number(box.value)) >= 0;
+        });
+    }
+    document.querySelectorAll('[data-promo-template]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var kind = btn.getAttribute('data-promo-template');
+            var name = document.getElementById('Create_Name');
+            var kindEl = document.getElementById('Create_DiscountKind');
+            var value = document.getElementById('Create_DiscountValue');
+            var start = document.getElementById('Create_DailyStartLocal');
+            var end = document.getElementById('Create_DailyEndLocal');
+            if (kind === 'happy_hour') {
+                name.value = 'Happy Hour';
+                scopeEl.value = 'product';
+                kindEl.value = 'percent';
+                value.value = '20';
+                start.value = '17:00';
+                end.value = '19:00';
+                setDays([1, 2, 3, 4, 5]);
+            } else if (kind === 'lunch') {
+                name.value = 'Öğle lezzetleri';
+                scopeEl.value = 'category';
+                kindEl.value = 'percent';
+                value.value = '15';
+                start.value = '12:00';
+                end.value = '15:00';
+                setDays([1, 2, 3, 4, 5]);
+            } else if (kind === 'weekend') {
+                name.value = 'Hafta sonu özel';
+                scopeEl.value = 'all_menu';
+                kindEl.value = 'percent';
+                value.value = '10';
+                start.value = '';
+                end.value = '';
+                setDays([0, 6]);
+            }
+            syncScopeFields();
+        });
+    });
+})();
+</script>

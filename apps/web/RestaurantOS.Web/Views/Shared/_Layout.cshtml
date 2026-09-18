@@ -117,6 +117,15 @@
                         }
                     </span>
                 }
+                @{
+                    var trialChip = MonetizationUi.TrialCountdown(
+                        navWorkspace?.Entitlements,
+                        navWorkspace?.CanManageSubscription == true);
+                }
+                @if (trialChip is not null)
+                {
+                    <partial name="_TrialCountdown" model="trialChip" />
+                }
                 <label class="theme-picker">
                     <span class="theme-picker__label">Tema</span>
                     <select id="theme-select" aria-label="Tema seçin">
@@ -170,6 +179,7 @@
     }
     @await RenderSectionAsync("Scripts", required: false)
     <script src="~/js/category-product-filter.js" asp-append-version="true"></script>
+    <script src="~/js/upgrade-prompt.js" asp-append-version="true"></script>
     <script src="~/js/theme.js" asp-append-version="true"></script>
     <script>
         (function () {

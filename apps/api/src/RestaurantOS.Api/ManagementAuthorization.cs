@@ -160,6 +160,7 @@ public static class ManagementPolicies
     public const string AnalyticsFinancialView = "Management.Analytics.FinancialView";
     public const string SubscriptionManage = "Management.Subscription.Manage";
     public const string BranchManage = "Management.Branch.Manage";
+    public const string BranchMembers = "Management.Branch.Members";
     public const string PlatformManage = "Management.Platform.Manage";
 
     public static void AddManagementPolicies(AuthorizationOptions options)
@@ -219,6 +220,11 @@ public static class ManagementPolicies
             policy => policy
                 .RequireAuthenticatedUser()
                 .AddRequirements(new PermissionRequirement(ManagementPermissions.BranchManage)));
+        options.AddPolicy(
+            BranchMembers,
+            policy => policy
+                .RequireAuthenticatedUser()
+                .AddRequirements(new PermissionRequirement(ManagementPermissions.BranchMembers)));
         options.AddPolicy(
             PlatformManage,
             policy => policy

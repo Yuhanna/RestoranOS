@@ -57,6 +57,7 @@ describe("http customer gateway", () => {
       await createHttpCustomerGateway("http://localhost:5183/").resolveQr("opaque-qr-token");
 
     expect(session.categories[0]).toEqual({ id: "all", name: "Tümü" });
+    expect(session.packages).toEqual([]);
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
       qrToken: "opaque-qr-token",
       locale: "tr",

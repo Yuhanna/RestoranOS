@@ -67,6 +67,59 @@ public static class BranchBillingPolicy
 }
 
 /// <summary>
+/// Free-tier capacity for order-taking surfaces. Tables may be created freely;
+/// monetization gates on concurrently active QR codes and live-panel sessions.
+/// </summary>
+public static class FreeTierCapacity
+{
+    public const int MaxActiveQrCodesPerBranch = 8;
+    public const int MaxActiveUsers = 2;
+    public const int MaxConcurrentLiveSessions = 1;
+}
+
+/// <summary>
+/// Operational order-history lookback by plan. History itself is always available;
+/// longer windows are the paid differentiator. Enterprise contracts may raise the
+/// included 90-day ceiling later without changing Free/Pro defaults.
+/// </summary>
+public static class OrderHistoryRetention
+{
+    public const int FreeMaxHours = 72; // 24–72 saat operasyon penceresi
+    public const int ProMaxHours = 24 * 30; // 7–30 gün
+    public const int EnterpriseIncludedMaxHours = 24 * 90; // 90 gün dahil
+
+    public static int ResolveMaxHours(
+        string? planCode,
+        bool isTrialActive = false,
+        int? overrideMaxHours = null)
+    {
+        if (overrideMaxHours is > 0)
+        {
+            return overrideMaxHours.Value;
+        }
+
+        var normalized = PlanCatalog.Normalize(planCode);
+        if (normalized == SubscriptionPlanCodes.Enterprise)
+        {
+            return EnterpriseIncludedMaxHours;
+        }
+
+        if (normalized == SubscriptionPlanCodes.Pro || isTrialActive)
+        {
+            return ProMaxHours;
+        }
+
+        return FreeMaxHours;
+    }
+
+    public static int ClampRequestedHours(int requestedHours, int maxHours)
+    {
+        var safeMax = Math.Max(1, maxHours);
+        return Math.Clamp(requestedHours, 1, safeMax);
+    }
+}
+
+/// <summary>
 /// Commercial entitlement snapshot for a tenant. Limits use null = unlimited.
 /// Payment provider is not required; plan changes can be applied manually/ops.
 /// </summary>
@@ -83,11 +136,17 @@ public sealed record FeatureEntitlements(
     bool CanUseMultiBranch,
     bool HasPrioritySupport,
     bool CanUseMenuThemes = false,
-    bool CanUseBrandWatermark = false)
+    bool CanUseBrandWatermark = false,
+    int? MaxActiveQrCodes = null,
+    int? MaxConcurrentLiveSessions = null,
+    bool CanUsePromotions = false,
+    bool CanUseAnalytics = false)
 {
     public bool IsUnlimitedTables => MaxTablesPerBranch is null;
+    public bool IsUnlimitedActiveQrCodes => MaxActiveQrCodes is null;
     public bool IsUnlimitedBranches => MaxBranches is null;
     public bool IsUnlimitedUsers => MaxActiveUsers is null;
+    public bool IsUnlimitedLiveSessions => MaxConcurrentLiveSessions is null;
 }
 
 public static class PlanCatalog
@@ -96,16 +155,20 @@ public static class PlanCatalog
         SubscriptionPlanCodes.Free,
         "Free",
         MaxBranches: BranchBillingPolicy.FreeMaxBranches,
-        MaxTablesPerBranch: 8,
-        MaxActiveUsers: 1,
+        MaxTablesPerBranch: null,
+        MaxActiveUsers: FreeTierCapacity.MaxActiveUsers,
         CanUseProductImages: true,
         CanUseMenuTranslations: false,
         CanManageAdditionalRoles: false,
-        CanUseLiveOrderPanel: false,
+        CanUseLiveOrderPanel: true,
         CanUseMultiBranch: false,
         HasPrioritySupport: false,
         CanUseMenuThemes: false,
-        CanUseBrandWatermark: false);
+        CanUseBrandWatermark: false,
+        MaxActiveQrCodes: FreeTierCapacity.MaxActiveQrCodesPerBranch,
+        MaxConcurrentLiveSessions: FreeTierCapacity.MaxConcurrentLiveSessions,
+        CanUsePromotions: false,
+        CanUseAnalytics: true);
 
     public static FeatureEntitlements Pro { get; } = new(
         SubscriptionPlanCodes.Pro,
@@ -120,7 +183,11 @@ public static class PlanCatalog
         CanUseMultiBranch: true,
         HasPrioritySupport: false,
         CanUseMenuThemes: true,
-        CanUseBrandWatermark: true);
+        CanUseBrandWatermark: true,
+        MaxActiveQrCodes: null,
+        MaxConcurrentLiveSessions: null,
+        CanUsePromotions: true,
+        CanUseAnalytics: true);
 
     public static FeatureEntitlements Enterprise { get; } = new(
         SubscriptionPlanCodes.Enterprise,
@@ -135,7 +202,11 @@ public static class PlanCatalog
         CanUseMultiBranch: true,
         HasPrioritySupport: true,
         CanUseMenuThemes: true,
-        CanUseBrandWatermark: true);
+        CanUseBrandWatermark: true,
+        MaxActiveQrCodes: null,
+        MaxConcurrentLiveSessions: null,
+        CanUsePromotions: true,
+        CanUseAnalytics: true);
 
     public static FeatureEntitlements Resolve(string? planCode) =>
         Normalize(planCode) switch
@@ -152,14 +223,23 @@ public static class PlanCatalog
         var now = nowUtc.ToUniversalTime();
         var isTrial = subscription.IsTrialActive(now);
         var baseline = Resolve(subscription.PlanCode);
-        var maxBranches = BranchBillingPolicy.ResolveMaxBranches(
-            subscription.PlanCode,
-            isTrial,
-            subscription.PurchasedBranchAddonCount);
-        var canMulti = BranchBillingPolicy.ResolveCanUseMultiBranch(subscription.PlanCode, isTrial);
+        // Active trial unlocks Pro feature surface (themes, watermark, live panel, …).
+        if (isTrial && baseline.PlanCode == SubscriptionPlanCodes.Free)
+        {
+            baseline = Pro with { DisplayName = "Pro (deneme)" };
+        }
+
+        var maxBranches = subscription.OverrideMaxBranches
+            ?? BranchBillingPolicy.ResolveMaxBranches(
+                subscription.PlanCode,
+                isTrial,
+                subscription.PurchasedBranchAddonCount);
+        var canMulti = maxBranches is null or > 1;
         return baseline with
         {
             MaxBranches = maxBranches,
+            MaxActiveUsers = subscription.OverrideMaxActiveUsers ?? baseline.MaxActiveUsers,
+            MaxActiveQrCodes = subscription.OverrideMaxActiveQrCodes ?? baseline.MaxActiveQrCodes,
             CanUseMultiBranch = canMulti,
         };
     }
@@ -220,6 +300,11 @@ public sealed class TenantSubscription
     public DateTimeOffset? ExpiresAtUtc { get; private set; }
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
     public int PurchasedBranchAddonCount { get; private set; }
+    public int? OverrideMaxBranches { get; private set; }
+    public int? OverrideMaxActiveUsers { get; private set; }
+    public int? OverrideMaxOrderHistoryHours { get; private set; }
+    public int? OverrideMaxActiveQrCodes { get; private set; }
+    public string? ContractNote { get; private set; }
 
     public FeatureEntitlements Entitlements => PlanCatalog.Resolve(PlanCode);
 
@@ -240,15 +325,57 @@ public sealed class TenantSubscription
     public void ConvertToPaid(string planCode, DateTimeOffset nowUtc) =>
         ChangePlan(planCode, nowUtc, expiresAtUtc: null);
 
+    /// <summary>Start or restart a Pro trial from Free. Paid Pro (no expiry) is left unchanged.</summary>
+    public void StartProTrial(DateTimeOffset nowUtc)
+    {
+        var now = nowUtc.ToUniversalTime();
+        if (PlanCode == SubscriptionPlanCodes.Pro && ExpiresAtUtc is null)
+        {
+            throw new InvalidOperationException("Paid Pro subscriptions cannot start a trial.");
+        }
+
+        PlanCode = SubscriptionPlanCodes.Pro;
+        StartedAtUtc = now;
+        ExpiresAtUtc = now.Add(SubscriptionTrials.ProTrialDuration);
+        UpdatedAtUtc = now;
+    }
+
     public void DowngradeToFree(DateTimeOffset nowUtc)
     {
         ChangePlan(SubscriptionPlanCodes.Free, nowUtc, expiresAtUtc: null);
         PurchasedBranchAddonCount = 0;
+        OverrideMaxBranches = null;
+        OverrideMaxActiveUsers = null;
+        OverrideMaxOrderHistoryHours = null;
+        OverrideMaxActiveQrCodes = null;
+        ContractNote = null;
     }
 
     public void SetPurchasedBranchAddonCount(int count, DateTimeOffset nowUtc)
     {
         PurchasedBranchAddonCount = Math.Max(0, count);
+        UpdatedAtUtc = nowUtc.ToUniversalTime();
+    }
+
+    public void SetContractOverrides(
+        int? maxBranches,
+        int? maxActiveUsers,
+        int? maxOrderHistoryHours,
+        int? maxActiveQrCodes,
+        string? contractNote,
+        DateTimeOffset nowUtc)
+    {
+        OverrideMaxBranches = NormalizePositiveLimit(maxBranches, "şube");
+        OverrideMaxActiveUsers = NormalizePositiveLimit(maxActiveUsers, "kullanıcı");
+        OverrideMaxActiveQrCodes = NormalizePositiveLimit(maxActiveQrCodes, "QR");
+        OverrideMaxOrderHistoryHours = NormalizeHours(maxOrderHistoryHours);
+        var note = string.IsNullOrWhiteSpace(contractNote) ? null : contractNote.Trim();
+        if (note is { Length: > 2000 })
+        {
+            throw new ArgumentException("Sözleşme notu en fazla 2000 karakter olabilir.");
+        }
+
+        ContractNote = note;
         UpdatedAtUtc = nowUtc.ToUniversalTime();
     }
 
@@ -261,6 +388,58 @@ public sealed class TenantSubscription
 
     public bool IsExpired(DateTimeOffset nowUtc) =>
         ExpiresAtUtc is not null && ExpiresAtUtc.Value <= nowUtc.ToUniversalTime();
+
+    private static int? NormalizePositiveLimit(int? value, string label)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value < 1 || value > 100_000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value), $"{label} tavanı 1–100000 arasında olmalı.");
+        }
+
+        return value;
+    }
+
+    private static int? NormalizeHours(int? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value < 1 || value > 24 * 365 * 5)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value), "Sipariş geçmişi 1 saat–5 yıl arasında olmalı.");
+        }
+
+        return value;
+    }
+}
+
+public static class EnterpriseQuoteStatuses
+{
+    public const string Open = "Open";
+    public const string Accepted = "Accepted";
+    public const string Rejected = "Rejected";
+
+    public static string Normalize(string? status)
+    {
+        if (string.Equals(status, Accepted, StringComparison.OrdinalIgnoreCase))
+        {
+            return Accepted;
+        }
+
+        if (string.Equals(status, Rejected, StringComparison.OrdinalIgnoreCase))
+        {
+            return Rejected;
+        }
+
+        return Open;
+    }
 }
 
 public sealed class EnterpriseQuoteRequest
@@ -298,7 +477,7 @@ public sealed class EnterpriseQuoteRequest
             throw new ArgumentException("Note is too long.");
         }
 
-        Status = "Open";
+        Status = EnterpriseQuoteStatuses.Open;
         CreatedAtUtc = createdAtUtc.ToUniversalTime();
     }
 
@@ -310,8 +489,43 @@ public sealed class EnterpriseQuoteRequest
     public string? Phone { get; private set; }
     public int EstimatedBranchCount { get; private set; }
     public string? Note { get; private set; }
-    public string Status { get; private set; } = "Open";
+    public string Status { get; private set; } = EnterpriseQuoteStatuses.Open;
     public DateTimeOffset CreatedAtUtc { get; private set; }
+    public Guid? ReviewedByUserId { get; private set; }
+    public DateTimeOffset? ReviewedAtUtc { get; private set; }
+    public string? DecisionNote { get; private set; }
+
+    public bool IsOpen => Status == EnterpriseQuoteStatuses.Open;
+
+    public void Accept(Guid reviewerUserId, DateTimeOffset nowUtc, string? decisionNote) =>
+        Close(EnterpriseQuoteStatuses.Accepted, reviewerUserId, nowUtc, decisionNote);
+
+    public void Reject(Guid reviewerUserId, DateTimeOffset nowUtc, string? decisionNote) =>
+        Close(EnterpriseQuoteStatuses.Rejected, reviewerUserId, nowUtc, decisionNote);
+
+    private void Close(string status, Guid reviewerUserId, DateTimeOffset nowUtc, string? decisionNote)
+    {
+        if (!IsOpen)
+        {
+            throw new InvalidOperationException("Quote is not open.");
+        }
+
+        if (reviewerUserId == Guid.Empty)
+        {
+            throw new ArgumentException("Reviewer is required.", nameof(reviewerUserId));
+        }
+
+        var note = string.IsNullOrWhiteSpace(decisionNote) ? null : decisionNote.Trim();
+        if (note is { Length: > 2000 })
+        {
+            throw new ArgumentException("Decision note is too long.");
+        }
+
+        Status = status;
+        ReviewedByUserId = reviewerUserId;
+        ReviewedAtUtc = nowUtc.ToUniversalTime();
+        DecisionNote = note;
+    }
 
     private static string Required(string value, int max)
     {

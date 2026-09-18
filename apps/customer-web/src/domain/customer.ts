@@ -91,6 +91,8 @@ export interface Product {
   /** Yeni ürün rozeti — badge yoksa otomatik "Yeni" gösterilir. */
   isNew?: boolean;
   dietaryTags: DietaryTag[];
+  /** Free-text labels from the restaurant (display only; not dietary filters). */
+  customLabels?: string[];
   /** Yapılandırılmış alerjen kodları (EU 14). */
   allergenKeys: AllergenKey[];
   /** Paylaşılan mutfak / cross-contact uyarısı. */
@@ -236,6 +238,8 @@ export class CustomerGatewayError extends Error {
       | "MENU_UNAVAILABLE"
       | "NETWORK"
       | "ORDER_REJECTED"
+      | "ORDER_RATE_LIMITED"
+      | "ORDER_BLOCKED"
       | "SERVICE_REQUEST_OPEN",
     message: string,
   ) {

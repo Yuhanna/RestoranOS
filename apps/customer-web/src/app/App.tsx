@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { Button, Dialog } from "@restaurant-os/design-system";
 import { getCustomerGateway } from "../data/customerGateway";
 import { readQrFromLocation } from "../data/resolveCustomerApiBaseUrl";
@@ -248,11 +249,16 @@ function ProductDialog({
             <div>
               {badgeLabel ? <span className="badge badge--brand">{badgeLabel}</span> : null}
               <h2 id="product-title">{product.name}</h2>
-              {product.dietaryTags.length ? (
+              {product.dietaryTags.length || product.customLabels?.length ? (
                 <div className="chip-row chip-row--detail">
                   {product.dietaryTags.map((tag) => (
                     <span className="badge badge--dietary" key={tag}>
                       {t.dietary[tag]}
+                    </span>
+                  ))}
+                  {(product.customLabels ?? []).map((label) => (
+                    <span className="badge badge--custom" key={`custom:${label}`}>
+                      {label}
                     </span>
                   ))}
                 </div>
@@ -437,11 +443,13 @@ function LunchPackagesSection({
   packages,
   products,
   locale,
+  menuThemeId,
   onAdd,
 }: {
   packages: ReadonlyArray<LunchPackage>;
   products: ReadonlyArray<Product>;
   locale: Locale;
+  menuThemeId?: string;
   onAdd: (pkg: LunchPackage) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -528,82 +536,121 @@ function LunchPackagesSection({
                   <span className="lunch-package-card__cta-label">{copy.openDetails}</span>
                 </div>
               </button>
+              <div className="lunch-package-card__actions">
+                <Button
+                  fullWidth
+                  onClick={() => onAdd(pkg)}
+                  aria-label={`${pkg.name}: ${copy.add}`}
+                >
+                  <span>{copy.add}</span>
+                  <span>{formatMoney(pkg.price)}</span>
+                </Button>
+              </div>
             </article>
           );
         })}
       </div>
 
-      {openPackage ? (
-        <Dialog
-          labelledBy="lunch-package-detail-title"
-          dismissLabel={copy.closeDetails}
-          onDismiss={() => setOpenId(null)}
-          footer={
-            <div className="lunch-package-detail__footer">
-              <div className="lunch-package-detail__footer-price">
-                {openPackage.discount.amountMinor > 0 ? (
-                  <span className="price-list">{formatMoney(openPackage.listPrice)}</span>
-                ) : null}
-                <strong className="price-final">{formatMoney(openPackage.price)}</strong>
-                {openPackage.discount.amountMinor > 0 ? (
-                  <span className="lunch-package-detail__save">
-                    {copy.savings}: {formatMoney(openPackage.discount)}
-                  </span>
-                ) : null}
-              </div>
-              <Button
-                onClick={() => {
-                  onAdd(openPackage);
-                  setOpenId(null);
-                }}
-              >
-                {copy.add}
-              </Button>
-            </div>
-          }
-        >
-          <div className="lunch-package-detail">
-            <p className="eyebrow">{copy.subtitle}</p>
-            <h2 id="lunch-package-detail-title">{openPackage.name}</h2>
-            {openPackage.dailyStartLocal && openPackage.dailyEndLocal ? (
-              <p className="lunch-package-detail__hours">
-                {copy.hours}: {openPackage.dailyStartLocal} – {openPackage.dailyEndLocal}
-              </p>
-            ) : null}
-            {openPackage.description ? <p className="lede">{openPackage.description}</p> : null}
-            <ul className="lunch-package-detail__items" aria-label={copy.includes}>
-              {openPackage.components.map((raw) => {
-                const component = resolveComponent(raw);
-                const src = resolveProductMediaUrl(component.imageUrl);
-                return (
-                  <li key={`${openPackage.id}-${component.menuItemId}-${component.slotLabel ?? ""}`}>
-                    <div className="lunch-package-detail__media">
-                      {src ? (
-                        <img src={src} alt={component.imageAlt || component.name} loading="lazy" />
-                      ) : (
-                        <span aria-hidden="true">{component.name.slice(0, 1)}</span>
-                      )}
-                    </div>
-                    <div className="lunch-package-detail__copy">
-                      {component.slotLabel ? (
-                        <span className="lunch-package-detail__slot">{component.slotLabel}</span>
+      {openPackage
+        ? createPortal(
+            <div
+              className="app-shell dialog-portal-host"
+              data-menu-theme={menuThemeId?.trim() || "modern"}
+            >
+              <Dialog
+                labelledBy="lunch-package-detail-title"
+                dismissLabel={copy.closeDetails}
+                onDismiss={() => setOpenId(null)}
+                footer={
+                  <div className="lunch-package-detail__footer">
+                    <div className="lunch-package-detail__footer-price">
+                      {openPackage.discount.amountMinor > 0 ? (
+                        <span className="price-list">{formatMoney(openPackage.listPrice)}</span>
                       ) : null}
-                      <strong>{component.name}</strong>
-                      {component.description ? <p>{component.description}</p> : null}
+                      <strong className="price-final">{formatMoney(openPackage.price)}</strong>
+                      {openPackage.discount.amountMinor > 0 ? (
+                        <span className="lunch-package-detail__save">
+                          {copy.savings}: {formatMoney(openPackage.discount)}
+                        </span>
+                      ) : null}
                     </div>
-                    <span className="lunch-package-detail__item-price">
-                      {formatMoney({
-                        amountMinor: component.listAmountMinor,
-                        currency: openPackage.price.currency,
-                      })}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </Dialog>
-      ) : null}
+                    <Button
+                      onClick={() => {
+                        onAdd(openPackage);
+                        setOpenId(null);
+                      }}
+                    >
+                      {copy.add}
+                    </Button>
+                  </div>
+                }
+              >
+                <div className="lunch-package-detail">
+                  <header className="dialog-heading lunch-package-detail__head">
+                    <div>
+                      <p className="eyebrow">{copy.subtitle}</p>
+                      <h2 id="lunch-package-detail-title">{openPackage.name}</h2>
+                      {openPackage.dailyStartLocal && openPackage.dailyEndLocal ? (
+                        <p className="lunch-package-detail__hours">
+                          {copy.hours}: {openPackage.dailyStartLocal} – {openPackage.dailyEndLocal}
+                        </p>
+                      ) : null}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      aria-label={copy.closeDetails}
+                      onClick={() => setOpenId(null)}
+                    >
+                      ×
+                    </Button>
+                  </header>
+                  {openPackage.description ? (
+                    <p className="lede lunch-package-detail__lede">{openPackage.description}</p>
+                  ) : null}
+                  <ul className="lunch-package-detail__items" aria-label={copy.includes}>
+                    {openPackage.components.map((raw) => {
+                      const component = resolveComponent(raw);
+                      const src = resolveProductMediaUrl(component.imageUrl);
+                      return (
+                        <li
+                          key={`${openPackage.id}-${component.menuItemId}-${component.slotLabel ?? ""}`}
+                        >
+                          <div className="lunch-package-detail__media">
+                            {src ? (
+                              <img
+                                src={src}
+                                alt={component.imageAlt || component.name}
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span aria-hidden="true">{component.name.slice(0, 1)}</span>
+                            )}
+                          </div>
+                          <div className="lunch-package-detail__copy">
+                            {component.slotLabel ? (
+                              <span className="lunch-package-detail__slot">
+                                {component.slotLabel}
+                              </span>
+                            ) : null}
+                            <strong>{component.name}</strong>
+                            {component.description ? <p>{component.description}</p> : null}
+                          </div>
+                          <span className="lunch-package-detail__item-price">
+                            {formatMoney({
+                              amountMinor: component.listAmountMinor,
+                              currency: openPackage.price.currency,
+                            })}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </Dialog>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }
@@ -1246,6 +1293,11 @@ function Menu({
         setSubmitError(t.submitSessionExpired);
       } else if (error instanceof CustomerGatewayError && error.code === "ORDER_REJECTED") {
         setSubmitError(t.submitOrderRejected);
+      } else if (
+        error instanceof CustomerGatewayError &&
+        (error.code === "ORDER_RATE_LIMITED" || error.code === "ORDER_BLOCKED")
+      ) {
+        setSubmitError(t.submitRateLimited);
       } else if (error instanceof CustomerGatewayError && error.message.trim()) {
         setSubmitError(error.message);
       } else {
@@ -1349,6 +1401,7 @@ function Menu({
           packages={session.packages}
           products={session.products}
           locale={session.locale}
+          menuThemeId={session.customerMenu?.themeId}
           onAdd={addPackage}
         />
         <nav className="categories" aria-label={t.menuEyebrow}>
@@ -1452,6 +1505,11 @@ function Menu({
                       {product.dietaryTags.map((tag) => (
                         <span className="badge badge--dietary" key={tag}>
                           {t.dietary[tag]}
+                        </span>
+                      ))}
+                      {(product.customLabels ?? []).map((label) => (
+                        <span className="badge badge--custom" key={`custom:${label}`}>
+                          {label}
                         </span>
                       ))}
                     </span>
@@ -1578,12 +1636,13 @@ export function App({ gateway, qrToken }: AppProps) {
     }
 
     const generation = ++resolveGenerationRef.current;
+    const abort = new AbortController();
     const locale =
       new URLSearchParams(window.location.search).get("lang") === "en" ? "en" : "tr";
     setState({ status: "loading" });
 
     void activeGateway
-      .resolveQr(token, undefined, locale)
+      .resolveQr(token, abort.signal, locale)
       .then((session) => {
         if (generation !== resolveGenerationRef.current) {
           return;
@@ -1592,6 +1651,9 @@ export function App({ gateway, qrToken }: AppProps) {
       })
       .catch((error: unknown) => {
         if (generation !== resolveGenerationRef.current) {
+          return;
+        }
+        if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
         if (error instanceof CustomerGatewayError && error.code === "INVALID_QR") {
@@ -1614,6 +1676,7 @@ export function App({ gateway, qrToken }: AppProps) {
       });
 
     return () => {
+      abort.abort();
       resolveGenerationRef.current += 1;
     };
   }, [activeGateway, token]);

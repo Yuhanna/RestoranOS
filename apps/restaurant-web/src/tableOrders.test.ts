@@ -46,9 +46,28 @@ describe("groupOrdersByTable", () => {
     expect(groups[0]?.roundCount).toBe(2);
     expect(groups[0]?.totalMinor).toBe(4000);
     expect(groups[0]?.hasSubmittedRound).toBe(true);
+    expect(groups[0]?.hasIncompleteKitchen).toBe(true);
     expect(groups[0]?.orders.map((item) => item.id)).toEqual(["o1", "o2"]);
     expect(groups[1]?.tableId).toBe("t2");
     expect(groups[1]?.hasSubmittedRound).toBe(false);
+    expect(groups[1]?.hasIncompleteKitchen).toBe(true);
+  });
+
+  it("keeps empty GUID table ids in one unlabeled bucket", () => {
+    const first = order({
+      id: "a",
+      tableId: "00000000-0000-0000-0000-000000000000",
+      tableLabel: "Masa X",
+    });
+    const second = order({
+      id: "b",
+      tableId: "00000000-0000-0000-0000-000000000000",
+      tableLabel: "Masa X",
+      status: "ready",
+    });
+    const groups = groupOrdersByTable([first, second], new Set());
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.roundCount).toBe(2);
   });
 
   it("treats recently arrived orders as a new round even after status moves on", () => {

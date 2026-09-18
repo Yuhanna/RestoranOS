@@ -24,27 +24,35 @@ public sealed class CustomerOrderGuard(
                 "Order temporarily unavailable due to unusual activity.");
         }
 
-        var guestCount = Increment(
-            $"customer-order:guest:{customerSessionId:N}",
-            TimeSpan.FromMinutes(settings.GuestWindowMinutes));
-        if (guestCount > settings.GuestPermitLimit)
+        // Peek only — failed catalog/package validation must not consume quota.
+        if (GetCount($"customer-order:guest:{customerSessionId:N}") >= settings.GuestPermitLimit)
         {
             throw new CustomerExperienceException(
                 "ORDER_RATE_LIMITED",
                 "Too many orders from this guest session. Please wait a moment.");
         }
 
+        if (!string.IsNullOrWhiteSpace(client?.DeviceId)
+            && GetCount($"customer-order:device:{client.DeviceId.Trim()}") >= settings.DevicePermitLimit)
+        {
+            throw new CustomerExperienceException(
+                "ORDER_RATE_LIMITED",
+                "Too many orders from this device. Please wait a moment.");
+        }
+    }
+
+    public void RecordSuccessfulOrder(Guid customerSessionId, CustomerClientContext? client)
+    {
+        var settings = options.Value;
+        Increment(
+            $"customer-order:guest:{customerSessionId:N}",
+            TimeSpan.FromMinutes(settings.GuestWindowMinutes));
+
         if (!string.IsNullOrWhiteSpace(client?.DeviceId))
         {
-            var deviceCount = Increment(
+            Increment(
                 $"customer-order:device:{client.DeviceId.Trim()}",
                 TimeSpan.FromMinutes(settings.DeviceWindowMinutes));
-            if (deviceCount > settings.DevicePermitLimit)
-            {
-                throw new CustomerExperienceException(
-                    "ORDER_RATE_LIMITED",
-                    "Too many orders from this device. Please wait a moment.");
-            }
         }
 
         if (!string.IsNullOrWhiteSpace(client?.ClientIp))
@@ -57,19 +65,14 @@ public sealed class CustomerOrderGuard(
                 AddRisk(customerSessionId, client.ClientIp, 2);
             }
         }
-
-        if (GetRiskScore(customerSessionId, client?.ClientIp) >= settings.RiskBlockThreshold)
-        {
-            throw new CustomerExperienceException(
-                "ORDER_BLOCKED",
-                "Order temporarily unavailable due to unusual activity.");
-        }
     }
 
     public void RecordFailedRequest(CustomerClientContext? client, Guid? customerSessionId = null)
     {
         AddRisk(customerSessionId ?? Guid.Empty, client?.ClientIp, 1);
     }
+
+    private int GetCount(string key) => cache.Get<Counter>(key)?.Value ?? 0;
 
     private int Increment(string key, TimeSpan window)
     {

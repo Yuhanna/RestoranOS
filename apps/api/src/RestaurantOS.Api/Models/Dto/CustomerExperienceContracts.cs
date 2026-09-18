@@ -23,7 +23,8 @@ public sealed record CustomerSessionResponse(
     IReadOnlyList<MenuProductResponse> Products,
     IReadOnlyList<string> OpenServiceRequestTypes,
     IReadOnlyList<CustomerOrderResponse> ActiveOrders,
-    CustomerMenuSettingsResponse CustomerMenu);
+    CustomerMenuSettingsResponse CustomerMenu,
+    IReadOnlyList<MenuPackageResponse> Packages);
 
 public sealed record MenuCategoryResponse(string Id, string Name);
 
@@ -84,21 +85,43 @@ public sealed record MenuProductResponse(
     string? ServingNote,
     string? PriceLabel,
     string? CertificationNotes,
+    string[]? CustomLabels = null,
     PriceBreakdownResponse? Pricing = null,
     string? PromotionLabel = null,
     string? DiscountKind = null,
     int? DiscountValue = null,
     DateTimeOffset? PromotionEndsAtUtc = null);
 
+public sealed record MenuPackageComponentResponse(
+    string MenuItemId,
+    string Name,
+    string? SlotLabel,
+    long ListAmountMinor,
+    string ImageUrl,
+    string ImageAlt,
+    string Description);
+
+public sealed record MenuPackageResponse(
+    string Id,
+    string Name,
+    string Description,
+    MoneyResponse Price,
+    MoneyResponse ListPrice,
+    MoneyResponse Discount,
+    IReadOnlyList<MenuPackageComponentResponse> Components,
+    string? DailyStartLocal,
+    string? DailyEndLocal);
+
 public sealed record CreateCustomerOrderRequest(
     string SessionToken,
     IReadOnlyList<CreateCustomerOrderLineRequest> Lines);
 
 public sealed record CreateCustomerOrderLineRequest(
-    string ProductId,
+    string? ProductId,
     int Quantity,
     IReadOnlyList<string>? ModifierOptionIds,
-    string? Note);
+    string? Note,
+    string? PackageId = null);
 
 public sealed record CustomerOrderResponse(
     string Id,

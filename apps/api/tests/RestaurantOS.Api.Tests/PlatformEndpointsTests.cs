@@ -288,6 +288,93 @@ public sealed class PlatformEndpointsTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    public async Task OwnerCanInviteStaffAndBillingCannot()
+    {
+        var owner = await LoginPlatformAsync();
+        var invited = await _client.SendAsync(Authorized(
+            HttpMethod.Post,
+            "/api/v1/platform/staff",
+            owner.AccessToken,
+            new ManagementInvitePlatformStaffRequest("ops@example.test", PlatformStaffRoles.Support, Password)));
+        Assert.Equal(HttpStatusCode.Created, invited.StatusCode);
+        var created = await invited.Content.ReadFromJsonAsync<ManagementPlatformStaffResponse>();
+        Assert.NotNull(created);
+        Assert.Equal("ops@example.test", created.Email);
+        Assert.Equal(PlatformStaffRoles.Support, created.RoleCode);
+
+        var listed = await _client.SendAsync(Authorized(
+            HttpMethod.Get,
+            "/api/v1/platform/staff",
+            owner.AccessToken));
+        listed.EnsureSuccessStatusCode();
+        var members = await listed.Content.ReadFromJsonAsync<List<ManagementPlatformStaffResponse>>();
+        Assert.Contains(members!, x => x.Email == "ops@example.test");
+
+        await SeedBillingStaffAsync();
+        var billing = await LoginPlatformAsAsync("billing@example.test");
+        var denied = await _client.SendAsync(Authorized(
+            HttpMethod.Post,
+            "/api/v1/platform/staff",
+            billing.AccessToken,
+            new ManagementInvitePlatformStaffRequest("other@example.test", PlatformStaffRoles.ReadOnly, Password)));
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+    }
+
+    [Fact]
+    public async Task LastOwnerCannotBeDemoted()
+    {
+        var owner = await LoginPlatformAsync();
+        var response = await _client.SendAsync(Authorized(
+            HttpMethod.Patch,
+            $"/api/v1/platform/staff/{SeedIds.PlatformUser}",
+            owner.AccessToken,
+            new ManagementUpdatePlatformStaffRequest(RoleCode: PlatformStaffRoles.Support)));
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task LastOwnerCannotBeDeactivated()
+    {
+        var owner = await LoginPlatformAsync();
+        var response = await _client.SendAsync(Authorized(
+            HttpMethod.Patch,
+            $"/api/v1/platform/staff/{SeedIds.PlatformUser}",
+            owner.AccessToken,
+            new ManagementUpdatePlatformStaffRequest(IsActive: false)));
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PlatformNotificationCanBeDeactivated()
+    {
+        var access = await LoginPlatformAsync();
+        var created = await _client.SendAsync(Authorized(
+            HttpMethod.Post,
+            "/api/v1/platform/notifications",
+            access.AccessToken,
+            new ManagementCreatePlatformNotificationRequest(
+                SubscriptionAudiences.All,
+                "Bakım",
+                "Kısa kesinti",
+                DateTimeOffset.UtcNow,
+                null,
+                null,
+                true)));
+        created.EnsureSuccessStatusCode();
+        var notification = await created.Content.ReadFromJsonAsync<ManagementManagedNotificationResponse>();
+        Assert.NotNull(notification);
+
+        var paused = await _client.SendAsync(Authorized(
+            HttpMethod.Patch,
+            $"/api/v1/platform/notifications/{notification.Id}",
+            access.AccessToken,
+            new ManagementSetPlatformNotificationActiveRequest(false)));
+        paused.EnsureSuccessStatusCode();
+        var updated = await paused.Content.ReadFromJsonAsync<ManagementManagedNotificationResponse>();
+        Assert.False(updated!.IsActive);
+    }
+
+    [Fact]
     public async Task ManagementRefreshCookieCannotMintPlatformSession()
     {
         var login = await _client.PostAsJsonAsync(
@@ -506,6 +593,8 @@ public sealed class PlatformEndpointsTests : IAsyncLifetime, IDisposable
                 "ManagementAuth:SigningKey",
                 "test-only-signing-key-32-bytes-minimum-value");
             builder.UseSetting("ManagementAuth:PlatformAudience", "restaurant-os-platform");
+            builder.UseSetting("BootstrapAdmin:Password", "");
+            builder.UseSetting("BootstrapPlatformAdmin:Password", "");
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<DbContextOptions<RestaurantOsDbContext>>();

@@ -1,0 +1,334 @@
+@model RestaurantOS.Web.Models.BranchesPageViewModel
+@{
+    var branch = (RestaurantOS.Web.Models.BranchListItemViewModel)ViewData["AccountsBranch"]!;
+    var canAssignElevatedRoles = Model.CanManageBranches;
+    var entitlements = Model.Workspace?.Entitlements;
+    string RoleLabel(string? role) => role switch
+    {
+        "RestaurantOwner" => "Merkez sahibi",
+        "BranchManager" => "Şube yöneticisi",
+        "BranchStaff" => "Personel",
+        "PlatformOperator" => "Platform",
+        _ => string.IsNullOrWhiteSpace(role) ? "—" : role,
+    };
+    bool CanOperate(RestaurantOS.Web.Models.BranchMemberViewModel member) =>
+        Model.CanManageBranches || string.Equals(member.RoleKey, "staff", StringComparison.OrdinalIgnoreCase);
+}
+
+<h4 style="margin:1.35rem 0 0.35rem" id="branch-accounts">Hesaplar · @branch.Name</h4>
+<p class="muted" style="margin:0 0 0.85rem">
+    @if (canAssignElevatedRoles)
+    {
+        <span>Liste ve yeni hesap yalnızca bu şubeye aittir. Başka şube için üstten o şubeye geçin.</span>
+    }
+    else
+    {
+        <span>Bu şubeye personel ekleyebilir, düzenleyebilir ve şifresini sıfırlayabilirsiniz. Yönetici / merkez sahibi hesapları merkez sahibine aittir.</span>
+    }
+</p>
+
+@if (branch.IsFrozen)
+{
+    <p class="muted">Dondurulmuş şubeye yeni hesap eklenemez. Pro’ya geçin veya ek koltuk alın.</p>
+}
+else
+{
+    <form asp-action="Invite" method="post" class="form-grid form-grid-wide">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="InviteMember.BranchId" value="@branch.Id" />
+        <label class="span-2">
+            <span>Şube</span>
+            <input type="text" value="@branch.Name" readonly aria-readonly="true" />
+        </label>
+        <label>
+            <span>Ad Soyad <span class="req" title="Zorunlu">*</span></span>
+            <input asp-for="InviteMember.DisplayName" placeholder="Ayşe Yılmaz" required aria-required="true" />
+        </label>
+        <label>
+            <span>E-posta <span class="req" title="Zorunlu">*</span></span>
+            <input asp-for="InviteMember.Email" placeholder="sube@ornek.com" required aria-required="true" />
+        </label>
+        <label>
+            <span>Telefon <span class="opt">opsiyonel</span></span>
+            <input asp-for="InviteMember.Phone" placeholder="05xx xxx xx xx" />
+        </label>
+        <label>
+            <span>Şifre <span class="req" title="Yeni hesapta zorunlu">*</span> <span class="opt">yalnızca yeni hesap · min. 12</span></span>
+            <input asp-for="InviteMember.Password" type="password" autocomplete="new-password" minlength="12" />
+        </label>
+        <label class="span-2">
+            <span>Rol <span class="req" title="Zorunlu">*</span></span>
+            @if (canAssignElevatedRoles)
+            {
+                <select asp-for="InviteMember.RoleKey" required aria-required="true">
+                    <option value="staff">Personel</option>
+                    <option value="manager">Şube yöneticisi</option>
+                    <option value="owner">Merkez sahibi</option>
+                </select>
+            }
+            else
+            {
+                <input type="hidden" asp-for="InviteMember.RoleKey" value="staff" />
+                <input type="text" value="Personel" readonly aria-readonly="true" />
+            }
+        </label>
+        <div class="span-2">
+            <button type="submit" class="btn">Bu şubeye hesap ekle</button>
+            @if (canAssignElevatedRoles && entitlements?.CanManageAdditionalRoles != true)
+            {
+                <p class="muted" style="margin:0.5rem 0 0">
+                    Free planda yalnızca Personel rolü eklenebilir. Yönetici rolleri için Pro gerekir.
+                </p>
+            }
+        </div>
+    </form>
+}
+
+@if (Model.SelectedMembers.Count > 0)
+{
+    <div class="table-wrap" id="members-table" data-page-size="8" style="margin-top:1rem">
+        <table>
+            <thead>
+                <tr>
+                    <th>Şube</th>
+                    <th>Ad Soyad</th>
+                    <th>E-posta</th>
+                    <th>Telefon</th>
+                    <th>Rol</th>
+                    <th>Durum</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var member in Model.SelectedMembers)
+                {
+                    var operable = CanOperate(member);
+                    var editId = $"member-edit-{member.MembershipId:N}";
+                    <tr class="members-row">
+                        <td>@branch.Name</td>
+                        <td>@(string.IsNullOrWhiteSpace(member.DisplayName) ? "—" : member.DisplayName)</td>
+                        <td>@member.Email</td>
+                        <td>@(string.IsNullOrWhiteSpace(member.Phone) ? "—" : member.Phone)</td>
+                        <td>@RoleLabel(member.RoleName)</td>
+                        <td>@(member.IsActive ? "Aktif" : "Pasif")</td>
+                        <td>
+                            @if (operable && member.IsActive)
+                            {
+                                <button type="button"
+                                        class="linkish member-edit-toggle"
+                                        aria-expanded="false"
+                                        aria-controls="@editId">Düzenle</button>
+                            }
+                            else if (operable && !member.IsActive)
+                            {
+                                <form asp-action="ActivateMember" method="post" class="inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="branchId" value="@branch.Id" />
+                                    <input type="hidden" name="membershipId" value="@member.MembershipId" />
+                                    <button type="submit" class="linkish">Aktifleştir</button>
+                                </form>
+                            }
+                            else if (member.IsActive && !operable)
+                            {
+                                <span class="muted" style="font-size:0.85rem">Salt okunur</span>
+                            }
+                        </td>
+                    </tr>
+                    @if (member.IsActive && operable)
+                    {
+                        <tr class="member-edit-row" id="@editId" hidden>
+                            <td colspan="7">
+                                <div class="member-edit-panel">
+                                    <div class="member-edit-panel__head">
+                                        <strong>@(string.IsNullOrWhiteSpace(member.DisplayName) ? member.Email : member.DisplayName)</strong>
+                                        <span class="muted">· @member.Email</span>
+                                        <button type="button" class="linkish member-edit-close" data-close="@editId">Kapat</button>
+                                    </div>
+                                    <form asp-action="UpdateMember" method="post" class="form-grid form-grid-wide member-edit-panel__form">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="BranchId" value="@branch.Id" />
+                                        <input type="hidden" name="MembershipId" value="@member.MembershipId" />
+                                        <label>
+                                            <span>Ad Soyad</span>
+                                            <input name="DisplayName" value="@member.DisplayName" required maxlength="120" />
+                                        </label>
+                                        <label>
+                                            <span>Telefon</span>
+                                            <input name="Phone" value="@member.Phone" maxlength="40" />
+                                        </label>
+                                        @if (canAssignElevatedRoles)
+                                        {
+                                            <label class="span-2">
+                                                <span>Rol</span>
+                                                <select name="RoleKey">
+                                                    @if (member.RoleKey == "staff")
+                                                    {
+                                                        <option value="staff" selected>Personel</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="staff">Personel</option>
+                                                    }
+                                                    @if (member.RoleKey == "manager")
+                                                    {
+                                                        <option value="manager" selected>Şube yöneticisi</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="manager">Şube yöneticisi</option>
+                                                    }
+                                                    @if (member.RoleKey == "owner")
+                                                    {
+                                                        <option value="owner" selected>Merkez sahibi</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="owner">Merkez sahibi</option>
+                                                    }
+                                                </select>
+                                            </label>
+                                        }
+                                        <div class="span-2 member-edit-panel__actions">
+                                            <button type="submit" class="btn">Kaydet</button>
+                                        </div>
+                                    </form>
+                                    <form asp-action="ResetMemberPassword" method="post" class="form-grid form-grid-wide member-edit-panel__form">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="BranchId" value="@branch.Id" />
+                                        <input type="hidden" name="MembershipId" value="@member.MembershipId" />
+                                        <label>
+                                            <span>Yeni şifre <span class="opt">min. 12</span></span>
+                                            <input name="NewPassword" type="password" autocomplete="new-password" minlength="12" required />
+                                        </label>
+                                        <div class="form-actions">
+                                            <button type="submit" class="btn btn-ghost">Şifreyi sıfırla</button>
+                                        </div>
+                                    </form>
+                                    <form asp-action="DeactivateMember" method="post" class="member-edit-panel__danger">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="branchId" value="@branch.Id" />
+                                        <input type="hidden" name="membershipId" value="@member.MembershipId" />
+                                        <button type="submit" class="linkish">Pasifleştir</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+        <div class="pager" id="members-pager" hidden>
+            <p class="pager__meta" id="members-pager-meta"></p>
+            <div class="pager__controls" role="navigation" aria-label="Hesap listesi sayfalama">
+                <button type="button" class="pager__btn" id="members-prev" aria-label="Önceki sayfa">‹</button>
+                <div class="pager__pages" id="members-pages"></div>
+                <button type="button" class="pager__btn" id="members-next" aria-label="Sonraki sayfa">›</button>
+            </div>
+        </div>
+    </div>
+    <p class="muted" style="margin:0.75rem 0 0;font-size:0.9rem">
+        Kendi adınız / şifreniz için <a asp-controller="Settings" asp-action="Index">Ayarlar</a> sayfasını kullanın.
+    </p>
+    <script>
+        (function () {
+            var root = document.getElementById('members-table');
+            if (!root) return;
+
+            function closeAllEdits() {
+                root.querySelectorAll('.member-edit-row').forEach(function (row) {
+                    row.hidden = true;
+                });
+                root.querySelectorAll('.member-edit-toggle').forEach(function (btn) {
+                    btn.setAttribute('aria-expanded', 'false');
+                });
+            }
+
+            root.addEventListener('click', function (event) {
+                var toggle = event.target.closest('.member-edit-toggle');
+                if (toggle) {
+                    var id = toggle.getAttribute('aria-controls');
+                    var panel = id ? document.getElementById(id) : null;
+                    if (!panel) return;
+                    var willOpen = panel.hidden;
+                    closeAllEdits();
+                    if (willOpen) {
+                        panel.hidden = false;
+                        toggle.setAttribute('aria-expanded', 'true');
+                        panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    }
+                    return;
+                }
+                var closer = event.target.closest('.member-edit-close');
+                if (closer) {
+                    closeAllEdits();
+                }
+            });
+
+            var rows = Array.prototype.slice.call(root.querySelectorAll('.members-row'));
+            var pageSize = parseInt(root.getAttribute('data-page-size') || '8', 10);
+            var pager = document.getElementById('members-pager');
+            var meta = document.getElementById('members-pager-meta');
+            var pagesEl = document.getElementById('members-pages');
+            var prevBtn = document.getElementById('members-prev');
+            var nextBtn = document.getElementById('members-next');
+            if (rows.length <= pageSize) return;
+            var page = 1;
+            var totalPages = Math.ceil(rows.length / pageSize);
+            function pageWindow() {
+                if (totalPages <= 7) {
+                    var all = [];
+                    for (var i = 1; i <= totalPages; i++) all.push(i);
+                    return all;
+                }
+                var set = { 1: true, 2: true, [totalPages - 1]: true, [totalPages]: true, [page]: true, [page - 1]: true, [page + 1]: true };
+                var keys = Object.keys(set).map(Number).filter(function (n) { return n >= 1 && n <= totalPages; }).sort(function (a, b) { return a - b; });
+                var out = [];
+                for (var i = 0; i < keys.length; i++) {
+                    if (i > 0 && keys[i] - keys[i - 1] > 1) out.push('…');
+                    out.push(keys[i]);
+                }
+                return out;
+            }
+            function render() {
+                closeAllEdits();
+                rows.forEach(function (row, idx) {
+                    var hide = idx < (page - 1) * pageSize || idx >= page * pageSize;
+                    row.hidden = hide;
+                    var edit = row.nextElementSibling;
+                    if (edit && edit.classList.contains('member-edit-row') && hide) {
+                        edit.hidden = true;
+                    }
+                });
+                pager.hidden = false;
+                var from = (page - 1) * pageSize + 1;
+                var to = Math.min(page * pageSize, rows.length);
+                meta.textContent = from + '–' + to + ' / ' + rows.length;
+                pagesEl.innerHTML = '';
+                pageWindow().forEach(function (item) {
+                    if (item === '…') {
+                        var dots = document.createElement('span');
+                        dots.className = 'pager__ellipsis';
+                        dots.textContent = '…';
+                        pagesEl.appendChild(dots);
+                        return;
+                    }
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'pager__btn' + (item === page ? ' is-active' : '');
+                    btn.textContent = String(item);
+                    btn.addEventListener('click', function () { page = item; render(); });
+                    pagesEl.appendChild(btn);
+                });
+                prevBtn.disabled = page <= 1;
+                nextBtn.disabled = page >= totalPages;
+            }
+            prevBtn.addEventListener('click', function () { if (page > 1) { page--; render(); } });
+            nextBtn.addEventListener('click', function () { if (page < totalPages) { page++; render(); } });
+            render();
+        })();
+    </script>
+}
+else if (!branch.IsFrozen)
+{
+    <p class="muted" style="margin-top:1rem">Bu şubede henüz hesap yok.</p>
+}

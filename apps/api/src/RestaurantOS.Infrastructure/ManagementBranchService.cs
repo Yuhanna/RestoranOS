@@ -201,7 +201,9 @@ public sealed class ManagementBranchService(
                 role.Name,
                 ToRoleKey(role.Name),
                 membership.IsActive,
-                user.LastLoginAtUtc)).ToListAsync(cancellationToken);
+                user.LastLoginAtUtc,
+                user.DisplayName,
+                user.Phone)).ToListAsync(cancellationToken);
 
         return rows;
     }
@@ -213,43 +215,76 @@ public sealed class ManagementBranchService(
         string email,
         string? password,
         string roleKey,
+        string displayName,
+        string? phone,
         CancellationToken cancellationToken)
     {
         await EnsureBranchAsync(tenantId, branchId, cancellationToken);
         await entitlements.EnsureBranchNotFrozenAsync(tenantId, branchId, cancellationToken);
-        await entitlements.EnsureCanManageAdditionalRolesAsync(tenantId, cancellationToken);
 
+        var actor = await GetActorAuthorityAsync(actorUserId, tenantId, branchId, cancellationToken);
         var normalizedEmail = NormalizeEmail(email);
         if (string.IsNullOrWhiteSpace(email) || email.Trim().Length > 256 || !email.Contains('@'))
         {
             throw new CustomerExperienceException("VALIDATION_ERROR", "Geçerli bir e-posta gerekli.");
         }
 
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            throw new CustomerExperienceException("VALIDATION_ERROR", "Ad soyad gerekli.");
+        }
+
         var resolvedRoleKey = NormalizeRoleKey(roleKey);
+        EnsureCanAssignRole(actor, resolvedRoleKey);
+        if (resolvedRoleKey != RoleKeyStaff)
+        {
+            await entitlements.EnsureCanManageAdditionalRolesAsync(tenantId, cancellationToken);
+        }
+
         var (roleName, permissions) = ResolveRole(resolvedRoleKey);
         var role = await EnsureRoleAsync(roleName, permissions, cancellationToken);
 
         var now = timeProvider.GetUtcNow();
         var user = await dbContext.ManagementUsers
             .SingleOrDefaultAsync(x => x.NormalizedEmail == normalizedEmail, cancellationToken);
+        var seatReservedForNewUser = false;
 
-        if (user is null)
+        try
         {
-            if (string.IsNullOrEmpty(password) || password.Length < 12 || password.Length > 128)
+            if (user is null)
             {
-                throw new CustomerExperienceException(
-                    "VALIDATION_ERROR",
-                    "Yeni hesap için şifre 12-128 karakter olmalıdır.");
-            }
+                if (string.IsNullOrEmpty(password) || password.Length < 12 || password.Length > 128)
+                {
+                    throw new CustomerExperienceException(
+                        "VALIDATION_ERROR",
+                        "Yeni hesap için şifre 12-128 karakter olmalıdır.");
+                }
 
-            await entitlements.EnsureCanAddUserAsync(tenantId, cancellationToken);
-            user = new ManagementUser(Guid.NewGuid(), email.Trim(), normalizedEmail, "pending", now);
-            user.UpdatePasswordHash(passwordHasher.HashPassword(user, password));
-            dbContext.ManagementUsers.Add(user);
+                await entitlements.EnsureCanAddUserAsync(tenantId, cancellationToken);
+                seatReservedForNewUser = true;
+                user = new ManagementUser(
+                    Guid.NewGuid(),
+                    email.Trim(),
+                    normalizedEmail,
+                    "pending",
+                    now,
+                    displayName,
+                    phone);
+                user.UpdatePasswordHash(passwordHasher.HashPassword(user, password));
+                dbContext.ManagementUsers.Add(user);
+            }
+            else if (!user.IsActive)
+            {
+                throw new CustomerExperienceException("USER_INACTIVE", "Bu hesap pasif durumda.");
+            }
+            else
+            {
+                user.UpdateProfile(displayName, phone ?? string.Empty, requireDisplayName: true);
+            }
         }
-        else if (!user.IsActive)
+        catch (ArgumentException exception)
         {
-            throw new CustomerExperienceException("USER_INACTIVE", "Bu hesap pasif durumda.");
+            throw new CustomerExperienceException("VALIDATION_ERROR", exception.Message);
         }
 
         var membership = await dbContext.ManagementMemberships.SingleOrDefaultAsync(
@@ -261,7 +296,7 @@ public sealed class ManagementBranchService(
             var isNewUserForTenant = !await dbContext.ManagementMemberships.AnyAsync(
                 x => x.UserId == user.Id && x.TenantId == tenantId && x.IsActive,
                 cancellationToken);
-            if (isNewUserForTenant)
+            if (isNewUserForTenant && !seatReservedForNewUser)
             {
                 await entitlements.EnsureCanAddUserAsync(tenantId, cancellationToken);
             }
@@ -306,7 +341,7 @@ public sealed class ManagementBranchService(
             tenantId,
             branchId,
             user.Id,
-            $"{user.Email}:{resolvedRoleKey}"));
+            $"{user.DisplayName}:{user.Email}:{resolvedRoleKey}"));
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return new ManagementBranchMemberResult(
@@ -316,7 +351,152 @@ public sealed class ManagementBranchService(
             role.Name,
             resolvedRoleKey,
             membership.IsActive,
-            user.LastLoginAtUtc);
+            user.LastLoginAtUtc,
+            user.DisplayName,
+            user.Phone);
+    }
+
+    public async Task<ManagementBranchMemberResult> UpdateMemberAsync(
+        Guid actorUserId,
+        Guid tenantId,
+        Guid branchId,
+        Guid membershipId,
+        string displayName,
+        string? phone,
+        string? roleKey,
+        CancellationToken cancellationToken)
+    {
+        await EnsureBranchAsync(tenantId, branchId, cancellationToken);
+        await entitlements.EnsureBranchNotFrozenAsync(tenantId, branchId, cancellationToken);
+
+        var actor = await GetActorAuthorityAsync(actorUserId, tenantId, branchId, cancellationToken);
+        var membership = await dbContext.ManagementMemberships.SingleOrDefaultAsync(
+            x => x.Id == membershipId && x.TenantId == tenantId && x.BranchId == branchId,
+            cancellationToken)
+            ?? throw new CustomerExperienceException("MEMBERSHIP_NOT_FOUND", "Üyelik bulunamadı.");
+
+        var user = await dbContext.ManagementUsers.SingleOrDefaultAsync(x => x.Id == membership.UserId, cancellationToken)
+            ?? throw new CustomerExperienceException("MEMBERSHIP_NOT_FOUND", "Üyelik bulunamadı.");
+        var currentRole = await dbContext.ManagementRoles.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == membership.RoleId, cancellationToken)
+            ?? throw new CustomerExperienceException("MEMBERSHIP_NOT_FOUND", "Üyelik bulunamadı.");
+
+        EnsureCanManageTarget(actor, currentRole.Name, allowSelf: true, actorUserId, membership.UserId);
+
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            throw new CustomerExperienceException("VALIDATION_ERROR", "Ad soyad gerekli.");
+        }
+
+        try
+        {
+            user.UpdateProfile(displayName, phone ?? string.Empty, requireDisplayName: true);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new CustomerExperienceException("VALIDATION_ERROR", exception.Message);
+        }
+
+        var roleName = currentRole.Name;
+        var resolvedRoleKey = ToRoleKey(currentRole.Name);
+        if (!string.IsNullOrWhiteSpace(roleKey))
+        {
+            resolvedRoleKey = NormalizeRoleKey(roleKey);
+            EnsureCanAssignRole(actor, resolvedRoleKey);
+            if (membership.UserId == actorUserId && resolvedRoleKey != ToRoleKey(currentRole.Name))
+            {
+                throw new CustomerExperienceException(
+                    "CANNOT_CHANGE_OWN_ROLE",
+                    "Kendi rolünüzü bu ekrandan değiştiremezsiniz.");
+            }
+
+            if (resolvedRoleKey != RoleKeyStaff)
+            {
+                await entitlements.EnsureCanManageAdditionalRolesAsync(tenantId, cancellationToken);
+            }
+
+            var (nextRoleName, permissions) = ResolveRole(resolvedRoleKey);
+            var role = await EnsureRoleAsync(nextRoleName, permissions, cancellationToken);
+            membership.ChangeRole(role.Id);
+            roleName = nextRoleName;
+        }
+
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "BranchMemberUpdated",
+            true,
+            timeProvider.GetUtcNow(),
+            actorUserId,
+            tenantId,
+            branchId,
+            user.Id,
+            $"{user.DisplayName}:{user.Email}:{resolvedRoleKey}"));
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new ManagementBranchMemberResult(
+            membership.Id,
+            user.Id,
+            user.Email,
+            roleName,
+            resolvedRoleKey,
+            membership.IsActive,
+            user.LastLoginAtUtc,
+            user.DisplayName,
+            user.Phone);
+    }
+
+    public async Task ResetMemberPasswordAsync(
+        Guid actorUserId,
+        Guid tenantId,
+        Guid branchId,
+        Guid membershipId,
+        string newPassword,
+        CancellationToken cancellationToken)
+    {
+        await EnsureBranchAsync(tenantId, branchId, cancellationToken);
+        await entitlements.EnsureBranchNotFrozenAsync(tenantId, branchId, cancellationToken);
+
+        if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 12 || newPassword.Length > 128)
+        {
+            throw new CustomerExperienceException(
+                "VALIDATION_ERROR",
+                "Şifre 12-128 karakter olmalıdır.");
+        }
+
+        var actor = await GetActorAuthorityAsync(actorUserId, tenantId, branchId, cancellationToken);
+        var membership = await dbContext.ManagementMemberships.SingleOrDefaultAsync(
+            x => x.Id == membershipId && x.TenantId == tenantId && x.BranchId == branchId,
+            cancellationToken)
+            ?? throw new CustomerExperienceException("MEMBERSHIP_NOT_FOUND", "Üyelik bulunamadı.");
+
+        var role = await dbContext.ManagementRoles.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == membership.RoleId, cancellationToken)
+            ?? throw new CustomerExperienceException("MEMBERSHIP_NOT_FOUND", "Üyelik bulunamadı.");
+        EnsureCanManageTarget(actor, role.Name, allowSelf: true, actorUserId, membership.UserId);
+
+        var user = await dbContext.ManagementUsers.SingleOrDefaultAsync(x => x.Id == membership.UserId, cancellationToken)
+            ?? throw new CustomerExperienceException("MEMBERSHIP_NOT_FOUND", "Üyelik bulunamadı.");
+
+        user.UpdatePasswordHash(passwordHasher.HashPassword(user, newPassword));
+        var now = timeProvider.GetUtcNow();
+        var sessions = await dbContext.ManagementRefreshSessions
+            .Where(x => x.UserId == user.Id && x.RevokedAtUtc == null)
+            .ToListAsync(cancellationToken);
+        foreach (var session in sessions)
+        {
+            session.Revoke(now);
+        }
+
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "BranchMemberPasswordReset",
+            true,
+            now,
+            actorUserId,
+            tenantId,
+            branchId,
+            user.Id));
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeactivateMemberAsync(
@@ -327,6 +507,7 @@ public sealed class ManagementBranchService(
         CancellationToken cancellationToken)
     {
         await EnsureBranchAsync(tenantId, branchId, cancellationToken);
+        var actor = await GetActorAuthorityAsync(actorUserId, tenantId, branchId, cancellationToken);
         var membership = await dbContext.ManagementMemberships.SingleOrDefaultAsync(
             x => x.Id == membershipId && x.TenantId == tenantId && x.BranchId == branchId,
             cancellationToken)
@@ -338,6 +519,11 @@ public sealed class ManagementBranchService(
                 "CANNOT_DEACTIVATE_SELF",
                 "Kendi üyeliğinizi bu ekrandan kapatamazsınız.");
         }
+
+        var role = await dbContext.ManagementRoles.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == membership.RoleId, cancellationToken)
+            ?? throw new CustomerExperienceException("MEMBERSHIP_NOT_FOUND", "Üyelik bulunamadı.");
+        EnsureCanManageTarget(actor, role.Name, allowSelf: false, actorUserId, membership.UserId);
 
         membership.Deactivate();
         dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
@@ -351,6 +537,148 @@ public sealed class ManagementBranchService(
             membership.UserId));
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task ActivateMemberAsync(
+        Guid actorUserId,
+        Guid tenantId,
+        Guid branchId,
+        Guid membershipId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureBranchAsync(tenantId, branchId, cancellationToken);
+        await entitlements.EnsureBranchNotFrozenAsync(tenantId, branchId, cancellationToken);
+
+        var actor = await GetActorAuthorityAsync(actorUserId, tenantId, branchId, cancellationToken);
+        var membership = await dbContext.ManagementMemberships.SingleOrDefaultAsync(
+            x => x.Id == membershipId && x.TenantId == tenantId && x.BranchId == branchId,
+            cancellationToken)
+            ?? throw new CustomerExperienceException("MEMBERSHIP_NOT_FOUND", "Üyelik bulunamadı.");
+
+        if (membership.IsActive)
+        {
+            throw new CustomerExperienceException(
+                "MEMBERSHIP_ALREADY_ACTIVE",
+                "Bu üyelik zaten aktif.");
+        }
+
+        var user = await dbContext.ManagementUsers.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == membership.UserId, cancellationToken)
+            ?? throw new CustomerExperienceException("MEMBERSHIP_NOT_FOUND", "Üyelik bulunamadı.");
+        if (!user.IsActive)
+        {
+            throw new CustomerExperienceException(
+                "USER_INACTIVE",
+                "Bu hesap pasif durumda; önce hesabı açın.");
+        }
+
+        var role = await dbContext.ManagementRoles.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == membership.RoleId, cancellationToken)
+            ?? throw new CustomerExperienceException("MEMBERSHIP_NOT_FOUND", "Üyelik bulunamadı.");
+        EnsureCanManageTarget(actor, role.Name, allowSelf: true, actorUserId, membership.UserId);
+
+        var hasOtherActiveSeat = await dbContext.ManagementMemberships.AnyAsync(
+            x => x.UserId == membership.UserId
+                && x.TenantId == tenantId
+                && x.IsActive
+                && x.Id != membership.Id,
+            cancellationToken);
+        if (!hasOtherActiveSeat)
+        {
+            await entitlements.EnsureCanAddUserAsync(tenantId, cancellationToken);
+        }
+
+        membership.Activate();
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "BranchMemberActivated",
+            true,
+            timeProvider.GetUtcNow(),
+            actorUserId,
+            tenantId,
+            branchId,
+            membership.UserId));
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<ActorMemberAuthority> GetActorAuthorityAsync(
+        Guid actorUserId,
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        var membership = await dbContext.ManagementMemberships.AsNoTracking()
+            .SingleOrDefaultAsync(
+                x => x.UserId == actorUserId
+                    && x.TenantId == tenantId
+                    && x.BranchId == branchId
+                    && x.IsActive,
+                cancellationToken)
+            ?? throw new CustomerExperienceException(
+                "FORBIDDEN",
+                "Bu şubede üye yönetimi için aktif üyeliğiniz yok.");
+
+        var canManageBranches = await dbContext.ManagementRolePermissions.AsNoTracking()
+            .AnyAsync(
+                x => x.RoleId == membership.RoleId && x.Permission == ManagementPermissions.BranchManage,
+                cancellationToken);
+        var canManageMembers = canManageBranches
+            || await dbContext.ManagementRolePermissions.AsNoTracking()
+                .AnyAsync(
+                    x => x.RoleId == membership.RoleId && x.Permission == ManagementPermissions.BranchMembers,
+                    cancellationToken);
+        if (!canManageMembers)
+        {
+            throw new CustomerExperienceException(
+                "FORBIDDEN",
+                "Bu şubede hesap yönetimi yetkiniz yok.");
+        }
+
+        return new ActorMemberAuthority(canManageBranches);
+    }
+
+    private static void EnsureCanAssignRole(ActorMemberAuthority actor, string roleKey)
+    {
+        if (actor.CanManageBranches)
+        {
+            return;
+        }
+
+        if (roleKey != RoleKeyStaff)
+        {
+            throw new CustomerExperienceException(
+                "MEMBER_ROLE_FORBIDDEN",
+                "Şube yöneticisi yalnızca personel hesabı ekleyebilir veya atayabilir.");
+        }
+    }
+
+    private static void EnsureCanManageTarget(
+        ActorMemberAuthority actor,
+        string targetRoleName,
+        bool allowSelf,
+        Guid actorUserId,
+        Guid targetUserId)
+    {
+        if (!allowSelf && targetUserId == actorUserId)
+        {
+            throw new CustomerExperienceException(
+                "CANNOT_DEACTIVATE_SELF",
+                "Kendi üyeliğinizi bu ekrandan kapatamazsınız.");
+        }
+
+        if (actor.CanManageBranches)
+        {
+            return;
+        }
+
+        if (!string.Equals(targetRoleName, "BranchStaff", StringComparison.Ordinal))
+        {
+            throw new CustomerExperienceException(
+                "MEMBER_TARGET_FORBIDDEN",
+                "Şube yöneticisi yalnızca personel hesaplarını düzenleyebilir.");
+        }
+    }
+
+    private sealed record ActorMemberAuthority(bool CanManageBranches);
 
     public async Task<ManagementNetworkSummaryResult> GetNetworkSummaryAsync(
         Guid tenantId,
@@ -553,6 +881,7 @@ public static class ManagementAuthServicePermissions
         ManagementPermissions.AnalyticsFinancialView,
         ManagementPermissions.SubscriptionManage,
         ManagementPermissions.BranchManage,
+        ManagementPermissions.BranchMembers,
     ];
 
     public static readonly string[] BranchManager =
@@ -566,6 +895,7 @@ public static class ManagementAuthServicePermissions
         ManagementPermissions.MenuPublish,
         ManagementPermissions.AnalyticsView,
         ManagementPermissions.AnalyticsFinancialView,
+        ManagementPermissions.BranchMembers,
     ];
 
     /// <summary>

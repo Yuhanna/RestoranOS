@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace RestaurantOS.Web.Models;
 
@@ -23,6 +24,9 @@ public sealed class MenuItemCatalogViewModel
     public bool DietaryHalal { get; set; }
     public bool DietaryKosher { get; set; }
     public bool DietaryJain { get; set; }
+
+    /// <summary>Free-text custom labels; bound from multiple inputs named CustomLabels.</summary>
+    public List<string> CustomLabels { get; set; } = [];
 
     public bool AllergenGluten { get; set; }
     public bool AllergenCrustaceans { get; set; }
@@ -115,6 +119,19 @@ public sealed class CustomerMenuSettingsViewModel
 
     [Display(Name = "Yazılı alerjen matrisi URL")]
     public string? AllergenMatrixUrl { get; set; }
+
+    [Display(Name = "QR menü teması")]
+    public string ThemeId { get; set; } = "modern";
+
+    public string? LogoUrl { get; set; }
+    public string? LogoAlt { get; set; }
+    public bool ShowBrandWatermark { get; set; }
+    public string BrandWatermarkIntensity { get; set; } = "soft";
+
+    [Display(Name = "Logo dosyası")]
+    public IFormFile? LogoFile { get; set; }
+
+    public bool ClearLogo { get; set; }
 }
 
 public sealed class MenuItemCatalogApiModel
@@ -122,6 +139,7 @@ public sealed class MenuItemCatalogApiModel
     public string? Badge { get; set; }
     public bool IsNew { get; set; }
     public string[]? DietaryTags { get; set; }
+    public string[]? CustomLabels { get; set; }
     public string[]? AllergenKeys { get; set; }
     public string[]? MayContainAllergenKeys { get; set; }
     public string[]? Ingredients { get; set; }
@@ -158,4 +176,9 @@ public sealed class CustomerMenuSettingsApiModel
     public bool ShowProductModifiers { get; set; }
     public string? AllergenDisclaimer { get; set; }
     public string? AllergenMatrixUrl { get; set; }
+    public string? ThemeId { get; set; }
+    public string? LogoUrl { get; set; }
+    public string? LogoAlt { get; set; }
+    public bool ShowBrandWatermark { get; set; }
+    public string? BrandWatermarkIntensity { get; set; }
 }

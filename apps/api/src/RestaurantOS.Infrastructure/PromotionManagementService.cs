@@ -4,7 +4,9 @@ using RestaurantOS.Domain;
 
 namespace RestaurantOS.Infrastructure;
 
-public sealed class PromotionManagementService(RestaurantOsDbContext dbContext) : IPromotionManagementService
+public sealed class PromotionManagementService(
+    RestaurantOsDbContext dbContext,
+    IFeatureEntitlementService entitlements) : IPromotionManagementService
 {
     public async Task<IReadOnlyList<MenuPromotionResult>> ListMenuPromotionsAsync(
         Guid tenantId,
@@ -25,6 +27,7 @@ public sealed class PromotionManagementService(RestaurantOsDbContext dbContext) 
         CreateMenuPromotionCommand command,
         CancellationToken cancellationToken)
     {
+        await entitlements.EnsureCanUsePromotionsAsync(tenantId, cancellationToken);
         if (command.Scope == PromotionScopes.Category && command.CategoryId is null)
         {
             throw new CustomerExperienceException("VALIDATION_ERROR", "Category promotions require a category id.");
@@ -74,7 +77,8 @@ public sealed class PromotionManagementService(RestaurantOsDbContext dbContext) 
                 command.DailyEndLocal,
                 command.CategoryId,
                 command.MenuItemId,
-                command.IsActive);
+                command.IsActive,
+                command.DaysOfWeekMask);
         }
         catch (ArgumentException exception)
         {
@@ -93,6 +97,7 @@ public sealed class PromotionManagementService(RestaurantOsDbContext dbContext) 
         UpdateMenuPromotionCommand command,
         CancellationToken cancellationToken)
     {
+        await entitlements.EnsureCanUsePromotionsAsync(tenantId, cancellationToken);
         var entity = await dbContext.MenuPromotions.SingleOrDefaultAsync(
             x => x.Id == promotionId && x.TenantId == tenantId && x.BranchId == branchId,
             cancellationToken)
@@ -130,5 +135,6 @@ public sealed class PromotionManagementService(RestaurantOsDbContext dbContext) 
             promotion.DailyEndLocal,
             promotion.CategoryId,
             promotion.MenuItemId,
-            promotion.IsActive);
+            promotion.IsActive,
+            promotion.DaysOfWeekMask);
 }

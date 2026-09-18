@@ -1,0 +1,27 @@
+@model RestaurantOS.Web.Models.TrialCountdownViewModel
+@{
+    var urgencyClass = Model.Urgency switch
+    {
+        "critical" => "trial-chip--critical",
+        "high" => "trial-chip--high",
+        "medium" => "trial-chip--medium",
+        _ => "trial-chip--low",
+    };
+    var label = Model.DaysRemaining <= 0
+        ? "Deneme bitti"
+        : Model.DaysRemaining == 1
+            ? "Deneme: 1 gün"
+            : $"Deneme: {Model.DaysRemaining} gün";
+}
+<a class="trial-chip @urgencyClass"
+   asp-controller="Subscription"
+   asp-action="Index"
+   title="Deneme @Model.EndsAtUtc.ToLocalTime().ToString("g") tarihine kadar"
+   data-trial-countdown
+   data-days="@Model.DaysRemaining">
+    <span>@label</span>
+    @if (Model.CanManageSubscription && Model.DaysRemaining <= 7)
+    {
+        <span class="trial-chip__cta">Pro’yu sabitle</span>
+    }
+</a>

@@ -99,75 +99,10 @@ public partial class PlatformAdminCatalog : Migration
             columns: new[] { "ProductCode", "Interval", "Currency" },
             unique: true,
             filter: "[Status] = N'published'");
-
-        migrationBuilder.CreateTable(
-            name: "MenuPackages",
-            schema: "customer",
-            columns: table => new
-            {
-                Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                TenantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                BranchId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                Name = table.Column<string>(type: "nvarchar(160)", maxLength: 160, nullable: false),
-                Description = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
-                PriceAmountMinor = table.Column<long>(type: "bigint", nullable: false),
-                PriceCurrency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false),
-                SortOrder = table.Column<int>(type: "int", nullable: false),
-                DailyStartLocal = table.Column<TimeOnly>(type: "time", nullable: true),
-                DailyEndLocal = table.Column<TimeOnly>(type: "time", nullable: true),
-                IsActive = table.Column<bool>(type: "bit", nullable: false),
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_MenuPackages", x => x.Id);
-            });
-
-        migrationBuilder.CreateTable(
-            name: "MenuPackageComponents",
-            schema: "customer",
-            columns: table => new
-            {
-                MenuPackageId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                MenuItemId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                SlotLabel = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: true),
-                SortOrder = table.Column<int>(type: "int", nullable: false),
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_MenuPackageComponents", x => new { x.MenuPackageId, x.MenuItemId });
-                table.ForeignKey(
-                    name: "FK_MenuPackageComponents_MenuPackages_MenuPackageId",
-                    column: x => x.MenuPackageId,
-                    principalSchema: "customer",
-                    principalTable: "MenuPackages",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Cascade);
-                table.ForeignKey(
-                    name: "FK_MenuPackageComponents_MenuItems_MenuItemId",
-                    column: x => x.MenuItemId,
-                    principalSchema: "customer",
-                    principalTable: "MenuItems",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Restrict);
-            });
-
-        migrationBuilder.CreateIndex(
-            name: "IX_MenuPackageComponents_MenuItemId",
-            schema: "customer",
-            table: "MenuPackageComponents",
-            column: "MenuItemId");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.DropTable(
-            name: "MenuPackageComponents",
-            schema: "customer");
-
-        migrationBuilder.DropTable(
-            name: "MenuPackages",
-            schema: "customer");
-
         migrationBuilder.DropTable(
             name: "PlanPrices",
             schema: "billing");

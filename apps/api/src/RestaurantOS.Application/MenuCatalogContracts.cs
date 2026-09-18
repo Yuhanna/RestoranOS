@@ -15,6 +15,9 @@ public static class MenuCatalogDefaults
 
     public const string DefaultAllergenDisclaimer =
         "Alerjen bilgileri reçeteye göre güncellenir. Ciddi alerjiniz varsa garsona bildirin; paylaşılan mutfakta cross-contact riski olabilir.";
+
+    public const int MaxCustomLabels = 8;
+    public const int MaxCustomLabelLength = 32;
 }
 
 public sealed record MenuItemCatalogData
@@ -22,6 +25,8 @@ public sealed record MenuItemCatalogData
     public string? Badge { get; init; }
     public bool IsNew { get; init; }
     public IReadOnlyList<string> DietaryTags { get; init; } = [];
+    /// <summary>Free-text product labels (display only; not used by dietary filters).</summary>
+    public IReadOnlyList<string> CustomLabels { get; init; } = [];
     public IReadOnlyList<string> AllergenKeys { get; init; } = [];
     public IReadOnlyList<string> MayContainAllergenKeys { get; init; } = [];
     public IReadOnlyList<string> Ingredients { get; init; } = [];
@@ -84,8 +89,14 @@ public sealed record CustomerMenuSettingsData
     public bool ShowProductModifiers { get; init; }
     public string? AllergenDisclaimer { get; init; }
     public string? AllergenMatrixUrl { get; init; }
-    public string? ThemeId { get; init; }
+    public string ThemeId { get; init; } = "modern";
+    /// <summary>Branch logo served from <c>/media/branding</c>. Available on every plan.</summary>
+    public string? LogoUrl { get; init; }
+    public string? LogoAlt { get; init; }
+    /// <summary>Faint logo background on the guest menu. Requires <c>CanUseBrandWatermark</c>.</summary>
     public bool ShowBrandWatermark { get; init; }
+    /// <summary>See <c>BrandWatermarkIntensities</c>.</summary>
+    public string BrandWatermarkIntensity { get; init; } = "soft";
 }
 
 public interface ICustomerMenuSettingsService
@@ -96,5 +107,14 @@ public interface ICustomerMenuSettingsService
         Guid tenantId,
         Guid branchId,
         CustomerMenuSettingsData settings,
+        CancellationToken cancellationToken);
+
+    /// <summary>Replaces only the branch logo, leaving the rest of the settings untouched.</summary>
+    Task<CustomerMenuSettingsData> SetLogoAsync(
+        Guid userId,
+        Guid tenantId,
+        Guid branchId,
+        string? logoUrl,
+        string? logoAlt,
         CancellationToken cancellationToken);
 }

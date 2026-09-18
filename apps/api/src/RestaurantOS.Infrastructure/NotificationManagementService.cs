@@ -210,6 +210,21 @@ public sealed class NotificationManagementService(
         return new NotificationDispatchResult(sentEmails.Count, pushCount, sentEmails);
     }
 
+    public async Task<ManagedNotificationResult> SetPlatformActiveAsync(
+        Guid notificationId,
+        bool isActive,
+        CancellationToken cancellationToken)
+    {
+        var notification = await dbContext.TenantNotifications.SingleOrDefaultAsync(
+            x => x.Id == notificationId && x.TenantId == null,
+            cancellationToken)
+            ?? throw new CustomerExperienceException("NOTIFICATION_NOT_FOUND", "Notification was not found.");
+
+        notification.SetActive(isActive);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return Map(notification);
+    }
+
     private static ManagedNotificationResult Map(TenantNotification notification) =>
         new(
             notification.Id,

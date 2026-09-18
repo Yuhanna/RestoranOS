@@ -87,6 +87,14 @@ const problemFor = async (response: Response): Promise<CustomerGatewayError> => 
     );
   }
 
+  if (code === "ORDER_RATE_LIMITED" || code === "ORDER_BLOCKED") {
+    return new CustomerGatewayError(
+      code === "ORDER_BLOCKED" ? "ORDER_BLOCKED" : "ORDER_RATE_LIMITED",
+      problem.detail ??
+        "Çok hızlı sipariş verdiniz. Birkaç saniye bekleyip yeniden deneyin.",
+    );
+  }
+
   if (response.status >= 500 || response.status === 0) {
     return new CustomerGatewayError("NETWORK", problem.detail ?? "Backend is unavailable");
   }
@@ -155,6 +163,9 @@ const mapProduct = (raw: Record<string, unknown>): Product => {
           ? raw.promotionLabel
           : undefined,
     dietaryTags: Array.isArray(raw.dietaryTags) ? (raw.dietaryTags as Product["dietaryTags"]) : [],
+    customLabels: Array.isArray(raw.customLabels)
+      ? raw.customLabels.map((label) => String(label).trim()).filter(Boolean)
+      : [],
     allergenKeys: Array.isArray(raw.allergenKeys)
       ? (raw.allergenKeys as Product["allergenKeys"])
       : [],

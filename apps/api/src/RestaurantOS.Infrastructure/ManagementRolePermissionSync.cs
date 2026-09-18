@@ -26,7 +26,9 @@ public static class ManagementRolePermissionSync
         CancellationToken cancellationToken)
     {
         var role = await dbContext.ManagementRoles
-            .SingleOrDefaultAsync(x => x.Name == roleName, cancellationToken);
+            .Where(x => x.Name == roleName)
+            .OrderBy(x => x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
         if (role is null)
         {
             role = new ManagementRole(Guid.NewGuid(), roleName);

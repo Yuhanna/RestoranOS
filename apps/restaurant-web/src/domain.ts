@@ -33,6 +33,7 @@ export type Order = {
   currency: string;
   tableId: string;
   tableLabel: string;
+  itemSummary?: string;
 };
 
 export type TodayBranchStat = {
@@ -71,6 +72,46 @@ export type OrderLine = {
   unitPriceAmountMinor: number;
   currency: string;
   note: string | null;
+};
+
+export type TableCheckRound = {
+  orderId: string;
+  displayNumber: string;
+  status: string;
+  amountMinor: number;
+  currency: string;
+  createdAtUtc: string;
+  statusChangedAtUtc: string;
+  isKitchenIncomplete: boolean;
+  items: OrderLine[];
+};
+
+export type TableCheck = {
+  tableId: string;
+  tableLabel: string;
+  roundCount: number;
+  totalAmountMinor: number;
+  currency: string;
+  hasIncompleteKitchen: boolean;
+  rounds: TableCheckRound[];
+};
+
+export type TableCheckCloseResult = {
+  tableId: string;
+  tableLabel: string;
+  tender: string;
+  totalAmountMinor: number;
+  currency: string;
+  closedOrderCount: number;
+  forcedIncompleteKitchen: boolean;
+  closedAtUtc: string;
+  closedOrderIds: string[];
+};
+
+export type CloseTableCheckInput = {
+  tender: "cash" | "card" | "other";
+  confirmIncompleteKitchen?: boolean;
+  note?: string | null;
 };
 
 export type OrderStatusHistoryEntry = {

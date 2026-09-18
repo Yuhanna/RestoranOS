@@ -518,13 +518,21 @@ public sealed class ManagementAuthService(
             }).ToListAsync(cancellationToken);
 
         var roleIds = rows.Select(x => x.RoleId).Distinct().ToArray();
-        var manageRoleIds = await dbContext.ManagementRolePermissions
+        var grants = await dbContext.ManagementRolePermissions
             .AsNoTracking()
-            .Where(x => roleIds.Contains(x.RoleId) && x.Permission == ManagementPermissions.BranchManage)
-            .Select(x => x.RoleId)
-            .Distinct()
+            .Where(x => roleIds.Contains(x.RoleId)
+                && (x.Permission == ManagementPermissions.BranchManage
+                    || x.Permission == ManagementPermissions.BranchMembers))
+            .Select(x => new { x.RoleId, x.Permission })
             .ToListAsync(cancellationToken);
-        var manageSet = manageRoleIds.ToHashSet();
+        var manageSet = grants
+            .Where(x => x.Permission == ManagementPermissions.BranchManage)
+            .Select(x => x.RoleId)
+            .ToHashSet();
+        var membersSet = grants
+            .Where(x => x.Permission == ManagementPermissions.BranchMembers)
+            .Select(x => x.RoleId)
+            .ToHashSet();
 
         return rows
             .Select(row => new ManagementMembershipScopeResult(
@@ -535,7 +543,8 @@ public sealed class ManagementAuthService(
                 row.BranchId,
                 row.BranchName,
                 row.RoleName,
-                manageSet.Contains(row.RoleId)))
+                manageSet.Contains(row.RoleId),
+                membersSet.Contains(row.RoleId)))
             .ToArray();
     }
 
@@ -666,6 +675,82 @@ public sealed class ManagementAuthService(
                 normalizedRealm == AuthRealms.Platform ? PlatformStaffRoles.Normalize(roleCode) : null,
                 email),
             session);
+    }
+
+    public async Task UpdateProfileAsync(
+        Guid userId,
+        string displayName,
+        string? phone,
+        CancellationToken cancellationToken)
+    {
+        var user = await dbContext.ManagementUsers.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken)
+            ?? throw new ManagementAuthException("USER_NOT_FOUND", "Kullanıcı bulunamadı.");
+        try
+        {
+            user.UpdateProfile(displayName, phone ?? string.Empty, requireDisplayName: true);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new ManagementAuthException("VALIDATION_ERROR", exception.Message);
+        }
+
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "ProfileUpdated",
+            true,
+            timeProvider.GetUtcNow(),
+            userId,
+            subjectId: userId));
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<ManagementProfileResult> GetProfileAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var user = await dbContext.ManagementUsers.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken)
+            ?? throw new ManagementAuthException("USER_NOT_FOUND", "Kullanıcı bulunamadı.");
+        return new ManagementProfileResult(user.Id, user.Email, user.DisplayName, user.Phone);
+    }
+
+    public async Task ChangePasswordAsync(
+        Guid userId,
+        string currentPassword,
+        string newPassword,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 12 || newPassword.Length > 128)
+        {
+            throw new ManagementAuthException(
+                "VALIDATION_ERROR",
+                "Yeni şifre 12-128 karakter olmalıdır.");
+        }
+
+        var user = await dbContext.ManagementUsers.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken)
+            ?? throw new ManagementAuthException("USER_NOT_FOUND", "Kullanıcı bulunamadı.");
+        if (!VerifyPassword(user, currentPassword))
+        {
+            throw new ManagementAuthException("INVALID_CREDENTIALS", "Mevcut şifre hatalı.");
+        }
+
+        user.UpdatePasswordHash(passwordHasher.HashPassword(user, newPassword));
+        var now = timeProvider.GetUtcNow();
+        var sessions = await dbContext.ManagementRefreshSessions
+            .Where(x => x.UserId == userId && x.RevokedAtUtc == null)
+            .ToListAsync(cancellationToken);
+        foreach (var session in sessions)
+        {
+            session.Revoke(now);
+        }
+
+        dbContext.ManagementAuditLogs.Add(new ManagementAuditLog(
+            Guid.NewGuid(),
+            "PasswordChanged",
+            true,
+            now,
+            userId,
+            subjectId: userId));
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static string NormalizeEmail(string email)

@@ -33,6 +33,11 @@ public sealed class ManagementOrderService(
             orderby order.CreatedAtUtc
             select new { order, table.Label })
             .ToListAsync(cancellationToken);
+
+        var summaries = await LoadItemSummariesAsync(
+            orders.Select(entry => entry.order.Id).ToArray(),
+            cancellationToken);
+
         return orders.Select(entry => new ManagementOrderResult(
                 entry.order.Id,
                 entry.order.DisplayNumber,
@@ -43,7 +48,8 @@ public sealed class ManagementOrderService(
                 entry.order.TotalAmountMinor,
                 entry.order.TotalCurrency,
                 entry.order.TableId,
-                entry.Label))
+                entry.Label,
+                summaries.GetValueOrDefault(entry.order.Id, string.Empty)))
             .ToArray();
     }
 
@@ -76,6 +82,11 @@ public sealed class ManagementOrderService(
             select new { order, table.Label })
             .Take(takeCount)
             .ToListAsync(cancellationToken);
+
+        var summaries = await LoadItemSummariesAsync(
+            orders.Select(entry => entry.order.Id).ToArray(),
+            cancellationToken);
+
         return orders.Select(entry => new ManagementOrderResult(
                 entry.order.Id,
                 entry.order.DisplayNumber,
@@ -86,7 +97,8 @@ public sealed class ManagementOrderService(
                 entry.order.TotalAmountMinor,
                 entry.order.TotalCurrency,
                 entry.order.TableId,
-                entry.Label))
+                entry.Label,
+                summaries.GetValueOrDefault(entry.order.Id, string.Empty)))
             .ToArray();
     }
 
@@ -151,7 +163,9 @@ public sealed class ManagementOrderService(
                 item.DiscountUnitAmountMinor,
                 item.UnitPriceAmountMinor,
                 item.UnitPriceCurrency,
-                item.Note))
+                item.Note,
+                item.SourcePackageId,
+                item.SourcePackageName))
             .ToArray();
 
         return new ManagementOrderDetailResult(
@@ -199,6 +213,50 @@ public sealed class ManagementOrderService(
             estimatedReadyAtUtc);
         await notifier.NotifyAsync(tenantId, branchId, result, cancellationToken);
         return result;
+    }
+
+    private async Task<Dictionary<Guid, string>> LoadItemSummariesAsync(
+        Guid[] orderIds,
+        CancellationToken cancellationToken)
+    {
+        if (orderIds.Length == 0)
+        {
+            return new Dictionary<Guid, string>();
+        }
+
+        var rows = await dbContext.CustomerOrderItems
+            .AsNoTracking()
+            .Where(item => orderIds.Contains(item.OrderId))
+            .Select(item => new { item.OrderId, item.Name, item.Quantity })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .GroupBy(item => item.OrderId)
+            .ToDictionary(
+                group => group.Key,
+                group => BuildItemSummary(group.Select(item => (item.Name, item.Quantity))));
+    }
+
+    public static string BuildItemSummary(
+        IEnumerable<(string Name, int Quantity)> items,
+        int maxVisible = 2)
+    {
+        var list = items
+            .Where(item => !string.IsNullOrWhiteSpace(item.Name) && item.Quantity > 0)
+            .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (list.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var parts = list
+            .Take(maxVisible)
+            .Select(item => $"{item.Quantity}× {item.Name.Trim()}");
+        var more = list.Length - maxVisible;
+        return more > 0
+            ? string.Join(" · ", parts) + $" · +{more}"
+            : string.Join(" · ", parts);
     }
 
     private async Task EnsurePermissionAsync(

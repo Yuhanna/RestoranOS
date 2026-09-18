@@ -1,0 +1,52 @@
+@model LoginViewModel
+@{
+    Layout = "_LoginLayout";
+    ViewData["Title"] = "Pasa Admin girişi";
+    var isDev = ViewData["IsDevelopment"] as bool? == true;
+}
+
+<div class="login-split">
+    <section class="login-brand">
+        <div>
+            <p class="eyebrow" style="color:#93c5fd">Pasa Admin</p>
+            <h1>Bu restoran paneli değil.</h1>
+            <p>
+                Üyelik fiyatları, aylık/yıllık katalog ve kampanyalar için iç yönetim konsolu.
+                Sipariş, masa ve menü buradan yönetilmez.
+            </p>
+        </div>
+        <p>Canlı adres: admin.pasa.app</p>
+    </section>
+    <section class="login-panel">
+        <div class="login-card">
+            <p class="eyebrow">İç sistem</p>
+            <h2>Pasa Admin girişi</h2>
+            <p class="muted">Kayıt yoktur. Yalnızca davetli platform operatörleri. Visual Studio MVC projesidir.</p>
+            @if (isDev)
+            {
+                <div class="alert success" role="note">
+                    Geliştirme: <code>platform@local.test</code> / <code>Local-Dev-Pass!42</code>
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+            {
+                <div class="alert" role="alert">@Model.ErrorMessage</div>
+            }
+            <form asp-action="Login" method="post" class="stack" autocomplete="on">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@Context.Request.Query["returnUrl"]" />
+                <label>
+                    E-posta
+                    <input asp-for="Email" autocomplete="username" inputmode="email" />
+                    <span asp-validation-for="Email" class="field-error"></span>
+                </label>
+                <label>
+                    Parola
+                    <input asp-for="Password" autocomplete="current-password" />
+                    <span asp-validation-for="Password" class="field-error"></span>
+                </label>
+                <button class="btn" type="submit">Admin girişi</button>
+            </form>
+        </div>
+    </section>
+</div>

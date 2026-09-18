@@ -1,0 +1,57 @@
+@inject IPlatformApi Api
+@{
+    var current = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    string? NavClass(string controller) =>
+        string.Equals(current, controller, StringComparison.OrdinalIgnoreCase) ? "active" : null;
+    var token = Api.CurrentToken;
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@(ViewData["Title"] ?? "Pasa Admin")</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="shell">
+        <aside class="rail">
+            <div class="rail-brand">
+                <img src="~/img/pasa-admin-mark.svg" alt="" />
+                <div>
+                    <strong>Pasa Admin</strong>
+                    <span>İç yönetim · admin.pasa.app</span>
+                </div>
+            </div>
+            <nav aria-label="Admin menü">
+                <a class="@NavClass("Home")" asp-controller="Home" asp-action="Index">Özet</a>
+                <a class="@NavClass("Tenants")" asp-controller="Tenants" asp-action="Index">Üyeler</a>
+                <a class="@NavClass("Quotes")" asp-controller="Quotes" asp-action="Index">Teklifler</a>
+                <a class="@NavClass("Catalog")" asp-controller="Catalog" asp-action="Index">Planlar ve fiyatlar</a>
+                <a class="@NavClass("Campaigns")" asp-controller="Campaigns" asp-action="Index">Üyelik kampanyaları</a>
+                <a class="@NavClass("Notifications")" asp-controller="Notifications" asp-action="Index">Duyurular</a>
+                <a class="@NavClass("Staff")" asp-controller="Staff" asp-action="Index">Operatörler</a>
+            </nav>
+            <div class="rail-foot">
+                <div>@(token?.Email ?? token?.UserId.ToString())</div>
+                <div>Rol: @(token?.RoleCode ?? "—") · platform</div>
+                <form asp-controller="Account" asp-action="Logout" method="post" style="margin-top:0.75rem">
+                    @Html.AntiForgeryToken()
+                    <button class="btn secondary" type="submit" style="width:100%">Çıkış</button>
+                </form>
+            </div>
+        </aside>
+        <main class="workspace">
+            @if (TempData["Message"] is string message)
+            {
+                <div class="alert success" role="status">@message</div>
+            }
+            @if (TempData["Error"] is string error)
+            {
+                <div class="alert" role="alert">@error</div>
+            }
+            @RenderBody()
+        </main>
+    </div>
+</body>
+</html>

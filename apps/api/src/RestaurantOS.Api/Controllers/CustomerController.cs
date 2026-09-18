@@ -42,7 +42,8 @@ public sealed partial class CustomerController(ICustomerExperienceService servic
                 result.Products.Select(ToProductResponse).ToArray(),
                 result.OpenServiceRequestTypes,
                 result.ActiveOrders.Select(ToOrderResponse).ToArray(),
-                ToSettingsResponse(result.CustomerMenuSettings)));
+                ToSettingsResponse(result.CustomerMenuSettings),
+                result.OfferPackages.Select(ToPackageResponse).ToArray()));
         }
         catch (CustomerExperienceException exception)
         {
@@ -68,7 +69,7 @@ public sealed partial class CustomerController(ICustomerExperienceService servic
             || string.IsNullOrWhiteSpace(request.SessionToken)
             || request.Lines is null
             || request.Lines.Count == 0
-            || request.Lines.Any(x => !Guid.TryParse(x.ProductId, out _)))
+            || request.Lines.Any(line => !IsValidOrderLine(line)))
         {
             return ApiProblem.Create(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "Order request is invalid.");
         }
@@ -78,11 +79,7 @@ public sealed partial class CustomerController(ICustomerExperienceService servic
             var result = await service.CreateOrderAsync(
                 request.SessionToken,
                 idempotencyKey,
-                request.Lines.Select(x => new CreateOrderLine(
-                    Guid.Parse(x.ProductId),
-                    x.Quantity,
-                    x.Note,
-                    x.ModifierOptionIds ?? [])).ToArray(),
+                request.Lines.Select(ToOrderLine).ToArray(),
                 cancellationToken,
                 ClientContext());
             var response = ToOrderResponse(result);
@@ -171,6 +168,42 @@ public sealed partial class CustomerController(ICustomerExperienceService servic
             };
             return ApiProblem.Create(status, exception.Code, exception.Message);
         }
+    }
+
+    private static bool IsValidOrderLine(CreateCustomerOrderLineRequest line)
+    {
+        if (line.Quantity < 1)
+        {
+            return false;
+        }
+
+        var hasPackage = Guid.TryParse(line.PackageId, out var packageId) && packageId != Guid.Empty;
+        var hasProduct = Guid.TryParse(line.ProductId, out var productId) && productId != Guid.Empty;
+        return hasPackage ^ hasProduct;
+    }
+
+    private static CreateOrderLine ToOrderLine(CreateCustomerOrderLineRequest line)
+    {
+        if (Guid.TryParse(line.PackageId, out var packageId) && packageId != Guid.Empty)
+        {
+            return new CreateOrderLine(
+                Guid.Empty,
+                line.Quantity,
+                line.Note,
+                line.ModifierOptionIds ?? [],
+                packageId);
+        }
+
+        if (!Guid.TryParse(line.ProductId, out var productId) || productId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Product order line requires a product id.");
+        }
+
+        return new CreateOrderLine(
+            productId,
+            line.Quantity,
+            line.Note,
+            line.ModifierOptionIds ?? []);
     }
 
     private static CustomerOrderResponse ToOrderResponse(CustomerOrderResult order)

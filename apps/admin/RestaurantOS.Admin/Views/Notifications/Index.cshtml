@@ -1,0 +1,124 @@
+@model NotificationsPageViewModel
+@{
+    ViewData["Title"] = "Platform duyuruları";
+    var canWrite = AdminAccess.CanWriteNotifications(Model.RoleCode);
+}
+
+<div class="page-head">
+    <div>
+        <h1>Platform duyuruları</h1>
+        <p class="note">Restoran paneline düşen SaaS duyurularıdır. Mutfak veya masa bildirimi değildir. Gönder, hedef plandaki aktif restoranlara e-posta ve panel bildirimi iletir.</p>
+    </div>
+</div>
+
+@if (canWrite)
+{
+    <form asp-action="Create" method="post" class="stack" style="max-width:36rem;margin-bottom:1.5rem">
+        @Html.AntiForgeryToken()
+        <label>
+            Kitle
+            <select asp-for="Create.Audience">
+                <option value="non_pro">Pro olmayanlar</option>
+                <option value="free">Free</option>
+                <option value="trial">Deneme</option>
+                <option value="pro">Pro</option>
+                <option value="all">Tümü</option>
+            </select>
+        </label>
+        <label>
+            Başlık
+            <input asp-for="Create.Title" maxlength="160" />
+            <span asp-validation-for="Create.Title" class="field-error"></span>
+        </label>
+        <label>
+            Metin
+            <textarea asp-for="Create.Body" rows="4" maxlength="2000"></textarea>
+            <span asp-validation-for="Create.Body" class="field-error"></span>
+        </label>
+        <label>
+            Bağlantı (isteğe bağlı)
+            <input asp-for="Create.ActionUrl" placeholder="https://app.pasa.app" />
+        </label>
+        <label>
+            Bitiş (isteğe bağlı)
+            <input asp-for="Create.EndsAtLocal" type="datetime-local" />
+            <span asp-validation-for="Create.EndsAtLocal" class="field-error"></span>
+            <span class="muted">Boş bırakılırsa duyuru kapatılana kadar geçerlidir.</span>
+        </label>
+        <label class="check">
+            <input asp-for="Create.DispatchNow" />
+            Oluşturunca restoran panellerine gönder
+        </label>
+        <button class="btn" type="submit">Duyuru oluştur</button>
+    </form>
+}
+else
+{
+    <p class="muted">Bu rol duyuru yazamaz.</p>
+}
+
+<table class="data">
+    <thead>
+        <tr>
+            <th>Başlık</th>
+            <th>Kitle</th>
+            <th>Durum</th>
+            <th>Son gönderim</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @if (Model.Items.Count == 0)
+    {
+        <tr>
+            <td colspan="5" class="muted">Duyuru yok</td>
+        </tr>
+    }
+    else
+    {
+        foreach (var item in Model.Items)
+        {
+            <tr>
+                <td>
+                    <div>@item.Title</div>
+                    <div class="muted">@item.Body</div>
+                    @if (!string.IsNullOrWhiteSpace(item.ActionUrl))
+                    {
+                        <div class="muted">@item.ActionUrl</div>
+                    }
+                </td>
+                <td>@AdminAccess.AudienceLabel(item.Audience)</td>
+                <td>
+                    @(item.IsActive ? "aktif" : "kapalı")
+                    @if (item.EndsAtUtc is DateTimeOffset endsAt)
+                    {
+                        <div class="muted">bitiş @endsAt.ToLocalTime().ToString("g")</div>
+                    }
+                </td>
+                <td>@(item.LastDispatchedAtUtc?.ToLocalTime().ToString("g") ?? "—")</td>
+                <td>
+                    @if (canWrite)
+                    {
+                        <div class="stack" style="gap:0.4rem">
+                            @if (item.IsActive)
+                            {
+                                <form asp-action="Dispatch" method="post" class="inline" onsubmit="return confirm('Hedef kitledeki restoran panellerine ve e-postalara iletilsin mi?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button class="btn" type="submit">Gönder</button>
+                                </form>
+                            }
+                            <form asp-action="SetActive" method="post" class="inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <input type="hidden" name="isActive" value="@(item.IsActive ? "false" : "true")" />
+                                <button class="btn secondary" type="submit">@(item.IsActive ? "Kapat" : "Aç")</button>
+                            </form>
+                        </div>
+                    }
+                </td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>

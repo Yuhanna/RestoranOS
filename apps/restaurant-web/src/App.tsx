@@ -8,6 +8,7 @@ import { ApiError, api as defaultApi, type ManagementApi } from "./api";
 import {
   nextStatuses,
   type AudienceNotification,
+  type CloseTableCheckInput,
   type DiningTable,
   type GeneratedQr,
   type LoginInput,
@@ -21,6 +22,7 @@ import {
   type ServiceRequest,
   type Session,
   type SubscriptionOffer,
+  type TableCheck,
   type TableQrCode,
   type Workspace,
 } from "./domain";
@@ -85,14 +87,17 @@ const mergeOrder = (orders: Order[], incoming: Order) => {
   if (incoming.status === "completed" || incoming.status === "cancelled") {
     return orders.filter((order) => order.id !== incoming.id);
   }
+  const emptyGuid = (value: string | null | undefined) =>
+    !value || value === "00000000-0000-0000-0000-000000000000";
   const current = orders.find((order) => order.id === incoming.id);
   const merged = current
     ? {
         ...current,
         ...incoming,
         createdAtUtc: incoming.createdAtUtc ?? current.createdAtUtc,
-        tableId: incoming.tableId || current.tableId,
+        tableId: emptyGuid(incoming.tableId) ? current.tableId : incoming.tableId,
         tableLabel: incoming.tableLabel || current.tableLabel,
+        itemSummary: incoming.itemSummary || current.itemSummary,
       }
     : incoming;
   return current
@@ -112,6 +117,15 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
   const [error, setError] = useState("");
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [pendingOrder, setPendingOrder] = useState<string | null>(null);
+  const [closeCheckTableId, setCloseCheckTableId] = useState<string | null>(null);
+  const [closeCheckLabel, setCloseCheckLabel] = useState("");
+  const [closeCheck, setCloseCheck] = useState<TableCheck | null>(null);
+  const [closeCheckLoading, setCloseCheckLoading] = useState(false);
+  const [closeCheckError, setCloseCheckError] = useState("");
+  const [closeCheckTender, setCloseCheckTender] = useState<CloseTableCheckInput["tender"]>("cash");
+  const [closeCheckForce, setCloseCheckForce] = useState(false);
+  const [closeCheckNote, setCloseCheckNote] = useState("");
+  const [closeCheckSubmitting, setCloseCheckSubmitting] = useState(false);
   const [detailOrder, setDetailOrder] = useState<OrderDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [realtimeState, setRealtimeState] = useState<RealtimeState>("offline");
@@ -303,6 +317,62 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
       if (statusError instanceof ApiError && statusError.status === 401) setSession(null);
     } finally {
       setPendingOrder(null);
+    }
+  };
+
+  const openCloseCheck = async (tableId: string, tableLabel: string) => {
+    if (!tableId || tableId.startsWith("label:") || tableId.startsWith("__untabled:")) {
+      setError("Bu masa grubu için hesap kapatılamıyor; listeyi yenileyin.");
+      return;
+    }
+    setCloseCheckTableId(tableId);
+    setCloseCheckLabel(tableLabel);
+    setCloseCheck(null);
+    setCloseCheckError("");
+    setCloseCheckTender("cash");
+    setCloseCheckForce(false);
+    setCloseCheckNote("");
+    setCloseCheckLoading(true);
+    try {
+      const check = await managementApi.getTableCheck(tableId);
+      setCloseCheck(check);
+      setCloseCheckForce(false);
+    } catch (closeError) {
+      setCloseCheckError(errorMessage(closeError));
+    } finally {
+      setCloseCheckLoading(false);
+    }
+  };
+
+  const submitCloseCheck = async () => {
+    if (!closeCheckTableId) return;
+    setCloseCheckSubmitting(true);
+    setCloseCheckError("");
+    try {
+      const result = await managementApi.closeTableCheck(closeCheckTableId, {
+        tender: closeCheckTender,
+        confirmIncompleteKitchen: closeCheckForce,
+        note: closeCheckNote,
+      });
+      setOrders((current) =>
+        current.filter((order) => !result.closedOrderIds.includes(order.id)),
+      );
+      setCloseCheckTableId(null);
+      setCloseCheck(null);
+      setError("");
+    } catch (closeError) {
+      if (closeError instanceof ApiError && closeError.status === 409) {
+        setCloseCheckForce(false);
+        try {
+          const check = await managementApi.getTableCheck(closeCheckTableId);
+          setCloseCheck(check);
+        } catch {
+          /* keep prior */
+        }
+      }
+      setCloseCheckError(errorMessage(closeError));
+    } finally {
+      setCloseCheckSubmitting(false);
     }
   };
 
@@ -559,6 +629,17 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
                 ) : null}
                 <strong>{formatOrderMoney(group.totalMinor, group.currency)}</strong>
                 <span className="muted">masa toplamı</span>
+                <Button
+                  variant={group.hasIncompleteKitchen ? "secondary" : "primary"}
+                  title={
+                    group.hasIncompleteKitchen
+                      ? "Mutfak henüz bitmedi — önce turları ilerletin veya onaylayarak kapatın"
+                      : "Tüm turlar hazır/servis — hesabı kapatabilirsiniz"
+                  }
+                  onClick={() => void openCloseCheck(group.tableId, group.tableLabel)}
+                >
+                  Hesabı kapat
+                </Button>
               </div>
             </header>
             <div className="table-order-group__grid">
@@ -591,6 +672,125 @@ export function App({ managementApi = defaultApi, realtimeClient = defaultRealti
           loading={detailLoading}
           onClose={() => setDetailOrder(null)}
         />
+      ) : null}
+      {closeCheckTableId ? (
+        <div className="close-check-backdrop" role="dialog" aria-modal="true" aria-labelledby="close-check-title">
+          <form
+            className="close-check-dialog"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submitCloseCheck();
+            }}
+          >
+            <header>
+              <h2 id="close-check-title">{closeCheckLabel || "Masa"} · Hesabı kapat</h2>
+              <p className="muted">
+                {closeCheckLoading
+                  ? "Hesap yükleniyor…"
+                  : closeCheck
+                    ? `${closeCheck.roundCount} tur · ${formatOrderMoney(closeCheck.totalAmountMinor, closeCheck.currency)}`
+                    : "Turlar yüklenemedi"}
+              </p>
+            </header>
+            {closeCheck ? (
+              <>
+                <ul className="close-check-rounds">
+                  {closeCheck.rounds.map((round, index) => (
+                    <li key={round.orderId} className="close-check-round">
+                      <div className="close-check-round__head">
+                        <div>
+                          <strong>
+                            {closeCheck.roundCount > 1
+                              ? `${roundLabel(index, closeCheck.roundCount)} · ${round.displayNumber}`
+                              : round.displayNumber}
+                          </strong>
+                          <em>{statusLabel[(round.status as OrderStatus)] ?? round.status}</em>
+                        </div>
+                        <span>{formatOrderMoney(round.amountMinor, round.currency)}</span>
+                      </div>
+                      {round.items?.length ? (
+                        <ul className="close-check-lines">
+                          {round.items.map((item) => (
+                            <li key={item.id}>
+                              <span>
+                                {item.quantity}× {item.name}
+                                {item.note ? <em> · {item.note}</em> : null}
+                              </span>
+                              <span>
+                                {formatOrderMoney(
+                                  item.unitPriceAmountMinor * item.quantity,
+                                  item.currency || round.currency,
+                                )}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="muted close-check-lines-empty">Kalem kaydı yok</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <p className="close-check-grand-total">
+                  <span>Masa toplamı</span>
+                  <strong>
+                    {formatOrderMoney(closeCheck.totalAmountMinor, closeCheck.currency)}
+                  </strong>
+                </p>
+              </>
+            ) : null}
+            <fieldset>
+              <legend>Tahsilat</legend>
+              {(["cash", "card", "other"] as const).map((tender) => (
+                <label key={tender}>
+                  <input
+                    type="radio"
+                    name="tender"
+                    checked={closeCheckTender === tender}
+                    onChange={() => setCloseCheckTender(tender)}
+                  />
+                  {tender === "cash" ? "Nakit" : tender === "card" ? "Kart" : "Diğer"}
+                </label>
+              ))}
+            </fieldset>
+            <label className="close-check-note">
+              Not <span className="muted">(opsiyonel)</span>
+              <input
+                value={closeCheckNote}
+                maxLength={120}
+                onChange={(event) => setCloseCheckNote(event.target.value)}
+                placeholder="Örn. fiş kesildi"
+              />
+            </label>
+            {closeCheck?.hasIncompleteKitchen ? (
+              <label className="close-check-force">
+                <input
+                  type="checkbox"
+                  checked={closeCheckForce}
+                  onChange={(event) => setCloseCheckForce(event.target.checked)}
+                />
+                Mutfakta tamamlanmamış tur var; yine de kapat
+              </label>
+            ) : null}
+            {closeCheckError ? <p className="close-check-error" role="alert">{closeCheckError}</p> : null}
+            <footer>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setCloseCheckTableId(null);
+                  setCloseCheck(null);
+                  setCloseCheckError("");
+                }}
+              >
+                Vazgeç
+              </Button>
+              <Button type="submit" disabled={closeCheckLoading || closeCheckSubmitting || !closeCheck}>
+                {closeCheckSubmitting ? "Kapatılıyor…" : "Hesabı kapat"}
+              </Button>
+            </footer>
+          </form>
+        </div>
       ) : null}
         </>
       )}
@@ -708,6 +908,7 @@ function OrderCard({
           <span className="status">{late ? "GECİKTİ" : statusLabel[order.status]}</span>
           <p className="order-card__round">{roundTitle}</p>
           <h2>{order.displayNumber}</h2>
+          {order.itemSummary ? <p className="order-card__items">{order.itemSummary}</p> : null}
         </div>
         <time>{ageMinutes} dk</time>
       </header>

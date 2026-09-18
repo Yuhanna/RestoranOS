@@ -42,4 +42,24 @@ public sealed class SubscriptionTrialTests
         Assert.Null(trial.ExpiresAtUtc);
         Assert.False(trial.IsTrialActive(started.AddDays(11)));
     }
+
+    [Fact]
+    public void FreeCanStartProTrial()
+    {
+        var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
+        var free = new TenantSubscription(Guid.NewGuid(), SubscriptionPlanCodes.Free, now);
+        free.StartProTrial(now);
+
+        Assert.Equal(SubscriptionPlanCodes.Pro, free.PlanCode);
+        Assert.Equal(now.AddDays(30), free.ExpiresAtUtc);
+        Assert.True(free.IsTrialActive(now.AddDays(1)));
+    }
+
+    [Fact]
+    public void PaidProCannotStartTrial()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var paid = new TenantSubscription(Guid.NewGuid(), SubscriptionPlanCodes.Pro, now);
+        Assert.Throws<InvalidOperationException>(() => paid.StartProTrial(now));
+    }
 }

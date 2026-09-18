@@ -57,6 +57,41 @@ public sealed class FeatureEntitlementService(
         return await GetUsageAsync(tenantId, branchId, cancellationToken);
     }
 
+    public async Task<TenantEntitlementUsageResult> StartProTrialAsync(
+        Guid tenantId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        var subscription = await GetOrCreateSubscriptionAsync(tenantId, cancellationToken);
+        await ApplyExpiryIfNeededAsync(subscription, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+
+        if (subscription.PlanCode == SubscriptionPlanCodes.Pro && subscription.ExpiresAtUtc is null)
+        {
+            throw new EntitlementException(
+                "ALREADY_PAID_PRO",
+                "Zaten ücretli Pro kullanıyorsunuz; deneme başlatmaya gerek yok.");
+        }
+
+        if (subscription.IsTrialActive(now))
+        {
+            return await GetUsageAsync(tenantId, branchId, cancellationToken);
+        }
+
+        try
+        {
+            subscription.StartProTrial(now);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new EntitlementException("VALIDATION_ERROR", exception.Message);
+        }
+
+        await ReconcileBranchQuotaAsync(subscription, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return await GetUsageAsync(tenantId, branchId, cancellationToken);
+    }
+
     public async Task<EnterpriseQuoteRequestResult> RequestEnterpriseQuoteAsync(
         Guid tenantId,
         Guid userId,
@@ -139,6 +174,13 @@ public sealed class FeatureEntitlementService(
         var tableCount = await dbContext.DiningTables.CountAsync(
             x => x.TenantId == tenantId && x.BranchId == branchId,
             cancellationToken);
+        var activeQrCount = branchId == Guid.Empty
+            ? 0
+            : await dbContext.TableQrCodes.CountAsync(
+                x => x.TenantId == tenantId
+                    && x.BranchId == branchId
+                    && x.Status == QrCodeStatus.Active,
+                cancellationToken);
         var userCount = await dbContext.ManagementMemberships
             .AsNoTracking()
             .Where(x => x.TenantId == tenantId && x.IsActive)
@@ -188,7 +230,7 @@ public sealed class FeatureEntitlementService(
             entitlements.CanUseLiveOrderPanel,
             entitlements.CanUseMultiBranch,
             entitlements.HasPrioritySupport,
-            Warnings: BuildWarnings(entitlements, isTrial, frozenCount, activeCount),
+            Warnings: BuildWarnings(entitlements, isTrial, frozenCount, activeCount, activeQrCount),
             isTrial,
             isTrial ? subscription.ExpiresAtUtc : null,
             visibleNotifications,
@@ -199,7 +241,18 @@ public sealed class FeatureEntitlementService(
             ActiveBranchCount: activeCount,
             ExtraBranchMonthlyPriceMinor: extraBranchMonthly,
             BillingCurrency: BranchBillingPolicy.Currency,
-            NextBranchRequiresAddon: nextRequiresAddon);
+            NextBranchRequiresAddon: nextRequiresAddon,
+            CanUseMenuThemes: entitlements.CanUseMenuThemes,
+            CanUseBrandWatermark: entitlements.CanUseBrandWatermark,
+            ActiveQrCount: activeQrCount,
+            MaxActiveQrCodes: entitlements.MaxActiveQrCodes,
+            MaxConcurrentLiveSessions: entitlements.MaxConcurrentLiveSessions,
+            CanUsePromotions: entitlements.CanUsePromotions,
+            CanUseAnalytics: entitlements.CanUseAnalytics,
+            MaxOrderHistoryHours: OrderHistoryRetention.ResolveMaxHours(
+                subscription.PlanCode,
+                isTrial,
+                subscription.OverrideMaxOrderHistoryHours));
     }
 
     public async Task<ManagementBranchBillingPreviewResult> GetBranchBillingPreviewAsync(
@@ -335,7 +388,53 @@ public sealed class FeatureEntitlementService(
         {
             throw new EntitlementException(
                 "ENTITLEMENT_TABLE_LIMIT",
-                $"Free planda en fazla {entitlements.MaxTablesPerBranch} masa eklenebilir. Pro plana geçerek limiti kaldırabilirsiniz.");
+                $"Bu planda şube başına en fazla {entitlements.MaxTablesPerBranch} masa eklenebilir. "
+                + "Pro plana geçerek masa ve aktif QR limitlerini kaldırabilirsiniz.");
+        }
+    }
+
+    public async Task EnsureCanActivateQrCodeAsync(
+        Guid tenantId,
+        Guid branchId,
+        Guid? tableId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureBranchNotFrozenAsync(tenantId, branchId, cancellationToken);
+        var entitlements = await GetEntitlementsAsync(tenantId, cancellationToken);
+        if (entitlements.IsUnlimitedActiveQrCodes || entitlements.MaxActiveQrCodes is null)
+        {
+            return;
+        }
+
+        var max = entitlements.MaxActiveQrCodes.Value;
+        var activeCount = await dbContext.TableQrCodes.CountAsync(
+            x => x.TenantId == tenantId
+                && x.BranchId == branchId
+                && x.Status == QrCodeStatus.Active,
+            cancellationToken);
+
+        // Regenerating QR on a table that already has an active code does not grow the branch total.
+        if (tableId is Guid tid)
+        {
+            var tableAlreadyActive = await dbContext.TableQrCodes.AnyAsync(
+                x => x.TenantId == tenantId
+                    && x.BranchId == branchId
+                    && x.TableId == tid
+                    && x.Status == QrCodeStatus.Active,
+                cancellationToken);
+            if (tableAlreadyActive)
+            {
+                return;
+            }
+        }
+
+        if (activeCount >= max)
+        {
+            throw new EntitlementException(
+                "ENTITLEMENT_ACTIVE_QR_LIMIT",
+                $"Ücretsiz planda bu şubede aynı anda en fazla {max} aktif QR kullanabilirsiniz "
+                + $"({activeCount}/{max}). Yeni bir QR açmak için bir masayı pasife alabilir "
+                + "veya Pro’ya geçerek sınırsız aktif QR kullanabilirsiniz.");
         }
     }
 
@@ -401,6 +500,28 @@ public sealed class FeatureEntitlementService(
         }
     }
 
+    public async Task EnsureCanUseMenuThemesAsync(Guid tenantId, CancellationToken cancellationToken)
+    {
+        var entitlements = await GetEntitlementsAsync(tenantId, cancellationToken);
+        if (!entitlements.CanUseMenuThemes)
+        {
+            throw new EntitlementException(
+                "ENTITLEMENT_FEATURE_MENU_THEMES",
+                "QR menü temaları Pro (veya aktif deneme) ile açılır. Free planda varsayılan görünüm kullanılır.");
+        }
+    }
+
+    public async Task EnsureCanUseBrandWatermarkAsync(Guid tenantId, CancellationToken cancellationToken)
+    {
+        var entitlements = await GetEntitlementsAsync(tenantId, cancellationToken);
+        if (!entitlements.CanUseBrandWatermark)
+        {
+            throw new EntitlementException(
+                "ENTITLEMENT_FEATURE_BRAND_WATERMARK",
+                "Menü arka planındaki logo filigranı Pro (veya aktif deneme) ile açılır. Free planda logonuz yalnızca menü başlığında görünür.");
+        }
+    }
+
     public async Task EnsureCanManageAdditionalRolesAsync(Guid tenantId, CancellationToken cancellationToken)
     {
         var entitlements = await GetEntitlementsAsync(tenantId, cancellationToken);
@@ -410,6 +531,69 @@ public sealed class FeatureEntitlementService(
                 "ENTITLEMENT_FEATURE_ROLES",
                 "Ek kullanıcı ve roller Pro veya Enterprise planda açılır.");
         }
+    }
+
+    public async Task EnsureCanUsePromotionsAsync(Guid tenantId, CancellationToken cancellationToken)
+    {
+        var entitlements = await GetEntitlementsAsync(tenantId, cancellationToken);
+        if (!entitlements.CanUsePromotions)
+        {
+            throw new EntitlementException(
+                "ENTITLEMENT_FEATURE_PROMOTIONS",
+                "İndirim ve kampanyalar Pro planda açılır. Menünüzde promosyon yönetmek için Pro’ya geçebilirsiniz.");
+        }
+    }
+
+    /// <summary>
+    /// Analytics is available on Free with a short lookback (see <see cref="OrderHistoryRetention"/>).
+    /// This gate remains for callers that still expect an entitlement check; Free no longer hard-blocks.
+    /// </summary>
+    public async Task EnsureCanUseAnalyticsAsync(Guid tenantId, CancellationToken cancellationToken)
+    {
+        var entitlements = await GetEntitlementsAsync(tenantId, cancellationToken);
+        if (!entitlements.CanUseAnalytics)
+        {
+            throw new EntitlementException(
+                "ENTITLEMENT_FEATURE_ANALYTICS",
+                MonetizationPolicy.AnalyticsLookbackFeature.BodyTr);
+        }
+    }
+
+    public async Task EnsureCanUseMultiBranchAsync(Guid tenantId, CancellationToken cancellationToken)
+    {
+        var entitlements = await GetEntitlementsAsync(tenantId, cancellationToken);
+        if (!entitlements.CanUseMultiBranch)
+        {
+            throw new EntitlementException(
+                "ENTITLEMENT_FEATURE_MULTI_BRANCH",
+                "Tüm şubelerin özeti ve karşılaştırma Pro (veya aktif deneme) ile açılır. Free planda tek şubenizi yönetmeye devam edersiniz.");
+        }
+    }
+
+    public async Task EnsureCanUseLiveOrderPanelAsync(Guid tenantId, CancellationToken cancellationToken)
+    {
+        var entitlements = await GetEntitlementsAsync(tenantId, cancellationToken);
+        if (!entitlements.CanUseLiveOrderPanel)
+        {
+            throw new EntitlementException(
+                "ENTITLEMENT_FEATURE_LIVE_ORDERS",
+                "Canlı sipariş paneli bu planda kapalı. Pro’ya geçerek ekibinizle birlikte takip edebilirsiniz.");
+        }
+    }
+
+    public async Task<FeatureEntitlements> EnsureLivePanelSessionAllowedAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var entitlements = await GetEntitlementsAsync(tenantId, cancellationToken);
+        if (!entitlements.CanUseLiveOrderPanel)
+        {
+            throw new EntitlementException(
+                "ENTITLEMENT_FEATURE_LIVE_ORDERS",
+                "Canlı sipariş paneli bu planda kapalı. Pro’ya geçerek ekibinizle birlikte takip edebilirsiniz.");
+        }
+
+        return entitlements;
     }
 
     private async Task ApplyExpiryIfNeededAsync(
@@ -509,7 +693,8 @@ public sealed class FeatureEntitlementService(
         FeatureEntitlements entitlements,
         bool isTrial,
         int frozenCount,
-        int activeCount)
+        int activeCount,
+        int activeQrCount)
     {
         var warnings = new List<string>();
         if (frozenCount > 0)
@@ -522,6 +707,23 @@ public sealed class FeatureEntitlementService(
         {
             warnings.Add(
                 $"Deneme sürüyor: en fazla {trialMax} şube. Süre bitince fazla şubeler dondurulur.");
+        }
+
+        if (entitlements.MaxActiveQrCodes is int maxQr && activeQrCount >= maxQr)
+        {
+            warnings.Add(
+                $"Aktif QR kotası dolu ({activeQrCount}/{maxQr}). Yeni masa için bir QR’ı pasife alın veya Pro’ya geçin.");
+        }
+        else if (entitlements.MaxActiveQrCodes is int softMax && activeQrCount >= softMax - 1 && softMax > 1)
+        {
+            warnings.Add(
+                $"Aktif QR kotasına yaklaşıyorsunuz ({activeQrCount}/{softMax}). Pro ile sınırsız aktif QR kullanabilirsiniz.");
+        }
+
+        if (entitlements.MaxConcurrentLiveSessions is 1)
+        {
+            warnings.Add(
+                "Ücretsiz planda canlı sipariş paneli tek cihazla açılır. Ekibin aynı anda takip etmesi için Pro’ya geçin.");
         }
 
         return warnings;

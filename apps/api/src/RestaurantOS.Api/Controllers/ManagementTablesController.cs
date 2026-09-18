@@ -290,9 +290,33 @@ public sealed class ManagementTablesController(IManagementTableService tableServ
         {
             var check = await tableService.GetTableCheckAsync(userId, tenantId, branchId, tableId, cancellationToken);
             return Ok(new ManagementTableCheckResponse(
+                check.TableId,
+                check.TableLabel,
                 check.RoundCount,
                 check.TotalAmountMinor,
-                check.HasIncompleteKitchen));
+                check.Currency,
+                check.HasIncompleteKitchen,
+                check.Rounds.Select(round => new ManagementTableCheckRoundResponse(
+                    round.OrderId,
+                    round.DisplayNumber,
+                    round.Status,
+                    round.AmountMinor,
+                    round.Currency,
+                    round.CreatedAtUtc,
+                    round.StatusChangedAtUtc,
+                    round.IsKitchenIncomplete,
+                    round.Items.Select(item => new ManagementOrderLineResponse(
+                        item.Id,
+                        item.MenuItemId,
+                        item.Name,
+                        item.Quantity,
+                        item.ListUnitPriceAmountMinor,
+                        item.DiscountUnitAmountMinor,
+                        item.UnitPriceAmountMinor,
+                        item.Currency,
+                        item.Note,
+                        item.SourcePackageId,
+                        item.SourcePackageName)).ToArray())).ToArray()));
         }
         catch (CustomerExperienceException exception)
         {
@@ -329,10 +353,15 @@ public sealed class ManagementTablesController(IManagementTableService tableServ
                 request?.Note,
                 cancellationToken);
             return Ok(new ManagementTableCheckCloseResponse(
-                closed.ClosedOrderCount,
-                closed.TotalAmountMinor,
+                closed.TableId,
+                closed.TableLabel,
                 closed.Tender,
-                closed.ForcedIncompleteKitchen));
+                closed.TotalAmountMinor,
+                closed.Currency,
+                closed.ClosedOrderCount,
+                closed.ForcedIncompleteKitchen,
+                closed.ClosedAtUtc,
+                closed.ClosedOrderIds));
         }
         catch (CustomerExperienceException exception)
         {
